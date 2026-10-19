@@ -36,5 +36,16 @@ Task 9: complete（CA sha256 新旧目录完全一致 → 客户端 ca.crt 无�
 
 Task 9: Ruling: `tools/tls_smoke.py` 在本机 Python 3.14 下报 `CA cert does not include key usage extension`（CERTIFICATE_VERIFY_FAILED）—— 与本改动无关（CA 字节未变、Qt 客户端 TLS 校验通过、openssl verify 通过），改用 openssl verify + auth_client.py 作为证据 —— 代价：README 中的 tls_smoke 命令在该 Python 版本下会失败（历史遗留，未修）。
 
-Task 10: 进行中（详见收尾记录）
+Task 6: complete（提交 0313963 结构改名、ea7e8de 内容与文档、bbc8a04 merge 到 main；已推送 origin/main）
+
+Final review: 独立评审（subagent，新上下文）→ 1 Important + 4 Minor。
+Final: fixed 安装包模板 exe 名 —— `chatbox/client/installer/chatbox.iss` MyAppExeName 仍是 `chatbox_client.exe`（会产出死快捷方式/安装后启动失败）；
+  新增测试 `installerTemplateTargetsChatboxExe` RED→GREEN（RED: 44 passed / 1 failed，GREEN: 45 passed / 0 failed），套件全绿；README 数字同步为 45。
+Final: minor (deferred): `core/app_settings.cpp` 未检查 `current.sync()` 的 status —— 注册表写入失败时仍记“migrated”日志；自愈（下次启动仍为空则重跑），修法：sync 后查 status 并改记错误日志。
+Final: minor (deferred): `chatbox/conf/chatbox.env.example` 提到不存在的 `deploy/setup_mysql.sh`（改名前的历史文案；README 里有实际 SQL）。
+Final: minor (deferred): `chatbox/README.md` 说 gen_certs.sh“会重新生成 CA 与服务器证书”，实际只在 CA 缺失时生成 CA（措辞不准）。
+Final: minor (deferred): `chatbox/tools/__pycache__/*.pyc`（4 个）是入库的字节码缓存，仍含旧名字符串；修法：`git rm --cached` + `.gitignore` 加 `__pycache__/`。
+
+Task 10: complete（台账/README/证据图齐备；旧库 chatroom、旧证书目录 /etc/chatroom/certs、旧 unit chatroom.service（disabled）、备份 dump 均保留为回滚点；便携 ZIP 未重建——用户此前暂停发行包工作；SSH 别名 chatroom-dev 与 2 份历史文档保留旧名）
+
 

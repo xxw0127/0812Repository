@@ -83,6 +83,7 @@ private slots:
     void settingsMigrationCopiesLegacyStore();
     void settingsMigrationNeverOverwritesCurrent();
     void brandIdentifiersAreUnified();
+    void installerTemplateTargetsChatboxExe();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -1453,6 +1454,26 @@ void TestClientCore::brandIdentifiersAreUnified() {
              "the server database default must be chatbox");
     QVERIFY2(server_config.contains(QStringLiteral("logs/chatbox.log")),
              "the server log default must be chatbox.log");
+}
+
+// The Inno Setup template must reference the executable the build actually
+// produces (chatbox.exe). ISCC is not installed on this machine, so the
+// template is never executed during the build; this source guard is what
+// catches a stale name (dead shortcuts, broken post-install launch).
+void TestClientCore::installerTemplateTargetsChatboxExe() {
+    QString path = QCoreApplication::applicationDirPath() +
+                   QStringLiteral("/../../installer/chatbox.iss");
+    if (!QFile::exists(path)) {
+        path = QStringLiteral("../installer/chatbox.iss");
+    }
+    QFile file(path);
+    QVERIFY2(file.open(QIODevice::ReadOnly | QIODevice::Text),
+             qPrintable(path + ": " + file.errorString()));
+    const QString source = QString::fromUtf8(file.readAll());
+    QVERIFY2(source.contains(QStringLiteral("#define MyAppExeName \"chatbox.exe\"")),
+             "the installer must target the executable the build produces");
+    QVERIFY2(!source.contains(QStringLiteral("_client.exe")),
+             "the installer must not reference a never-built executable name");
 }
 
 QTEST_MAIN(TestClientCore)

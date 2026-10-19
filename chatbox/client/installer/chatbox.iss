@@ -5,7 +5,7 @@
 
 #define MyAppName "ChatBox"
 #define MyAppVersion "0.2.0"
-#define MyAppExeName "chatbox_client.exe"
+#define MyAppExeName "chatbox.exe"
 
 [Setup]
 AppId={{8C4F7B6E-6E44-4B7E-9C3A-5A2F6B7C8D90}
