@@ -1,0 +1,42 @@
+#ifndef CHATROOM_CLIENT_CORE_MESSAGE_RENDERER_H
+#define CHATROOM_CLIENT_CORE_MESSAGE_RENDERER_H
+
+#include <QDateTime>
+#include <QString>
+#include <QVector>
+
+#include "core/chat_message.h"
+
+namespace chatroom {
+namespace client {
+
+// The server allows a recall only while the message is younger than this
+// (SQL: created_at >= UTC_TIMESTAMP() - INTERVAL 2 MINUTE); the client uses
+// the same window so it never offers an action the server would reject.
+constexpr int kRecallWindowSeconds = 120;
+
+// Actions offered for a single message by the hover action bar and the
+// context menu. 撤回 is only offered for the user's own, not-yet-recalled
+// messages that are still inside the recall window.
+struct MessageActions {
+    bool can_reply = false;
+    bool can_recall = false;
+    bool can_retry = false;
+};
+
+// now_utc is the reference time for the recall window; production callers
+// leave it at the current time, tests pass an explicit value.
+MessageActions messageActions(const ChatMessage& message, quint64 self_user_id,
+                              const QDateTime& now_utc = QDateTime::currentDateTimeUtc());
+
+// Renders the whole conversation as rich text. When rendered_messages is not
+// null it receives one key per rendered bubble in document order, so the view
+// can map mouse positions back to messages.
+QString renderConversationHtml(const QVector<ChatMessage>& messages,
+                               quint64 self_user_id,
+                               QVector<MessageKey>* rendered_messages = nullptr);
+
+}  // namespace client
+}  // namespace chatroom
+
+#endif  // CHATROOM_CLIENT_CORE_MESSAGE_RENDERER_H

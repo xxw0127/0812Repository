@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/">
+        <file>style.qss</file>
+        <file>app.ico</file>
+        <file>icons/search.png</file>
+        <file>icons/settings.png</file>
+        <file>icons/users.png</file>
+        <file>icons/send.png</file>
+        <file>icons/logout.png</file>
+        <file>icons/message.png</file>
+        <file>icons/contact.png</file>
+        <file>icons/check.png</file>
+    </qresource>
+</RCC>

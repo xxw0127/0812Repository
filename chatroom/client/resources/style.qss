@@ -1,0 +1,291 @@
+* {
+    font-family: "Segoe UI", "Microsoft YaHei UI";
+    font-size: 13px;
+    color: #0A0B0D;
+}
+
+QMainWindow, QDialog {
+    background: #F7F7F7;
+}
+
+QWidget#LoginPage {
+    background: #F7F7F7;
+}
+
+QFrame#LoginCard {
+    background: #FFFFFF;
+    border: 1px solid #DEE1E6;
+    border-radius: 16px;
+}
+
+QLabel#AppTitle {
+    font-size: 26px;
+    font-weight: 600;
+    color: #0A0B0D;
+}
+
+QLabel#AppSubtitle {
+    color: #7C828A;
+    font-size: 12px;
+}
+
+QLabel#SectionLabel {
+    color: #7C828A;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 8px 6px 4px 6px;
+}
+
+QLabel#ContextTitle {
+    font-size: 16px;
+    font-weight: 600;
+    padding: 2px 4px;
+}
+
+QLabel#MutedLabel {
+    color: #7C828A;
+    font-size: 12px;
+}
+
+QLineEdit, QSpinBox {
+    background: #EEF0F3;
+    border: 1px solid #DEE1E6;
+    border-radius: 8px;
+    padding: 8px 10px;
+    selection-background-color: #0052FF;
+    selection-color: #FFFFFF;
+}
+
+QLineEdit:focus, QSpinBox:focus {
+    background: #FFFFFF;
+    border: 1px solid #0052FF;
+}
+
+QLineEdit#MessageInput {
+    background: #EEF0F3;
+    border: 1px solid transparent;
+    border-radius: 18px;
+    padding: 9px 14px;
+}
+
+QLineEdit#MessageInput:focus {
+    background: #FFFFFF;
+    border: 1px solid #0052FF;
+}
+
+QPushButton {
+    background: #EEF0F3;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+QPushButton:hover {
+    background: #E6E8EC;
+}
+
+QPushButton:pressed {
+    background: #DEE1E6;
+}
+
+QPushButton:disabled {
+    color: #A8ACB3;
+    background: #F7F7F7;
+}
+
+QPushButton#PrimaryButton {
+    background: #0052FF;
+    color: #FFFFFF;
+    font-weight: 600;
+}
+
+QPushButton#PrimaryButton:hover {
+    background: #0046DD;
+}
+
+QPushButton#PrimaryButton:pressed {
+    background: #003ECC;
+}
+
+QPushButton#PrimaryButton:disabled {
+    background: #A8B8CC;
+    color: #FFFFFF;
+}
+
+QPushButton#SendButton {
+    background: #0052FF;
+    color: #FFFFFF;
+    border-radius: 18px;
+    padding: 8px 14px;
+}
+
+QPushButton#SendButton:hover {
+    background: #0046DD;
+}
+
+QPushButton#SendButton:pressed {
+    background: #003ECC;
+}
+
+QPushButton#IconButton {
+    padding: 7px;
+}
+
+QWidget#Sidebar {
+    background: #FFFFFF;
+    border-right: 1px solid #DEE1E6;
+}
+
+QWidget#RightSidebar {
+    background: #FFFFFF;
+    border-left: 1px solid #DEE1E6;
+}
+
+QWidget#ChatPanel {
+    background: #F7F7F7;
+}
+
+QWidget#ChatHeader {
+    background: #FFFFFF;
+    border-bottom: 1px solid #DEE1E6;
+}
+
+QWidget#Composer {
+    background: #FFFFFF;
+    border-top: 1px solid #DEE1E6;
+}
+
+QTextBrowser {
+    background: #F7F7F7;
+    border: none;
+    padding: 8px;
+}
+
+QFrame#MessageActionBar {
+    background: #FFFFFF;
+    border: 1px solid #DEE1E6;
+    border-radius: 12px;
+}
+
+QFrame#MessageActionBar QPushButton {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 3px 9px;
+    color: #0052FF;
+    font-size: 11px;
+}
+
+QFrame#MessageActionBar QPushButton:hover {
+    background: #F7F7F7;
+}
+
+QFrame#MessageActionBar QPushButton:pressed {
+    background: #EEF0F3;
+}
+
+QStackedWidget {
+    background: #F7F7F7;
+}
+
+QStatusBar {
+    background: #FFFFFF;
+    border-top: 1px solid #DEE1E6;
+    color: #7C828A;
+}
+
+QStatusBar QLabel {
+    color: #7C828A;
+    padding-left: 6px;
+}
+
+QListWidget {
+    background: transparent;
+    border: none;
+    outline: 0;
+    padding: 0;
+}
+
+QListWidget::item {
+    padding: 9px 10px;
+    border-radius: 8px;
+    margin: 1px 0;
+}
+
+QListWidget::item:hover {
+    background: #F7F7F7;
+}
+
+QListWidget::item:selected {
+    background: #EEF0F3;
+    color: #0A0B0D;
+}
+
+QScrollBar:vertical {
+    background: transparent;
+    width: 8px;
+    margin: 2px;
+}
+
+QScrollBar::handle:vertical {
+    background: #A8ACB3;
+    border-radius: 4px;
+    min-height: 24px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #7C828A;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+    border: none;
+    height: 0;
+}
+
+QCheckBox {
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid #A8ACB3;
+    background: #FFFFFF;
+}
+
+QCheckBox::indicator:checked {
+    background: #0052FF;
+    border: 1px solid #0052FF;
+    image: url(:/icons/check.png);
+}
+
+QDialogButtonBox QPushButton {
+    min-width: 72px;
+}
+
+QMenu {
+    background: #FFFFFF;
+    border: 1px solid #DEE1E6;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+QMenu::item {
+    padding: 8px 24px 8px 12px;
+    border-radius: 4px;
+}
+
+QMenu::item:selected {
+    background: #EEF0F3;
+    color: #0A0B0D;
+}
+
+QToolTip {
+    background: #0A0B0D;
+    color: #FFFFFF;
+    border: none;
+    padding: 6px 8px;
+}

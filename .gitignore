@@ -1,0 +1,41 @@
+# ================= 构建产物（不入库） =================
+chatroom/client/build/
+chatroom/client/dist/
+chatroom/client/tests/release/
+chatroom/client/tests/debug/
+chatroom/client/tests/Makefile
+chatroom/client/tests/Makefile.*
+chatroom/client/tests/object_script.*
+chatroom/client/tests/client_tests.exe
+chatroom/client/tests/results*.txt
+chatroom/client/tests/.qmake.stash
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.exe
+*.lib
+*.pro.user
+*.pro.user.*
+.qmake.stash
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# ================= 本地工具 / 环境 =================
+.opencode/
+*.log
+Thumbs.db
+desktop.ini
+
+# ================= 过程记录：只保留台账，不保留源码快照 =================
+.superpowers/sdd/user-profile-2026-10-18/
+.superpowers/**/snapshots/
+
+# ================= 密钥与真实环境配置（绝不入库） =================
+*.key
+*.pem
+*.p12
+*.pfx
+chatroom/conf/chatroom.env

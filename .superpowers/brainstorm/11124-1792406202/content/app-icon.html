@@ -1,0 +1,210 @@
+<style>
+  .icwrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+  .iccard { overflow: hidden; }
+  .icprev { display: grid; grid-template-columns: 1fr 1fr; }
+  .icprev > div { display: flex; align-items: center; justify-content: center; padding: 16px 0; }
+  .icprev svg { display: block; }
+  .icsizes { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #F3F5F9; border-top: 1px solid #E6E8EC; }
+  .icstrip { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #10151E; border-top: 1px solid #10151E; flex-wrap: wrap; }
+  .icstrip .lbl { color: #7D8AA0; }
+  .icstrip svg { display: block; }
+  .icsep { width: 1px; height: 22px; background: #2A3446; margin: 0 4px; }
+  .icbody { padding: .85rem 1rem 1rem; }
+  .icbody h3 { font-size: .95rem; margin: 0 0 .25rem; }
+  .icbody p { font-size: .82rem; color: #6B7280; margin: 0; line-height: 1.45; }
+  .lbl { font-size: .68rem; color: #6B7280; text-transform: none; letter-spacing: 0; }
+  .now { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+  .nowbox { background: #fff; border: 1px solid #E6E8EC; border-radius: 12px; padding: 12px 14px; }
+  .nowbox .cap { font-size: .74rem; color: #6B7280; margin-bottom: 10px; }
+  .nowrow { display: flex; align-items: center; gap: 12px; }
+  .nowstrip { display: flex; align-items: center; gap: 10px; background: #10151E; border-radius: 8px; padding: 8px 12px; margin-top: 10px; }
+  .nextbox { background: #EEF3FF; border: 1px solid #D6E0FF; border-radius: 12px; padding: 12px 16px; font-size: .85rem; color: #33415C; }
+  .nextbox b { color: #0052FF; }
+</style>
+
+<h2>应用图标 &amp; 托盘图标：挑一个方向</h2>
+<p class="subtitle">四个方向都按 Coinbase 蓝 #0052FF 设计。每张卡从上到下：浅底大图 → 深底大图 → 真实小尺寸（48/32/24/16px）→ 模拟任务栏与托盘（深色条：24/16px 带底板，20/16px 无底板纯符号）。重点看两点：大图喜不喜欢、16px 时还认不认得出。</p>
+
+<div class="section">
+  <div class="label">现状（为什么觉得丑）</div>
+  <div class="now">
+    <div class="nowbox">
+      <div class="cap">应用图标：app.ico 只有 64×64 一帧，淡青色人形剪影 —— 放大后线条发虚、边缘像素化，任务栏里只是一团青色</div>
+      <div class="nowrow">
+        <img src="/files/current-app-icon.png" width="64" height="64" alt="current app icon">
+        <img src="/files/current-app-icon.png" width="32" height="32" alt="">
+        <img src="/files/current-app-icon.png" width="16" height="16" alt="">
+      </div>
+      <div class="nowstrip">
+        <img src="/files/current-app-icon.png" width="24" height="24" alt="">
+        <img src="/files/current-app-icon.png" width="16" height="16" alt="">
+        <span style="color:#7D8AA0;font-size:.68rem">任务栏 24 / 16px</span>
+      </div>
+    </div>
+    <div class="nowbox">
+      <div class="cap">托盘图标：直接用 Qt 自带的信息图标（蓝色 i，非品牌图形）</div>
+      <div class="nowrow">
+        <svg width="20" height="20" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#0A5FD6"/><circle cx="16" cy="10" r="2.6" fill="#fff"/><rect x="13.6" y="14" width="4.8" height="10" rx="2.2" fill="#fff"/></svg>
+        <span style="color:#6B7280;font-size:.78rem">≈ Qt SP_MessageBoxInformation（示意）</span>
+      </div>
+      <div class="nowstrip">
+        <svg width="16" height="16" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#0A5FD6"/><circle cx="16" cy="10" r="2.6" fill="#fff"/><rect x="13.6" y="14" width="4.8" height="10" rx="2.2" fill="#fff"/></svg>
+        <span style="color:#7D8AA0;font-size:.68rem">托盘 16px（被 Windows 默认收进溢出区）</span>
+      </div>
+    </div>
+    <div class="nowbox">
+      <div class="cap">大厅图标：绿色圆 + 房间号「1」，房间号对用户没有意义</div>
+      <div class="nowrow" style="flex-direction:column;align-items:flex-start;gap:8px">
+        <img src="/files/current-room-row.png" alt="room row" style="width:200px;height:44px">
+        <img src="/files/current-room-header.png" alt="room header" style="width:200px;height:44px">
+      </div>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mkA" viewBox="0 0 256 256">
+    <rect width="256" height="256" rx="56" fill="#0052FF"/>
+    <path d="M193 144 A70 70 0 1 1 193 92" fill="none" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round"/>
+    <circle cx="182" cy="170" r="24" fill="#FFFFFF"/>
+  </symbol>
+  <symbol id="mkAg" viewBox="0 0 256 256">
+    <path d="M193 144 A70 70 0 1 1 193 92" fill="none" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round"/>
+    <circle cx="182" cy="170" r="24" fill="#FFFFFF"/>
+  </symbol>
+  <symbol id="mkB" viewBox="0 0 256 256">
+    <rect width="256" height="256" rx="56" fill="#0052FF"/>
+    <rect x="30" y="36" width="196" height="170" rx="62" fill="#FFFFFF"/>
+    <path d="M76 196 L 60 240 L 124 200 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M157.7 91.3 A42 42 0 1 0 157.7 150.7" fill="none" stroke="#0052FF" stroke-width="26" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="mkBg" viewBox="0 0 256 256">
+    <rect x="30" y="36" width="196" height="170" rx="62" fill="#FFFFFF"/>
+    <path d="M76 196 L 60 240 L 124 200 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M157.7 91.3 A42 42 0 1 0 157.7 150.7" fill="none" stroke="#0052FF" stroke-width="26" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="mkC" viewBox="0 0 256 256">
+    <circle cx="128" cy="128" r="124" fill="#0052FF"/>
+    <path d="M164.9 78.2 A62 62 0 1 0 164.9 177.8" fill="none" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="mkD" viewBox="0 0 256 256">
+    <rect width="256" height="256" rx="56" fill="#FFFFFF"/>
+    <rect x="42" y="48" width="172" height="150" rx="56" fill="#0052FF"/>
+    <path d="M86 186 L 74 226 L 130 190 Z" fill="#0052FF" stroke="#0052FF" stroke-width="14" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="mkDg" viewBox="0 0 256 256">
+    <rect x="42" y="48" width="172" height="150" rx="56" fill="#0052FF"/>
+    <path d="M86 186 L 74 226 L 130 190 Z" fill="#0052FF" stroke="#0052FF" stroke-width="14" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<div class="cards">
+  <div class="card iccard" data-choice="A" onclick="toggleSelect(this)">
+    <div class="icprev">
+      <div style="background:#F3F5F9"><svg width="116" height="116"><use href="#mkA"/></svg></div>
+      <div style="background:#10151E"><svg width="116" height="116"><use href="#mkA"/></svg></div>
+    </div>
+    <div class="icsizes">
+      <span class="lbl">48</span><svg width="48" height="48"><use href="#mkA"/></svg>
+      <span class="lbl">32</span><svg width="32" height="32"><use href="#mkA"/></svg>
+      <span class="lbl">24</span><svg width="24" height="24"><use href="#mkA"/></svg>
+      <span class="lbl">16</span><svg width="16" height="16"><use href="#mkA"/></svg>
+    </div>
+    <div class="icstrip">
+      <span class="lbl">任务栏</span>
+      <svg width="24" height="24"><use href="#mkA"/></svg>
+      <svg width="16" height="16"><use href="#mkA"/></svg>
+      <span class="icsep"></span>
+      <span class="lbl">托盘·无底板</span>
+      <svg width="20" height="20"><use href="#mkAg"/></svg>
+      <svg width="16" height="16"><use href="#mkAg"/></svg>
+    </div>
+    <div class="icbody">
+      <h3>A · 「C 气泡」</h3>
+      <p>圆角蓝底 + 白色气泡圈：环上的开口就是字母 C，右下鼓出的小尾巴让它同时是聊天气泡。几何、干净，小尺寸还能看出是个气泡。</p>
+    </div>
+  </div>
+
+  <div class="card iccard" data-choice="B" onclick="toggleSelect(this)">
+    <div class="icprev">
+      <div style="background:#F3F5F9"><svg width="116" height="116"><use href="#mkB"/></svg></div>
+      <div style="background:#10151E"><svg width="116" height="116"><use href="#mkB"/></svg></div>
+    </div>
+    <div class="icsizes">
+      <span class="lbl">48</span><svg width="48" height="48"><use href="#mkB"/></svg>
+      <span class="lbl">32</span><svg width="32" height="32"><use href="#mkB"/></svg>
+      <span class="lbl">24</span><svg width="24" height="24"><use href="#mkB"/></svg>
+      <span class="lbl">16</span><svg width="16" height="16"><use href="#mkB"/></svg>
+    </div>
+    <div class="icstrip">
+      <span class="lbl">任务栏</span>
+      <svg width="24" height="24"><use href="#mkB"/></svg>
+      <svg width="16" height="16"><use href="#mkB"/></svg>
+      <span class="icsep"></span>
+      <span class="lbl">托盘·无底板</span>
+      <svg width="20" height="20"><use href="#mkBg"/></svg>
+      <svg width="16" height="16"><use href="#mkBg"/></svg>
+    </div>
+    <div class="icbody">
+      <h3>B · 实心气泡 + 镂空 C</h3>
+      <p>白色实心气泡，中间嵌一个蓝 C。大尺寸最饱满、最"应用感"；但 16px 时里面的 C 会糊掉，只剩白色气泡轮廓。</p>
+    </div>
+  </div>
+
+  <div class="card iccard" data-choice="C" onclick="toggleSelect(this)">
+    <div class="icprev">
+      <div style="background:#F3F5F9"><svg width="116" height="116"><use href="#mkC"/></svg></div>
+      <div style="background:#10151E"><svg width="116" height="116"><use href="#mkC"/></svg></div>
+    </div>
+    <div class="icsizes">
+      <span class="lbl">48</span><svg width="48" height="48"><use href="#mkC"/></svg>
+      <span class="lbl">32</span><svg width="32" height="32"><use href="#mkC"/></svg>
+      <span class="lbl">24</span><svg width="24" height="24"><use href="#mkC"/></svg>
+      <span class="lbl">16</span><svg width="16" height="16"><use href="#mkC"/></svg>
+    </div>
+    <div class="icstrip">
+      <span class="lbl">任务栏 / 托盘（圆牌本身就是图标，无底板）</span>
+      <svg width="24" height="24"><use href="#mkC"/></svg>
+      <svg width="16" height="16"><use href="#mkC"/></svg>
+    </div>
+    <div class="icbody">
+      <h3>C · C 圆牌</h3>
+      <p>蓝圆 + 白色粗 C，和登录页的 Logo 完全一致，最简洁、16px 最清楚。代价：和 Coinbase 自家那个蓝 C 标非常接近，有"像山寨官方应用"的风险。</p>
+    </div>
+  </div>
+
+  <div class="card iccard" data-choice="D" onclick="toggleSelect(this)">
+    <div class="icprev">
+      <div style="background:#F3F5F9"><svg width="116" height="116"><use href="#mkD"/></svg></div>
+      <div style="background:#10151E"><svg width="116" height="116"><use href="#mkD"/></svg></div>
+    </div>
+    <div class="icsizes">
+      <span class="lbl">48</span><svg width="48" height="48"><use href="#mkD"/></svg>
+      <span class="lbl">32</span><svg width="32" height="32"><use href="#mkD"/></svg>
+      <span class="lbl">24</span><svg width="24" height="24"><use href="#mkD"/></svg>
+      <span class="lbl">16</span><svg width="16" height="16"><use href="#mkD"/></svg>
+    </div>
+    <div class="icstrip">
+      <span class="lbl">任务栏</span>
+      <svg width="24" height="24"><use href="#mkD"/></svg>
+      <svg width="16" height="16"><use href="#mkD"/></svg>
+      <span class="icsep"></span>
+      <span class="lbl">托盘·无底板</span>
+      <svg width="20" height="20"><use href="#mkDg"/></svg>
+      <svg width="16" height="16"><use href="#mkDg"/></svg>
+    </div>
+    <div class="icbody">
+      <h3>D · 纯气泡（无字母）</h3>
+      <p>白色圆角底 + 蓝色实心气泡。小尺寸辨识度最高，深色任务栏里最醒目；缺点是和 "Chatroom / C" 的品牌联系最弱。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:1rem">
+  <div class="nextbox">
+    <b>大厅图标（绿色「1」）</b>也在这个重做范围里 —— 它最好和主标记用同一套形状语言，所以先定上面这个，下一步我马上给大厅图标的几版方案（保持绿色房间色 vs 换成品牌蓝气泡等）。<br>
+    顺带确认一下我理解的范围：<b>应用图标（exe/任务栏/窗口）+ 托盘图标 + 大厅图标</b>。
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1rem">看好了直接在下面点一张卡（或在终端里跟我说编号 / 想要的改动，比如「A 但尾巴再大点」）。</p>

@@ -1,0 +1,14 @@
+/home/xxw/桌面/0917/chatroom/logs/chatroom.log {
+    su xxw xxw
+    daily
+    rotate 7
+    size 100M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    create 0640 xxw xxw
+    postrotate
+        systemctl kill -s USR1 chatroom.service || true
+    endscript
+}

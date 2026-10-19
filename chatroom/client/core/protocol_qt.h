@@ -1,0 +1,18 @@
+#ifndef CHATROOM_CLIENT_CORE_PROTOCOL_QT_H
+#define CHATROOM_CLIENT_CORE_PROTOCOL_QT_H
+
+#include <QByteArray>
+#include <QString>
+
+#include "common/protocol.h"
+
+namespace chatroom {
+
+QByteArray encodeToByteArray(const Frame& frame);
+bool decodeFromByteArray(const QByteArray& data, Frame& frame);
+QString fromUtf8(const std::string& value);
+std::string toUtf8(const QString& value);
+
+}  // namespace chatroom
+
+#endif  // CHATROOM_CLIENT_CORE_PROTOCOL_QT_H
