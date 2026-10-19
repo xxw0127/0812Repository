@@ -1,10 +1,10 @@
-#ifndef CHATROOM_CLIENT_CORE_MESSAGE_TIME_H
-#define CHATROOM_CLIENT_CORE_MESSAGE_TIME_H
+#ifndef CHATBOX_CLIENT_CORE_MESSAGE_TIME_H
+#define CHATBOX_CLIENT_CORE_MESSAGE_TIME_H
 
 #include <QDateTime>
 #include <QString>
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 QDateTime parseServerUtc(const QString& text);
@@ -12,6 +12,6 @@ QString formatLocalTime(const QDateTime& utc);
 QString formatLocalDate(const QDateTime& utc);
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_CLIENT_CORE_MESSAGE_TIME_H
+#endif  // CHATBOX_CLIENT_CORE_MESSAGE_TIME_H

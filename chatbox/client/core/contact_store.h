@@ -1,11 +1,11 @@
-#ifndef CHATROOM_CLIENT_CORE_CONTACT_STORE_H
-#define CHATROOM_CLIENT_CORE_CONTACT_STORE_H
+#ifndef CHATBOX_CLIENT_CORE_CONTACT_STORE_H
+#define CHATBOX_CLIENT_CORE_CONTACT_STORE_H
 
 #include <QString>
 #include <QVector>
 #include <QtGlobal>
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 struct Contact {
@@ -30,6 +30,6 @@ private:
 };
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_CLIENT_CORE_CONTACT_STORE_H
+#endif  // CHATBOX_CLIENT_CORE_CONTACT_STORE_H

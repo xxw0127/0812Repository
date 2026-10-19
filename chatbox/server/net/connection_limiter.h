@@ -1,5 +1,5 @@
-#ifndef CHATROOM_SERVER_NET_CONNECTION_LIMITER_H
-#define CHATROOM_SERVER_NET_CONNECTION_LIMITER_H
+#ifndef CHATBOX_SERVER_NET_CONNECTION_LIMITER_H
+#define CHATBOX_SERVER_NET_CONNECTION_LIMITER_H
 
 #include <atomic>
 #include <cstdint>
@@ -7,7 +7,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace chatroom {
+namespace chatbox {
 
 class ConnectionLimiter {
 public:
@@ -25,6 +25,6 @@ private:
     std::unordered_map<uint64_t, std::string> connection_ips_;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_NET_CONNECTION_LIMITER_H
+#endif  // CHATBOX_SERVER_NET_CONNECTION_LIMITER_H

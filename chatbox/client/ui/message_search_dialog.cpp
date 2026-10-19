@@ -11,7 +11,7 @@
 #include "core/message_time.h"
 #include "core/ui_theme.h"
 
-namespace theme = chatroom::client::theme;  // Coinbase palette tokens
+namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
 MessageSearchDialog::MessageSearchDialog(QWidget* parent) : QDialog(parent) {
     setWindowTitle("搜索消息");
@@ -42,10 +42,10 @@ MessageSearchDialog::MessageSearchDialog(QWidget* parent) : QDialog(parent) {
 void MessageSearchDialog::setResults(const QVector<MessageSearchResult>& results) {
     result_list_->clear();
     for (const MessageSearchResult& result : results) {
-        const QDateTime utc = chatroom::client::parseServerUtc(result.created_at);
+        const QDateTime utc = chatbox::client::parseServerUtc(result.created_at);
         const QString local_time =
-            utc.isValid() ? chatroom::client::formatLocalDate(utc) + " " +
-                                chatroom::client::formatLocalTime(utc)
+            utc.isValid() ? chatbox::client::formatLocalDate(utc) + " " +
+                                chatbox::client::formatLocalTime(utc)
                           : result.created_at;
         QString text = QString("%1  %2: %3")
                            .arg(local_time, result.nickname,

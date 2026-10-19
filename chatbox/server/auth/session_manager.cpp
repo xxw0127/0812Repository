@@ -1,6 +1,6 @@
 #include "server/auth/session_manager.h"
 
-namespace chatroom {
+namespace chatbox {
 
 bool SessionManager::bind(uint64_t user_id, const SessionBinding& binding,
                           SessionBinding& old_binding) {
@@ -51,4 +51,4 @@ bool SessionManager::isOnline(uint64_t user_id) const {
     return find(user_id, binding);
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

@@ -1,6 +1,6 @@
 #include "core/outbox.h"
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 void Outbox::add(const ChatMessage& message, const QDateTime& now) {
@@ -100,4 +100,4 @@ int Outbox::indexOf(const QString& client_msg_id) const {
 }
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox

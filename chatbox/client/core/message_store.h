@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_CORE_MESSAGE_STORE_H
-#define CHATROOM_CLIENT_CORE_MESSAGE_STORE_H
+#ifndef CHATBOX_CLIENT_CORE_MESSAGE_STORE_H
+#define CHATBOX_CLIENT_CORE_MESSAGE_STORE_H
 
 #include <QDateTime>
 #include <QString>
@@ -7,7 +7,7 @@
 
 #include "core/chat_message.h"
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 class MessageStore {
@@ -40,6 +40,6 @@ private:
 };
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_CLIENT_CORE_MESSAGE_STORE_H
+#endif  // CHATBOX_CLIENT_CORE_MESSAGE_STORE_H

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(chatroom_server LANGUAGES CXX)
+project(chatbox_server LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -20,30 +20,30 @@ if(NOT ARGON2_LIBRARY)
     message(FATAL_ERROR "libargon2 not found")
 endif()
 
-add_library(chatroom_common
+add_library(chatbox_common
     common/protocol.cpp
     common/text_utils.cpp
 )
-target_include_directories(chatroom_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(chatbox_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_library(chatroom_metrics
+add_library(chatbox_metrics
     server/util/logging.cpp
     server/util/metrics.cpp
 )
-target_include_directories(chatroom_metrics PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(chatroom_metrics PUBLIC Threads::Threads)
+target_include_directories(chatbox_metrics PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(chatbox_metrics PUBLIC Threads::Threads)
 
-add_library(chatroom_net
+add_library(chatbox_net
     server/net/buffer.cpp
     server/net/connection.cpp
     server/net/connection_limiter.cpp
     server/net/io_thread.cpp
     server/net/acceptor.cpp
 )
-target_include_directories(chatroom_net PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(chatroom_net PUBLIC chatroom_common chatroom_metrics Threads::Threads)
+target_include_directories(chatbox_net PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(chatbox_net PUBLIC chatbox_common chatbox_metrics Threads::Threads)
 
-add_executable(chatroom_server
+add_executable(chatbox_server
     server/main.cpp
     server/config.cpp
     server/db/mysql_connection.cpp
@@ -60,9 +60,9 @@ add_executable(chatroom_server
     server/friend/friend_service.cpp
     server/profile/profile_service.cpp
 )
-target_include_directories(chatroom_server PRIVATE ${MYSQL_INCLUDE_DIR})
-target_link_libraries(chatroom_server PRIVATE
-    chatroom_net
+target_include_directories(chatbox_server PRIVATE ${MYSQL_INCLUDE_DIR})
+target_link_libraries(chatbox_server PRIVATE
+    chatbox_net
     ${MYSQL_LIBRARY}
     ${ARGON2_LIBRARY}
     OpenSSL::Crypto
@@ -71,19 +71,19 @@ target_link_libraries(chatroom_server PRIVATE
 enable_testing()
 
 add_executable(test_protocol tests/test_protocol.cpp)
-target_link_libraries(test_protocol PRIVATE chatroom_common)
+target_link_libraries(test_protocol PRIVATE chatbox_common)
 add_test(NAME protocol COMMAND test_protocol)
 
 add_executable(test_text_utils tests/test_text_utils.cpp)
-target_link_libraries(test_text_utils PRIVATE chatroom_common)
+target_link_libraries(test_text_utils PRIVATE chatbox_common)
 add_test(NAME text_utils COMMAND test_text_utils)
 
 add_executable(test_buffer tests/test_buffer.cpp)
-target_link_libraries(test_buffer PRIVATE chatroom_net)
+target_link_libraries(test_buffer PRIVATE chatbox_net)
 add_test(NAME buffer COMMAND test_buffer)
 
 add_executable(test_metrics tests/test_metrics.cpp)
-target_link_libraries(test_metrics PRIVATE chatroom_metrics)
+target_link_libraries(test_metrics PRIVATE chatbox_metrics)
 add_test(NAME metrics COMMAND test_metrics)
 
 add_executable(test_auth

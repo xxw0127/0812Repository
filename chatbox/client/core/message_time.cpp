@@ -1,6 +1,6 @@
 #include "core/message_time.h"
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 QDateTime parseServerUtc(const QString& text) {
@@ -31,4 +31,4 @@ QString formatLocalDate(const QDateTime& utc) {
 }
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox

@@ -22,6 +22,7 @@
 #include <QTextFragment>
 #include <QVector>
 
+#include "core/app_settings.h"
 #include "core/avatar_cache.h"
 #include "core/avatar_utils.h"
 #include "core/contact_store.h"
@@ -79,10 +80,13 @@ private slots:
     void memberListShowsAvatarFromCache();
     void fallbackAvatarPaletteIsSingleSource();
     void appTitleUsesBrandName();
+    void settingsMigrationCopiesLegacyStore();
+    void settingsMigrationNeverOverwritesCurrent();
+    void brandIdentifiersAreUnified();
 };
 
 void TestClientCore::parseServerUtc() {
-    const QDateTime parsed = chatroom::client::parseServerUtc("2026-10-18 12:00:00");
+    const QDateTime parsed = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
     QVERIFY(parsed.isValid());
     QCOMPARE(parsed.timeSpec(), Qt::UTC);
     QCOMPARE(parsed.date(), QDate(2026, 10, 18));
@@ -92,91 +96,91 @@ void TestClientCore::parseServerUtc() {
 void TestClientCore::formatLocalTimeAndDate() {
     const QDateTime local(QDate(2026, 10, 18), QTime(10, 30, 0), Qt::LocalTime);
     const QDateTime utc = local.toUTC();
-    QCOMPARE(chatroom::client::formatLocalTime(utc), QString("10:30"));
-    QCOMPARE(chatroom::client::formatLocalDate(utc), QString("2026-10-18"));
+    QCOMPARE(chatbox::client::formatLocalTime(utc), QString("10:30"));
+    QCOMPARE(chatbox::client::formatLocalDate(utc), QString("2026-10-18"));
 }
 
 void TestClientCore::invalidTimestamp() {
-    const QDateTime parsed = chatroom::client::parseServerUtc("not-a-time");
+    const QDateTime parsed = chatbox::client::parseServerUtc("not-a-time");
     QVERIFY(!parsed.isValid());
-    QCOMPARE(chatroom::client::formatLocalTime(parsed), QString("--:--"));
-    QCOMPARE(chatroom::client::formatLocalDate(parsed), QString("--"));
+    QCOMPARE(chatbox::client::formatLocalTime(parsed), QString("--:--"));
+    QCOMPARE(chatbox::client::formatLocalDate(parsed), QString("--"));
 }
 
 void TestClientCore::publicUserIdFormat() {
-    QCOMPARE(chatroom::client::publicUserId(278), QString("U00000278"));
-    QCOMPARE(chatroom::client::publicUserId(123456789), QString("U123456789"));
-    QVERIFY(chatroom::client::publicUserId(278) !=
-            chatroom::client::publicUserId(279));
+    QCOMPARE(chatbox::client::publicUserId(278), QString("U00000278"));
+    QCOMPARE(chatbox::client::publicUserId(123456789), QString("U123456789"));
+    QVERIFY(chatbox::client::publicUserId(278) !=
+            chatbox::client::publicUserId(279));
 }
 
 void TestClientCore::messageStorePendingAndAck() {
-    chatroom::client::MessageStore store;
-    store.reset(chatroom::client::ChatContext::kPrivate, 7);
+    chatbox::client::MessageStore store;
+    store.reset(chatbox::client::ChatContext::kPrivate, 7);
 
-    chatroom::client::ChatMessage pending;
+    chatbox::client::ChatMessage pending;
     pending.client_msg_id = "p1";
     pending.content = "hello";
-    pending.status = chatroom::client::MessageStatus::kSending;
+    pending.status = chatbox::client::MessageStatus::kSending;
     store.addPending(pending);
 
     QCOMPARE(store.messages().size(), 1);
     QVERIFY(store.findByClientId("p1") != nullptr);
     QCOMPARE(store.findByClientId("p1")->content, QString("hello"));
     QVERIFY(store.findByClientId("missing") == nullptr);
-    const QDateTime created = chatroom::client::parseServerUtc("2026-10-18 12:00:00");
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
     QVERIFY(store.markSent("p1", 42, created));
     QCOMPARE(store.messages().size(), 1);
     QCOMPARE(store.messages().at(0).message_id, quint64(42));
-    QCOMPARE(store.messages().at(0).status, chatroom::client::MessageStatus::kSent);
+    QCOMPARE(store.messages().at(0).status, chatbox::client::MessageStatus::kSent);
 
     QVERIFY(store.markSent("p1", 42, created));
     QCOMPARE(store.messages().size(), 1);
 
     QVERIFY(store.markSending("p1"));
-    QCOMPARE(store.messages().at(0).status, chatroom::client::MessageStatus::kSending);
+    QCOMPARE(store.messages().at(0).status, chatbox::client::MessageStatus::kSending);
 
     store.addPending(pending);
     QCOMPARE(store.messages().size(), 1);
 }
 
 void TestClientCore::messageStoreHistoryPreservesPending() {
-    chatroom::client::MessageStore store;
-    store.reset(chatroom::client::ChatContext::kRoom, 1);
+    chatbox::client::MessageStore store;
+    store.reset(chatbox::client::ChatContext::kRoom, 1);
 
-    chatroom::client::ChatMessage pending;
+    chatbox::client::ChatMessage pending;
     pending.client_msg_id = "p1";
-    pending.status = chatroom::client::MessageStatus::kSending;
+    pending.status = chatbox::client::MessageStatus::kSending;
     pending.content = "pending";
     store.addPending(pending);
 
-    chatroom::client::ChatMessage history;
+    chatbox::client::ChatMessage history;
     history.message_id = 1;
-    history.status = chatroom::client::MessageStatus::kSent;
+    history.status = chatbox::client::MessageStatus::kSent;
     history.content = "history";
     store.replaceHistory({history});
 
     QCOMPARE(store.messages().size(), 2);
     QCOMPARE(store.messages().at(0).message_id, quint64(1));
     QCOMPARE(store.messages().at(1).client_msg_id, QString("p1"));
-    QCOMPARE(store.messages().at(1).status, chatroom::client::MessageStatus::kSending);
+    QCOMPARE(store.messages().at(1).status, chatbox::client::MessageStatus::kSending);
 }
 
 void TestClientCore::messageStorePrependHistory() {
-    chatroom::client::MessageStore store;
-    store.reset(chatroom::client::ChatContext::kRoom, 1);
+    chatbox::client::MessageStore store;
+    store.reset(chatbox::client::ChatContext::kRoom, 1);
 
-    chatroom::client::ChatMessage current;
+    chatbox::client::ChatMessage current;
     current.message_id = 10;
-    current.status = chatroom::client::MessageStatus::kSent;
+    current.status = chatbox::client::MessageStatus::kSent;
     store.appendIncoming(current);
 
-    chatroom::client::ChatMessage older8;
+    chatbox::client::ChatMessage older8;
     older8.message_id = 8;
-    older8.status = chatroom::client::MessageStatus::kSent;
-    chatroom::client::ChatMessage older9;
+    older8.status = chatbox::client::MessageStatus::kSent;
+    chatbox::client::ChatMessage older9;
     older9.message_id = 9;
-    older9.status = chatroom::client::MessageStatus::kSent;
+    older9.status = chatbox::client::MessageStatus::kSent;
     store.prependHistory({older8, older9});
     QCOMPARE(store.messages().size(), 3);
     QCOMPARE(store.messages().at(0).message_id, quint64(8));
@@ -188,30 +192,30 @@ void TestClientCore::messageStorePrependHistory() {
 }
 
 void TestClientCore::messageStoreReconcilesLapsedAck() {
-    chatroom::client::MessageStore store;
-    store.reset(chatroom::client::ChatContext::kPrivate, 7);
+    chatbox::client::MessageStore store;
+    store.reset(chatbox::client::ChatContext::kPrivate, 7);
 
-    const QDateTime sent_at = chatroom::client::parseServerUtc("2026-10-18 12:00:00");
-    chatroom::client::ChatMessage pending;
+    const QDateTime sent_at = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage pending;
     pending.client_msg_id = "p1";
-    pending.context = chatroom::client::ChatContext::kPrivate;
+    pending.context = chatbox::client::ChatContext::kPrivate;
     pending.target_id = 7;
     pending.sender_id = 1;
     pending.content = "hello";
     pending.created_at_utc = sent_at;
     pending.outgoing = true;
-    pending.status = chatroom::client::MessageStatus::kFailed;
+    pending.status = chatbox::client::MessageStatus::kFailed;
     store.addPending(pending);
 
-    chatroom::client::ChatMessage history;
+    chatbox::client::ChatMessage history;
     history.message_id = 42;
-    history.context = chatroom::client::ChatContext::kPrivate;
+    history.context = chatbox::client::ChatContext::kPrivate;
     history.target_id = 7;
     history.sender_id = 1;
     history.content = "hello";
     history.created_at_utc = sent_at.addSecs(1);
     history.outgoing = true;
-    history.status = chatroom::client::MessageStatus::kSent;
+    history.status = chatbox::client::MessageStatus::kSent;
     store.replaceHistory({history});
 
     QCOMPARE(store.messages().size(), 1);
@@ -223,12 +227,12 @@ void TestClientCore::messageStoreReconcilesLapsedAck() {
 }
 
 void TestClientCore::messageStoreMarkRecalled() {
-    chatroom::client::MessageStore store;
-    store.reset(chatroom::client::ChatContext::kRoom, 1);
-    chatroom::client::ChatMessage message;
+    chatbox::client::MessageStore store;
+    store.reset(chatbox::client::ChatContext::kRoom, 1);
+    chatbox::client::ChatMessage message;
     message.message_id = 99;
     message.content = "to recall";
-    message.status = chatroom::client::MessageStatus::kSent;
+    message.status = chatbox::client::MessageStatus::kSent;
     store.appendIncoming(message);
 
     QVERIFY(store.findMessage(99) != nullptr);
@@ -239,12 +243,12 @@ void TestClientCore::messageStoreMarkRecalled() {
 }
 
 void TestClientCore::outboxExpiresAndMarksFailed() {
-    chatroom::client::Outbox outbox;
-    const QDateTime t0 = chatroom::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::Outbox outbox;
+    const QDateTime t0 = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
 
-    chatroom::client::ChatMessage message;
+    chatbox::client::ChatMessage message;
     message.client_msg_id = "p1";
-    message.status = chatroom::client::MessageStatus::kSending;
+    message.status = chatbox::client::MessageStatus::kSending;
     outbox.add(message, t0);
     QVERIFY(outbox.contains("p1"));
 
@@ -252,41 +256,41 @@ void TestClientCore::outboxExpiresAndMarksFailed() {
     const QVector<QString> expired = outbox.expireSending(t0.addSecs(11), 10);
     QCOMPARE(expired.size(), 1);
     QCOMPARE(expired.at(0), QString("p1"));
-    QCOMPARE(outbox.pending().at(0).status, chatroom::client::MessageStatus::kFailed);
+    QCOMPARE(outbox.pending().at(0).status, chatbox::client::MessageStatus::kFailed);
 
     QVERIFY(outbox.markSent("p1"));
     QVERIFY(!outbox.contains("p1"));
 }
 
 void TestClientCore::outboxMarksSentAndAllFailed() {
-    chatroom::client::Outbox outbox;
-    const QDateTime now = chatroom::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::Outbox outbox;
+    const QDateTime now = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
 
-    chatroom::client::ChatMessage first;
+    chatbox::client::ChatMessage first;
     first.client_msg_id = "p1";
-    first.status = chatroom::client::MessageStatus::kSending;
-    chatroom::client::ChatMessage second;
+    first.status = chatbox::client::MessageStatus::kSending;
+    chatbox::client::ChatMessage second;
     second.client_msg_id = "p2";
-    second.status = chatroom::client::MessageStatus::kSending;
+    second.status = chatbox::client::MessageStatus::kSending;
     outbox.add(first, now);
     outbox.add(second, now);
 
     QVERIFY(outbox.markSent("p1"));
     QVERIFY(!outbox.contains("p1"));
     QCOMPARE(outbox.markAllSendingFailed(), 1);
-    QCOMPARE(outbox.pending().at(0).status, chatroom::client::MessageStatus::kFailed);
+    QCOMPARE(outbox.pending().at(0).status, chatbox::client::MessageStatus::kFailed);
 }
 
 void TestClientCore::rendererEscapesHtml() {
-    const QDateTime created = chatroom::client::parseServerUtc("2026-10-18 12:00:00");
-    chatroom::client::ChatMessage message;
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage message;
     message.message_id = 1;
     message.sender_name = "<b>Alice</b>";
     message.content = "<script>alert(\"x\")</script>";
     message.created_at_utc = created;
-    message.status = chatroom::client::MessageStatus::kSent;
+    message.status = chatbox::client::MessageStatus::kSent;
 
-    const QString html = chatroom::client::renderConversationHtml({message}, 99);
+    const QString html = chatbox::client::renderConversationHtml({message}, 99);
     QVERIFY(html.contains("&lt;script&gt;"));
     QVERIFY(html.contains("&lt;b&gt;Alice&lt;/b&gt;"));
     QVERIFY(!html.contains("<script>"));
@@ -294,21 +298,21 @@ void TestClientCore::rendererEscapesHtml() {
 }
 
 void TestClientCore::rendererShowsRetryOnlyWhenFailed() {
-    const QDateTime created = chatroom::client::parseServerUtc("2026-10-18 12:00:00");
-    chatroom::client::ChatMessage failed;
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage failed;
     failed.client_msg_id = "p1";
     failed.content = "hello";
     failed.created_at_utc = created;
     failed.outgoing = true;
-    failed.status = chatroom::client::MessageStatus::kFailed;
+    failed.status = chatbox::client::MessageStatus::kFailed;
 
-    QString html = chatroom::client::renderConversationHtml({failed}, 1);
+    QString html = chatbox::client::renderConversationHtml({failed}, 1);
     QVERIFY(html.contains("retry:p1"));
     QVERIFY(html.contains("发送失败"));
 
-    chatroom::client::ChatMessage sent = failed;
-    sent.status = chatroom::client::MessageStatus::kSent;
-    html = chatroom::client::renderConversationHtml({sent}, 1);
+    chatbox::client::ChatMessage sent = failed;
+    sent.status = chatbox::client::MessageStatus::kSent;
+    html = chatbox::client::renderConversationHtml({sent}, 1);
     QVERIFY(!html.contains("retry:p1"));
     QVERIFY(!html.contains("发送失败"));
 }
@@ -317,32 +321,32 @@ void TestClientCore::rendererAddsDateSeparator() {
     const QDateTime first_local(QDate(2026, 10, 18), QTime(10, 0), Qt::LocalTime);
     const QDateTime second_local(QDate(2026, 10, 19), QTime(10, 0), Qt::LocalTime);
 
-    chatroom::client::ChatMessage first;
+    chatbox::client::ChatMessage first;
     first.message_id = 1;
     first.content = "day one";
     first.created_at_utc = first_local.toUTC();
-    chatroom::client::ChatMessage second;
+    chatbox::client::ChatMessage second;
     second.message_id = 2;
     second.content = "day two";
     second.created_at_utc = second_local.toUTC();
 
-    const QString html = chatroom::client::renderConversationHtml({first, second}, 1);
+    const QString html = chatbox::client::renderConversationHtml({first, second}, 1);
     QVERIFY(html.contains("2026-10-18"));
     QVERIFY(html.contains("2026-10-19"));
 }
 
 void TestClientCore::rendererAlignsOwnMessages() {
-    const QDateTime created = chatroom::client::parseServerUtc("2026-10-18 12:00:00");
-    chatroom::client::ChatMessage own;
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage own;
     own.message_id = 1;
     own.content = "own";
     own.created_at_utc = created;
     own.outgoing = true;
 
-    QString html = chatroom::client::renderConversationHtml({own}, 1);
+    QString html = chatbox::client::renderConversationHtml({own}, 1);
     QVERIFY(html.contains("align=\"right\""));
 
-    chatroom::client::ChatMessage other;
+    chatbox::client::ChatMessage other;
     other.message_id = 2;
     other.sender_id = 2;
     other.sender_name = "Bob";
@@ -350,13 +354,13 @@ void TestClientCore::rendererAlignsOwnMessages() {
     other.created_at_utc = created;
     other.outgoing = false;
 
-    html = chatroom::client::renderConversationHtml({other}, 1);
+    html = chatbox::client::renderConversationHtml({other}, 1);
     QVERIFY(html.contains("align=\"left\""));
 }
 
 void TestClientCore::rendererQuoteBlockWithoutInlineActions() {
-    const QDateTime created = chatroom::client::parseServerUtc("2026-10-18 12:00:00");
-    chatroom::client::ChatMessage quoted;
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage quoted;
     quoted.message_id = 7;
     quoted.sender_name = "Bob";
     quoted.content = "quoted body";
@@ -366,80 +370,80 @@ void TestClientCore::rendererQuoteBlockWithoutInlineActions() {
     quoted.reply_sender_name = "Alice";
     quoted.reply_content = "original text";
 
-    QString html = chatroom::client::renderConversationHtml({quoted}, 1);
+    QString html = chatbox::client::renderConversationHtml({quoted}, 1);
     QVERIFY(html.contains("回复 Alice: original text"));
     QVERIFY(!html.contains("quote:7"));
 
-    chatroom::client::ChatMessage recalled = quoted;
+    chatbox::client::ChatMessage recalled = quoted;
     recalled.message_id = 8;
     recalled.outgoing = true;
     recalled.content = "secret";
     recalled.recalled = true;
-    html = chatroom::client::renderConversationHtml({recalled}, 1);
+    html = chatbox::client::renderConversationHtml({recalled}, 1);
     QVERIFY(html.contains("消息已撤回"));
     QVERIFY(!html.contains("secret"));
     QVERIFY(!html.contains("recall:8"));
 
-    chatroom::client::ChatMessage own;
+    chatbox::client::ChatMessage own;
     own.message_id = 9;
     own.content = "own";
     own.created_at_utc = created;
     own.outgoing = true;
-    html = chatroom::client::renderConversationHtml({own}, 1);
+    html = chatbox::client::renderConversationHtml({own}, 1);
     QVERIFY(!html.contains("recall:9"));
 }
 
 void TestClientCore::messageActionsAvailability() {
     const QDateTime now = QDateTime::currentDateTimeUtc();
-    chatroom::client::ChatMessage incoming;
+    chatbox::client::ChatMessage incoming;
     incoming.message_id = 5;
     incoming.sender_id = 2;
-    chatroom::client::MessageActions actions =
-        chatroom::client::messageActions(incoming, 1, now);
+    chatbox::client::MessageActions actions =
+        chatbox::client::messageActions(incoming, 1, now);
     QVERIFY(actions.can_reply);
     QVERIFY(!actions.can_recall);
     QVERIFY(!actions.can_retry);
 
-    chatroom::client::ChatMessage own;
+    chatbox::client::ChatMessage own;
     own.message_id = 6;
     own.outgoing = true;
     own.created_at_utc = now;
-    actions = chatroom::client::messageActions(own, 1, now);
+    actions = chatbox::client::messageActions(own, 1, now);
     QVERIFY(actions.can_reply);
     QVERIFY(actions.can_recall);
 
     // Room history marks the user's own messages by sender id.
-    chatroom::client::ChatMessage own_by_sender;
+    chatbox::client::ChatMessage own_by_sender;
     own_by_sender.message_id = 7;
     own_by_sender.sender_id = 1;
     own_by_sender.created_at_utc = now.addSecs(-5);
-    actions = chatroom::client::messageActions(own_by_sender, 1, now);
+    actions = chatbox::client::messageActions(own_by_sender, 1, now);
     QVERIFY(actions.can_reply);
     QVERIFY(actions.can_recall);
 
-    chatroom::client::ChatMessage recalled;
+    chatbox::client::ChatMessage recalled;
     recalled.message_id = 8;
     recalled.outgoing = true;
     recalled.recalled = true;
     recalled.created_at_utc = now;
-    actions = chatroom::client::messageActions(recalled, 1, now);
+    actions = chatbox::client::messageActions(recalled, 1, now);
     QVERIFY(!actions.can_reply);
     QVERIFY(!actions.can_recall);
     QVERIFY(!actions.can_retry);
 
-    chatroom::client::ChatMessage failed;
+    chatbox::client::ChatMessage failed;
     failed.client_msg_id = "p1";
     failed.outgoing = true;
-    failed.status = chatroom::client::MessageStatus::kFailed;
-    actions = chatroom::client::messageActions(failed, 1, now);
+    failed.status = chatbox::client::MessageStatus::kFailed;
+    actions = chatbox::client::messageActions(failed, 1, now);
     QVERIFY(actions.can_retry);
     QVERIFY(!actions.can_reply);
     QVERIFY(!actions.can_recall);
 
-    chatroom::client::ChatMessage sending;
+    chatbox::client::ChatMessage sending;
     sending.client_msg_id = "p2";
-    sending.status = chatroom::client::MessageStatus::kSending;
-    actions = chatroom::client::messageActions(sending, 1, now);
+    sending.status = chatbox::client::MessageStatus::kSending;
+    actions = chatbox::client::messageActions(sending, 1, now);
     QVERIFY(!actions.can_retry);
     QVERIFY(!actions.can_reply);
 }
@@ -449,56 +453,56 @@ void TestClientCore::messageActionsRecallWindow() {
     // message never offers 撤回 that the server would reject.
     const QDateTime now = QDateTime::currentDateTimeUtc();
 
-    chatroom::client::ChatMessage own;
+    chatbox::client::ChatMessage own;
     own.message_id = 9;
     own.outgoing = true;
     own.created_at_utc = now.addSecs(-121);
-    chatroom::client::MessageActions actions =
-        chatroom::client::messageActions(own, 1, now);
+    chatbox::client::MessageActions actions =
+        chatbox::client::messageActions(own, 1, now);
     QVERIFY(actions.can_reply);
     QVERIFY(!actions.can_recall);
 
     own.created_at_utc = now.addSecs(-119);
-    actions = chatroom::client::messageActions(own, 1, now);
+    actions = chatbox::client::messageActions(own, 1, now);
     QVERIFY(actions.can_recall);
 
     // Exactly at the limit the server still accepts the recall.
     own.created_at_utc = now.addSecs(-120);
-    actions = chatroom::client::messageActions(own, 1, now);
+    actions = chatbox::client::messageActions(own, 1, now);
     QVERIFY(actions.can_recall);
 
     // Other people's messages never offer 撤回, however fresh they are.
-    chatroom::client::ChatMessage incoming;
+    chatbox::client::ChatMessage incoming;
     incoming.message_id = 10;
     incoming.sender_id = 2;
     incoming.created_at_utc = now;
-    actions = chatroom::client::messageActions(incoming, 1, now);
+    actions = chatbox::client::messageActions(incoming, 1, now);
     QVERIFY(actions.can_reply);
     QVERIFY(!actions.can_recall);
 
     // A message without a server timestamp cannot be recalled either.
-    chatroom::client::ChatMessage no_time;
+    chatbox::client::ChatMessage no_time;
     no_time.message_id = 11;
     no_time.outgoing = true;
-    actions = chatroom::client::messageActions(no_time, 1, now);
+    actions = chatbox::client::messageActions(no_time, 1, now);
     QVERIFY(!actions.can_recall);
 
     // The default reference time is the current wall clock.
     own.created_at_utc = now.addSecs(-300);
-    actions = chatroom::client::messageActions(own, 1);
+    actions = chatbox::client::messageActions(own, 1);
     QVERIFY(actions.can_reply);
     QVERIFY(!actions.can_recall);
 }
 
 void TestClientCore::chatViewMapsMessagesToIds() {
-    const QDateTime created = chatroom::client::parseServerUtc("2026-10-18 12:00:00");
-    chatroom::client::ChatMessage first;
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage first;
     first.message_id = 11;
     first.sender_id = 2;
     first.sender_name = "Bob";
     first.content = "first body";
     first.created_at_utc = created;
-    chatroom::client::ChatMessage second;
+    chatbox::client::ChatMessage second;
     second.message_id = 22;
     second.sender_id = 1;
     second.sender_name = "Me";
@@ -506,16 +510,16 @@ void TestClientCore::chatViewMapsMessagesToIds() {
     second.created_at_utc = created;
     second.outgoing = true;
 
-    chatroom::client::ChatMessage failed;
+    chatbox::client::ChatMessage failed;
     failed.client_msg_id = "p9";
     failed.content = "failed body";
     failed.created_at_utc = created;
     failed.outgoing = true;
-    failed.status = chatroom::client::MessageStatus::kFailed;
+    failed.status = chatbox::client::MessageStatus::kFailed;
 
-    QVector<chatroom::client::MessageKey> keys;
+    QVector<chatbox::client::MessageKey> keys;
     const QString html =
-        chatroom::client::renderConversationHtml({first, second, failed}, 1, &keys);
+        chatbox::client::renderConversationHtml({first, second, failed}, 1, &keys);
     QCOMPARE(keys.size(), 3);
     QCOMPARE(keys.at(0).message_id, quint64(11));
     QCOMPARE(keys.at(1).message_id, quint64(22));
@@ -547,11 +551,11 @@ void TestClientCore::chatViewMapsMessagesToIds() {
     QVERIFY(!failed_cursor.isNull());
     const QPoint failed_pos = view.cursorRect(failed_cursor).center();
     QCOMPARE(view.messageIdAt(failed_pos), quint64(0));
-    chatroom::client::MessageKey failed_key;
+    chatbox::client::MessageKey failed_key;
     QVERIFY(view.messageKeyAt(failed_pos, &failed_key));
     QCOMPARE(failed_key.client_msg_id, QString("p9"));
 
-    chatroom::client::MessageKey none;
+    chatbox::client::MessageKey none;
     QVERIFY(!view.messageKeyAt(QPoint(1, 1), &none));
 
     const QRect first_anchor = view.messageAnchorRect(11);
@@ -583,16 +587,16 @@ void TestClientCore::chatViewMapsMessagesToIds() {
 }
 
 void TestClientCore::chatViewStylesRetryLink() {
-    const QDateTime created = chatroom::client::parseServerUtc("2026-10-18 12:00:00");
-    chatroom::client::ChatMessage failed;
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage failed;
     failed.client_msg_id = "p1";
     failed.content = "oops";
     failed.created_at_utc = created;
     failed.outgoing = true;
-    failed.status = chatroom::client::MessageStatus::kFailed;
+    failed.status = chatbox::client::MessageStatus::kFailed;
 
-    QVector<chatroom::client::MessageKey> keys;
-    const QString html = chatroom::client::renderConversationHtml({failed}, 1, &keys);
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html = chatbox::client::renderConversationHtml({failed}, 1, &keys);
     ChatView view;
     view.resize(640, 480);
     view.show();
@@ -611,7 +615,7 @@ void TestClientCore::chatViewStylesRetryLink() {
             QVERIFY(format.isAnchor());
             QVERIFY(!format.fontUnderline());
             QCOMPARE(format.foreground().color(),
-                     QColor(chatroom::client::theme::kAccent));
+                     QColor(chatbox::client::theme::kAccent));
             inspected = true;
         }
     }
@@ -619,8 +623,8 @@ void TestClientCore::chatViewStylesRetryLink() {
 }
 
 void TestClientCore::chatViewHoverReentersSameMessage() {
-    const QDateTime created = chatroom::client::parseServerUtc("2026-10-18 12:00:00");
-    chatroom::client::ChatMessage own;
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage own;
     own.message_id = 22;
     own.sender_id = 1;
     own.sender_name = "Me";
@@ -628,8 +632,8 @@ void TestClientCore::chatViewHoverReentersSameMessage() {
     own.created_at_utc = created;
     own.outgoing = true;
 
-    QVector<chatroom::client::MessageKey> keys;
-    const QString html = chatroom::client::renderConversationHtml({own}, 1, &keys);
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html = chatbox::client::renderConversationHtml({own}, 1, &keys);
 
     ChatView view;
     view.resize(640, 480);
@@ -671,7 +675,7 @@ void TestClientCore::chatViewHoverReentersSameMessage() {
 void TestClientCore::contactStorePersistsAndUpdates() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
-    QCoreApplication::setOrganizationName("ChatroomTest");
+    QCoreApplication::setOrganizationName("ChatBoxTest");
     QCoreApplication::setApplicationName("ClientCoreTest");
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory.path());
@@ -679,11 +683,11 @@ void TestClientCore::contactStorePersistsAndUpdates() {
     settings.remove("contacts");
     settings.sync();
 
-    chatroom::client::Contact first;
+    chatbox::client::Contact first;
     first.user_id = 42;
     first.username = "alice";
     first.nickname = "Alice";
-    chatroom::client::ContactStore store;
+    chatbox::client::ContactStore store;
     QVERIFY(store.add(first));
     QCOMPARE(store.contacts().size(), 1);
 
@@ -692,19 +696,19 @@ void TestClientCore::contactStorePersistsAndUpdates() {
     QCOMPARE(store.contacts().size(), 1);
     QCOMPARE(store.contacts().at(0).nickname, QString("Alice 2"));
 
-    chatroom::client::Contact second;
+    chatbox::client::Contact second;
     second.user_id = 43;
     second.username = "bob";
     second.nickname = "Bob";
     QVERIFY(store.add(second));
 
-    chatroom::client::ContactStore reloaded;
+    chatbox::client::ContactStore reloaded;
     QCOMPARE(reloaded.contacts().size(), 2);
     QVERIFY(reloaded.remove(42));
     QCOMPARE(reloaded.contacts().size(), 1);
     QCOMPARE(reloaded.contacts().at(0).user_id, quint64(43));
 
-    chatroom::client::ContactStore other("other-scope");
+    chatbox::client::ContactStore other("other-scope");
     other.add(first);
     QCOMPARE(other.contacts().size(), 1);
     QCOMPARE(reloaded.contacts().size(), 1);
@@ -716,17 +720,17 @@ void TestClientCore::contactStorePersistsAndUpdates() {
 void TestClientCore::avatarCenterCrop() {
     QImage wide(2, 1, QImage::Format_RGB32);
     wide.fill(Qt::red);
-    const QImage cropped = chatroom::client::centerCropSquare(wide);
+    const QImage cropped = chatbox::client::centerCropSquare(wide);
     QVERIFY(!cropped.isNull());
     QCOMPARE(cropped.width(), 1);
     QCOMPARE(cropped.height(), 1);
 
     QImage square(5, 5, QImage::Format_RGB32);
     square.fill(Qt::blue);
-    const QImage unchanged = chatroom::client::centerCropSquare(square);
+    const QImage unchanged = chatbox::client::centerCropSquare(square);
     QCOMPARE(unchanged.size(), QSize(5, 5));
 
-    QVERIFY(chatroom::client::centerCropSquare(QImage()).isNull());
+    QVERIFY(chatbox::client::centerCropSquare(QImage()).isNull());
 }
 
 void TestClientCore::avatarCompressionLimit() {
@@ -744,32 +748,32 @@ void TestClientCore::avatarCompressionLimit() {
         }
     }
 
-    const QByteArray jpeg = chatroom::client::encodeAvatarJpeg(noisy);
+    const QByteArray jpeg = chatbox::client::encodeAvatarJpeg(noisy);
     QVERIFY(!jpeg.isEmpty());
     QVERIFY(jpeg.size() <= 48 * 1024);
     QVERIFY(jpeg.startsWith(QByteArray::fromHex("ffd8ff")));
 
-    QVERIFY(chatroom::client::encodeAvatarJpeg(QImage()).isEmpty());
-    QVERIFY(chatroom::client::encodeAvatarJpeg(noisy, 1).isEmpty());
+    QVERIFY(chatbox::client::encodeAvatarJpeg(QImage()).isEmpty());
+    QVERIFY(chatbox::client::encodeAvatarJpeg(noisy, 1).isEmpty());
 }
 
 void TestClientCore::avatarFallback() {
-    const QImage fallback = chatroom::client::fallbackAvatar("Alice", 42, 64);
+    const QImage fallback = chatbox::client::fallbackAvatar("Alice", 42, 64);
     QVERIFY(!fallback.isNull());
     QCOMPARE(fallback.size(), QSize(64, 64));
     QVERIFY(fallback.hasAlphaChannel());
     QVERIFY(fallback.pixelColor(32, 32).alpha() > 0);
     QCOMPARE(fallback.pixelColor(0, 0).alpha(), 0);
 
-    const QImage same = chatroom::client::fallbackAvatar("Alice", 42, 64);
+    const QImage same = chatbox::client::fallbackAvatar("Alice", 42, 64);
     QVERIFY(fallback == same);
 
-    QVERIFY(!chatroom::client::fallbackAvatar(QString(), 42, 64).isNull());
-    QVERIFY(chatroom::client::fallbackAvatar("Alice", 42, 0).isNull());
+    QVERIFY(!chatbox::client::fallbackAvatar(QString(), 42, 64).isNull());
+    QVERIFY(chatbox::client::fallbackAvatar("Alice", 42, 0).isNull());
 }
 
 void TestClientCore::avatarCacheVersion() {
-    chatroom::client::AvatarCache cache;
+    chatbox::client::AvatarCache cache;
     QImage image;
     QVERIFY(!cache.needsFetch(7, 0));
     QVERIFY(cache.needsFetch(7, 3));
@@ -802,7 +806,7 @@ void TestClientCore::avatarCacheVersion() {
 }
 
 void TestClientCore::avatarCacheIgnoresOlderVersions() {
-    chatroom::client::AvatarCache cache;
+    chatbox::client::AvatarCache cache;
     QImage image;
 
     QImage version2(8, 8, QImage::Format_RGB32);
@@ -847,23 +851,23 @@ void TestClientCore::avatarCacheIgnoresOlderVersions() {
 }
 
 void TestClientCore::profileDisplayNameFallsBackToNickname() {
-    chatroom::client::UserProfile profile;
+    chatbox::client::UserProfile profile;
     profile.nickname = QString::fromUtf8("昵称");
-    QCOMPARE(chatroom::client::profileDisplayName(profile), QString::fromUtf8("昵称"));
+    QCOMPARE(chatbox::client::profileDisplayName(profile), QString::fromUtf8("昵称"));
 
     profile.remark = QString::fromUtf8("备注");
-    QCOMPARE(chatroom::client::profileDisplayName(profile), QString::fromUtf8("备注"));
+    QCOMPARE(chatbox::client::profileDisplayName(profile), QString::fromUtf8("备注"));
 
     profile.remark = QString::fromUtf8("  备注  ");
-    QCOMPARE(chatroom::client::profileDisplayName(profile), QString::fromUtf8("备注"));
+    QCOMPARE(chatbox::client::profileDisplayName(profile), QString::fromUtf8("备注"));
 
     profile.remark = "   ";
-    QCOMPARE(chatroom::client::profileDisplayName(profile), QString::fromUtf8("昵称"));
+    QCOMPARE(chatbox::client::profileDisplayName(profile), QString::fromUtf8("昵称"));
 }
 
 void TestClientCore::profileDialogSelfMode() {
     ProfileDialog dialog;
-    chatroom::client::UserProfile profile;
+    chatbox::client::UserProfile profile;
     profile.user_id = 278;
     profile.username = "alice";
     profile.nickname = QString::fromUtf8("爱丽丝");
@@ -1008,7 +1012,7 @@ void TestClientCore::profileDialogSelfMode() {
 
 void TestClientCore::profileDialogViewModeActions() {
     ProfileDialog dialog;
-    chatroom::client::UserProfile profile;
+    chatbox::client::UserProfile profile;
     profile.user_id = 42;
     profile.username = "bob";
     profile.nickname = QString::fromUtf8("鲍勃");
@@ -1119,8 +1123,8 @@ void TestClientCore::profileDialogViewModeActions() {
 // the conversation HTML must use the theme bubble palette (own messages keep
 // the green semantic tint), not the retired WhatsApp-era greys.
 void TestClientCore::messageBubbleColoursComeFromTheme() {
-    const QDateTime created = chatroom::client::parseServerUtc("2026-10-19 12:00:00");
-    chatroom::client::ChatMessage own;
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-19 12:00:00");
+    chatbox::client::ChatMessage own;
     own.client_msg_id = "c1";
     own.message_id = 1;
     own.sender_id = 1;
@@ -1128,7 +1132,7 @@ void TestClientCore::messageBubbleColoursComeFromTheme() {
     own.created_at_utc = created;
     own.outgoing = true;
 
-    chatroom::client::ChatMessage other;
+    chatbox::client::ChatMessage other;
     other.client_msg_id = "c2";
     other.message_id = 2;
     other.sender_id = 9;
@@ -1136,21 +1140,21 @@ void TestClientCore::messageBubbleColoursComeFromTheme() {
     other.content = "yo";
     other.created_at_utc = created;
 
-    chatroom::client::ChatMessage failed;
+    chatbox::client::ChatMessage failed;
     failed.client_msg_id = "c3";
     failed.sender_id = 1;
     failed.content = "nope";
     failed.created_at_utc = created;
     failed.outgoing = true;
-    failed.status = chatroom::client::MessageStatus::kFailed;
+    failed.status = chatbox::client::MessageStatus::kFailed;
 
-    const QString html = chatroom::client::renderConversationHtml({own, other, failed}, 1);
-    QVERIFY(html.contains(QString::fromLatin1(chatroom::client::theme::kBubbleOwn)));
-    QVERIFY(html.contains(QString::fromLatin1(chatroom::client::theme::kBubbleOther)));
+    const QString html = chatbox::client::renderConversationHtml({own, other, failed}, 1);
+    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kBubbleOwn)));
+    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kBubbleOther)));
     QVERIFY(!html.contains(QStringLiteral("#DCF8C6")));
     QVERIFY(!html.contains(QStringLiteral("#F2F2F2")));
     // a failed send is an error state, so it uses the semantic-down colour
-    QVERIFY(html.contains(QString::fromLatin1(chatroom::client::theme::kSemanticDown)));
+    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kSemanticDown)));
     QVERIFY(html.contains(QStringLiteral("retry:c3")));
 }
 
@@ -1174,18 +1178,18 @@ void TestClientCore::themeTokensMatchStyleSheet() {
     // 注意：kBody/kBubbleOwn/kBubbleOther/kSemanticUp/kSemanticDown/kBanner*
     // 只出现在 C++/HTML 里，不在 QSS，故不在此列表。
     const QStringList required = {
-        chatroom::client::theme::kAccent,
-        chatroom::client::theme::kAccentHover,
-        chatroom::client::theme::kAccentActive,
-        chatroom::client::theme::kAccentDisabled,
-        chatroom::client::theme::kCanvas,
-        chatroom::client::theme::kSurfaceSoft,
-        chatroom::client::theme::kSurfaceStrong,
-        chatroom::client::theme::kSurfaceStrongHover,
-        chatroom::client::theme::kHairline,
-        chatroom::client::theme::kInk,
-        chatroom::client::theme::kMuted,
-        chatroom::client::theme::kMutedSoft,
+        chatbox::client::theme::kAccent,
+        chatbox::client::theme::kAccentHover,
+        chatbox::client::theme::kAccentActive,
+        chatbox::client::theme::kAccentDisabled,
+        chatbox::client::theme::kCanvas,
+        chatbox::client::theme::kSurfaceSoft,
+        chatbox::client::theme::kSurfaceStrong,
+        chatbox::client::theme::kSurfaceStrongHover,
+        chatbox::client::theme::kHairline,
+        chatbox::client::theme::kInk,
+        chatbox::client::theme::kMuted,
+        chatbox::client::theme::kMutedSoft,
     };
     QStringList allowed;
     for (const QString& token : required) {
@@ -1241,10 +1245,10 @@ void TestClientCore::brandAppIconExposesSizes() {
 // Room badge (R2): accent disc + white speech bubble, no letter. Replaces the
 // old green "1" circle in the sidebar and chat header.
 void TestClientCore::roomAvatarIsBrandBadge() {
-    const QImage img = chatroom::client::roomAvatar(36);
+    const QImage img = chatbox::client::roomAvatar(36);
     QCOMPARE(img.size(), QSize(36, 36));
     QCOMPARE(img.pixelColor(18, 18), QColor(Qt::white));  // bubble body centre
-    QCOMPARE(img.pixelColor(4, 18), QColor(chatroom::client::theme::kAccent));
+    QCOMPARE(img.pixelColor(4, 18), QColor(chatbox::client::theme::kAccent));
     QCOMPARE(img.pixelColor(0, 0).alpha(), 0);  // round badge: corners empty
 }
 
@@ -1313,16 +1317,14 @@ void TestClientCore::fallbackAvatarPaletteIsSingleSource() {
                  !source.contains(QStringLiteral("#4CAF50")) &&
                  !source.contains(QStringLiteral("#F5A623")),
              "main_window must not carry its own fallback palette");
-    QVERIFY2(source.contains(QStringLiteral("chatroom::client::fallbackAvatar(")),
+    QVERIFY2(source.contains(QStringLiteral("chatbox::client::fallbackAvatar(")),
              "fallback avatars must come from core/avatar_utils");
 }
 
 // The product is called ChatBox: window title, tray tooltip, unread-count
-// title and the login card must all use it, and the old "Chatroom Client"
+// title and the login card must all use it, and the old "ChatBox Client"
 // string must not come back. Rendering needs widgets, so this is a source
-// guard. Internal identifiers (directory, exe, QSettings, server service)
-// intentionally keep the chatroom name so deployments and user sessions
-// survive the rebrand.
+// guard; brandIdentifiersAreUnified covers the internal identifiers.
 void TestClientCore::appTitleUsesBrandName() {
     const auto read_source = [](const QString& relative) -> QString {
         QString path = QCoreApplication::applicationDirPath() +
@@ -1338,7 +1340,7 @@ void TestClientCore::appTitleUsesBrandName() {
     };
     const QString window = read_source(QStringLiteral("ui/main_window.cpp"));
     QVERIFY2(!window.isEmpty(), "ui/main_window.cpp must be readable");
-    QVERIFY2(!window.contains(QStringLiteral("Chatroom Client")),
+    QVERIFY2(!window.contains(QStringLiteral("ChatBox Client")),
              "the old product name must not come back");
     QVERIFY2(window.contains(QStringLiteral("setWindowTitle(\"ChatBox\"")),
              "window title must use the ChatBox brand");
@@ -1351,6 +1353,106 @@ void TestClientCore::appTitleUsesBrandName() {
     QVERIFY2(!login.isEmpty(), "ui/login_page.cpp must be readable");
     QVERIFY2(login.contains(QStringLiteral("QLabel(\"ChatBox\"")),
              "login card title must use the ChatBox brand");
+}
+
+// Sessions and preferences used to live under the Chatroom/ChatroomClient
+// identifiers. The ChatBox rename switches the store to ChatBox/ChatBox, so
+// the first start has to copy the legacy values over; otherwise every user
+// would be logged out by the rebrand.
+void TestClientCore::settingsMigrationCopiesLegacyStore() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString legacy_path = dir.filePath(QStringLiteral("legacy.ini"));
+    const QString current_path = dir.filePath(QStringLiteral("current.ini"));
+    {
+        QSettings legacy(legacy_path, QSettings::IniFormat);
+        legacy.setValue(QStringLiteral("session/token"), QStringLiteral("token-123"));
+        legacy.setValue(QStringLiteral("server/host"), QStringLiteral("192.168.2.113"));
+        legacy.sync();
+    }
+    {
+        QSettings current(current_path, QSettings::IniFormat);
+        QSettings legacy(legacy_path, QSettings::IniFormat);
+        QVERIFY(chatbox::client::migrateLegacySettings(current, legacy));
+        QCOMPARE(current.value(QStringLiteral("session/token")).toString(),
+                 QStringLiteral("token-123"));
+        QCOMPARE(current.value(QStringLiteral("server/host")).toString(),
+                 QStringLiteral("192.168.2.113"));
+    }
+    // A fresh install has nothing to copy and must not report a migration.
+    {
+        QSettings current(dir.filePath(QStringLiteral("fresh.ini")), QSettings::IniFormat);
+        QSettings legacy(dir.filePath(QStringLiteral("empty-legacy.ini")), QSettings::IniFormat);
+        QVERIFY(!chatbox::client::migrateLegacySettings(current, legacy));
+    }
+}
+
+// The migration only ever fills an empty store: values written after the
+// rename (for example a token refreshed by the new build) must win.
+void TestClientCore::settingsMigrationNeverOverwritesCurrent() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString legacy_path = dir.filePath(QStringLiteral("legacy.ini"));
+    const QString current_path = dir.filePath(QStringLiteral("current.ini"));
+    {
+        QSettings legacy(legacy_path, QSettings::IniFormat);
+        legacy.setValue(QStringLiteral("session/token"), QStringLiteral("stale-token"));
+        legacy.sync();
+    }
+    {
+        QSettings current(current_path, QSettings::IniFormat);
+        current.setValue(QStringLiteral("session/token"), QStringLiteral("fresh-token"));
+        current.sync();
+    }
+    {
+        QSettings current(current_path, QSettings::IniFormat);
+        QSettings legacy(legacy_path, QSettings::IniFormat);
+        QVERIFY(!chatbox::client::migrateLegacySettings(current, legacy));
+        QCOMPARE(current.value(QStringLiteral("session/token")).toString(),
+                 QStringLiteral("fresh-token"));
+    }
+}
+
+// The rename unified the internal identifiers too: executable (chatbox.exe),
+// project file, QSettings store and the server-side database/log defaults all
+// read chatbox/ChatBox now. This is a source guard, the values live in build
+// and deployment files that the test binary cannot execute.
+void TestClientCore::brandIdentifiersAreUnified() {
+    const auto read_source = [](const QString& relative) -> QString {
+        QString path = QCoreApplication::applicationDirPath() +
+                       QStringLiteral("/../../") + relative;
+        if (!QFile::exists(path)) {
+            path = QStringLiteral("../") + relative;
+        }
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            return QString();
+        }
+        return QString::fromUtf8(file.readAll());
+    };
+    const QString main_source = read_source(QStringLiteral("main.cpp"));
+    QVERIFY2(!main_source.isEmpty(), "main.cpp must be readable");
+    QVERIFY2(main_source.contains(QStringLiteral("setOrganizationName(\"ChatBox\")")),
+             "QSettings organisation must be ChatBox");
+    QVERIFY2(main_source.contains(QStringLiteral("setApplicationName(\"ChatBox\")")),
+             "QSettings application must be ChatBox");
+    QVERIFY2(main_source.contains(QStringLiteral("migrateLegacySettings(")),
+             "startup must migrate the pre-ChatBox settings store");
+    QVERIFY2(main_source.contains(QStringLiteral("QStringLiteral(\"Chatroom\")")) &&
+                 main_source.contains(QStringLiteral("QStringLiteral(\"ChatroomClient\")")),
+             "the migration must read the legacy Chatroom/ChatroomClient store");
+
+    const QString project = read_source(QStringLiteral("chatbox.pro"));
+    QVERIFY2(!project.isEmpty(), "chatbox.pro must exist next to main.cpp (project file renamed)");
+    QVERIFY2(project.contains(QStringLiteral("TARGET = chatbox")),
+             "the client executable must be chatbox.exe");
+
+    const QString server_config = read_source(QStringLiteral("../server/config.h"));
+    QVERIFY2(!server_config.isEmpty(), "../server/config.h must be readable");
+    QVERIFY2(server_config.contains(QStringLiteral("db_name = \"chatbox\"")),
+             "the server database default must be chatbox");
+    QVERIFY2(server_config.contains(QStringLiteral("logs/chatbox.log")),
+             "the server log default must be chatbox.log");
 }
 
 QTEST_MAIN(TestClientCore)

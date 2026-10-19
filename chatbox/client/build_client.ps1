@@ -21,7 +21,7 @@ New-Item -ItemType Directory -Force -Path $build | Out-Null
 
 Push-Location $build
 try {
-    & (Join-Path $QtDir "bin\qmake.exe") "..\chatroom_client.pro"
+    & (Join-Path $QtDir "bin\qmake.exe") "..\chatbox.pro"
     if ($LASTEXITCODE -ne 0) {
         throw "qmake failed"
     }
@@ -84,4 +84,4 @@ if (Test-Path $style_plugin) {
     Copy-Item $style_plugin $styles -Force
 }
 
-Write-Host "Build complete: $release\chatroom_client.exe"
+Write-Host "Build complete: $release\chatbox.exe"

@@ -7,20 +7,20 @@
 namespace {
 
 int testUtf8CodePointCount() {
-    CHECK_EQ(chatroom::utf8CodePointCount("abc"), std::size_t(3));
-    CHECK_EQ(chatroom::utf8CodePointCount("你好"), std::size_t(2));
-    CHECK_EQ(chatroom::utf8CodePointCount("A😀"), std::size_t(2));
+    CHECK_EQ(chatbox::utf8CodePointCount("abc"), std::size_t(3));
+    CHECK_EQ(chatbox::utf8CodePointCount("你好"), std::size_t(2));
+    CHECK_EQ(chatbox::utf8CodePointCount("A😀"), std::size_t(2));
     return 0;
 }
 
 int testTrimAsciiWhitespace() {
-    CHECK_EQ(chatroom::trimAsciiWhitespace("  hi\n"), std::string("hi"));
+    CHECK_EQ(chatbox::trimAsciiWhitespace("  hi\n"), std::string("hi"));
     return 0;
 }
 
 int testContainsControlCharacters() {
-    CHECK_TRUE(chatroom::containsControlCharacters(std::string("a\nb")));
-    CHECK_TRUE(!chatroom::containsControlCharacters("你好"));
+    CHECK_TRUE(chatbox::containsControlCharacters(std::string("a\nb")));
+    CHECK_TRUE(!chatbox::containsControlCharacters("你好"));
     return 0;
 }
 

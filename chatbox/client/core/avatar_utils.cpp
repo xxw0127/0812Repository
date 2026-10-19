@@ -10,7 +10,7 @@
 
 #include "core/ui_theme.h"
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 QImage centerCropSquare(const QImage& source) {
@@ -163,4 +163,4 @@ QImage roomAvatar(int size) {
 }
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox

@@ -8,7 +8,7 @@
 #include "common/text_utils.h"
 #include "server/util/logging.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -205,7 +205,7 @@ RoomResult RoomService::handleChatSend(const Frame& request, const RoomMember& c
     if (content.empty() || content.size() > 2000) {
         return RoomResult{makeError(request.header.seq, 1011, "message length invalid")};
     }
-    if (chatroom::utf8CodePointCount(reply_sender_name) > 32 ||
+    if (chatbox::utf8CodePointCount(reply_sender_name) > 32 ||
         reply_content.size() > 2000) {
         return RoomResult{makeError(request.header.seq, 1001, "invalid reply content")};
     }
@@ -305,4 +305,4 @@ RoomResult RoomService::handleRecall(const Frame& request, const RoomMember& cal
     return result;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

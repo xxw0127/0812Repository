@@ -6,7 +6,7 @@
 namespace {
 
 int testAppendAndConsume() {
-    chatroom::Buffer buffer;
+    chatbox::Buffer buffer;
     buffer.append("hello", 5);
     CHECK_EQ(buffer.size(), 5u);
     CHECK_TRUE(!buffer.empty());
@@ -23,22 +23,22 @@ int testAppendAndConsume() {
 }
 
 int testHalfFrameWaitsForMore() {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdPing;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdPing;
     frame.header.seq = 7;
     frame.body = "hello";
-    const std::string encoded = chatroom::encodeFrame(frame);
+    const std::string encoded = chatbox::encodeFrame(frame);
 
-    chatroom::Buffer buffer;
+    chatbox::Buffer buffer;
     buffer.append(encoded.data(), 5);
 
-    chatroom::Frame parsed;
+    chatbox::Frame parsed;
     std::string error;
-    CHECK_EQ(chatroom::extractFrame(buffer, parsed, error), chatroom::FrameParseResult::kNeedMore);
+    CHECK_EQ(chatbox::extractFrame(buffer, parsed, error), chatbox::FrameParseResult::kNeedMore);
     CHECK_EQ(buffer.size(), 5u);
 
     buffer.append(encoded.data() + 5, encoded.size() - 5);
-    CHECK_EQ(chatroom::extractFrame(buffer, parsed, error), chatroom::FrameParseResult::kOk);
+    CHECK_EQ(chatbox::extractFrame(buffer, parsed, error), chatbox::FrameParseResult::kOk);
     CHECK_EQ(parsed.header.seq, 7u);
     CHECK_EQ(parsed.body, "hello");
     CHECK_TRUE(buffer.empty());
@@ -46,70 +46,70 @@ int testHalfFrameWaitsForMore() {
 }
 
 int testCoalescedFrames() {
-    chatroom::Frame first;
-    first.header.cmd = chatroom::kCmdPing;
+    chatbox::Frame first;
+    first.header.cmd = chatbox::kCmdPing;
     first.header.seq = 1;
     first.body = "one";
 
-    chatroom::Frame second;
-    second.header.cmd = chatroom::kCmdPing;
+    chatbox::Frame second;
+    second.header.cmd = chatbox::kCmdPing;
     second.header.seq = 2;
     second.body = "two";
 
-    const std::string encoded = chatroom::encodeFrame(first) + chatroom::encodeFrame(second);
-    chatroom::Buffer buffer;
+    const std::string encoded = chatbox::encodeFrame(first) + chatbox::encodeFrame(second);
+    chatbox::Buffer buffer;
     buffer.append(encoded);
 
-    chatroom::Frame parsed;
+    chatbox::Frame parsed;
     std::string error;
-    CHECK_EQ(chatroom::extractFrame(buffer, parsed, error), chatroom::FrameParseResult::kOk);
+    CHECK_EQ(chatbox::extractFrame(buffer, parsed, error), chatbox::FrameParseResult::kOk);
     CHECK_EQ(parsed.header.seq, 1u);
     CHECK_EQ(parsed.body, "one");
 
-    CHECK_EQ(chatroom::extractFrame(buffer, parsed, error), chatroom::FrameParseResult::kOk);
+    CHECK_EQ(chatbox::extractFrame(buffer, parsed, error), chatbox::FrameParseResult::kOk);
     CHECK_EQ(parsed.header.seq, 2u);
     CHECK_EQ(parsed.body, "two");
 
-    CHECK_EQ(chatroom::extractFrame(buffer, parsed, error), chatroom::FrameParseResult::kNeedMore);
+    CHECK_EQ(chatbox::extractFrame(buffer, parsed, error), chatbox::FrameParseResult::kNeedMore);
     return 0;
 }
 
 int testInvalidMagicIsError() {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdPing;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdPing;
     frame.body = "x";
-    std::string encoded = chatroom::encodeFrame(frame);
+    std::string encoded = chatbox::encodeFrame(frame);
     encoded[0] = '\0';
 
-    chatroom::Buffer buffer;
+    chatbox::Buffer buffer;
     buffer.append(encoded);
-    chatroom::Frame parsed;
+    chatbox::Frame parsed;
     std::string error;
-    CHECK_EQ(chatroom::extractFrame(buffer, parsed, error), chatroom::FrameParseResult::kError);
+    CHECK_EQ(chatbox::extractFrame(buffer, parsed, error), chatbox::FrameParseResult::kError);
     CHECK_TRUE(!error.empty());
     return 0;
 }
 
 int testOversizedBodyIsRejectedWithoutAllocation() {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdPing;
-    std::string encoded = chatroom::encodeFrame(frame);
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdPing;
+    std::string encoded = chatbox::encodeFrame(frame);
     encoded[10] = 0x00;
     encoded[11] = 0x01;
     encoded[12] = 0x00;
     encoded[13] = 0x01;  // 65537, just above kMaxInFrameBody
 
-    chatroom::Buffer buffer;
+    chatbox::Buffer buffer;
     buffer.append(encoded);
-    chatroom::Frame parsed;
+    chatbox::Frame parsed;
     std::string error;
-    CHECK_EQ(chatroom::extractFrame(buffer, parsed, error), chatroom::FrameParseResult::kError);
+    CHECK_EQ(chatbox::extractFrame(buffer, parsed, error), chatbox::FrameParseResult::kError);
     CHECK_EQ(error, "frame body too large");
     return 0;
 }
 
 int testCompactionKeepsData() {
-    chatroom::Buffer buffer;
+    chatbox::Buffer buffer;
     buffer.append(std::string(20000, 'a'));
     buffer.consume(15000);
     buffer.append(std::string(1000, 'b'));

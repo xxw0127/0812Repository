@@ -1,5 +1,5 @@
-#ifndef CHATROOM_SERVER_ROOM_ROOM_MANAGER_H
-#define CHATROOM_SERVER_ROOM_ROOM_MANAGER_H
+#ifndef CHATBOX_SERVER_ROOM_ROOM_MANAGER_H
+#define CHATBOX_SERVER_ROOM_ROOM_MANAGER_H
 
 #include <cstdint>
 #include <memory>
@@ -10,7 +10,7 @@
 
 #include "server/net/connection.h"
 
-namespace chatroom {
+namespace chatbox {
 
 struct RoomInfo {
     int id = 0;
@@ -57,6 +57,6 @@ private:
     std::unordered_map<uint64_t, std::vector<int>> connection_rooms_;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_ROOM_ROOM_MANAGER_H
+#endif  // CHATBOX_SERVER_ROOM_ROOM_MANAGER_H

@@ -1,11 +1,11 @@
-#ifndef CHATROOM_SERVER_HISTORY_HISTORY_SERVICE_H
-#define CHATROOM_SERVER_HISTORY_HISTORY_SERVICE_H
+#ifndef CHATBOX_SERVER_HISTORY_HISTORY_SERVICE_H
+#define CHATBOX_SERVER_HISTORY_HISTORY_SERVICE_H
 
 #include "common/protocol.h"
 #include "server/db/mysql_connection.h"
 #include "server/room/room_manager.h"
 
-namespace chatroom {
+namespace chatbox {
 
 class HistoryService {
 public:
@@ -21,6 +21,6 @@ private:
     RoomManager& rooms_;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_HISTORY_HISTORY_SERVICE_H
+#endif  // CHATBOX_SERVER_HISTORY_HISTORY_SERVICE_H

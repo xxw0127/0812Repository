@@ -15,7 +15,7 @@
 
 #include "core/ui_theme.h"
 
-namespace theme = chatroom::client::theme;  // Coinbase palette tokens
+namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
 ChatView::ChatView(QWidget* parent) : QTextBrowser(parent) {
     setMouseTracking(true);
@@ -38,7 +38,7 @@ bool ChatView::eventFilter(QObject* watched, QEvent* event) {
 
 void ChatView::setConversationHtml(
     const QString& html,
-    const QVector<chatroom::client::MessageKey>& message_keys) {
+    const QVector<chatbox::client::MessageKey>& message_keys) {
     setHtml(html);
     styleAnchors();
     buildMessageRanges(message_keys);
@@ -46,7 +46,7 @@ void ChatView::setConversationHtml(
 }
 
 quint64 ChatView::messageIdAt(const QPoint& viewport_pos) const {
-    chatroom::client::MessageKey key;
+    chatbox::client::MessageKey key;
     if (!messageKeyAt(viewport_pos, &key)) {
         return 0;
     }
@@ -54,7 +54,7 @@ quint64 ChatView::messageIdAt(const QPoint& viewport_pos) const {
 }
 
 bool ChatView::messageKeyAt(const QPoint& viewport_pos,
-                            chatroom::client::MessageKey* key) const {
+                            chatbox::client::MessageKey* key) const {
     if (message_ranges_.isEmpty()) {
         return false;
     }
@@ -175,7 +175,7 @@ void ChatView::resizeEvent(QResizeEvent* event) {
 void ChatView::contextMenuEvent(QContextMenuEvent* event) {
     // Ask the window for a menu when a message bubble is under the cursor;
     // anywhere else keeps the standard copy/select-all menu.
-    chatroom::client::MessageKey key;
+    chatbox::client::MessageKey key;
     if (messageKeyAt(viewport()->mapFromGlobal(event->globalPos()), &key)) {
         emit messageMenuRequested(key.message_id, key.client_msg_id,
                                   event->globalPos());
@@ -186,7 +186,7 @@ void ChatView::contextMenuEvent(QContextMenuEvent* event) {
 }
 
 void ChatView::buildMessageRanges(
-    const QVector<chatroom::client::MessageKey>& message_keys) {
+    const QVector<chatbox::client::MessageKey>& message_keys) {
     message_ranges_.clear();
     const QTextFrame* root = document() != nullptr ? document()->rootFrame() : nullptr;
     if (root == nullptr || message_keys.isEmpty()) {

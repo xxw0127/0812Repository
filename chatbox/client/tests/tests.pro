@@ -8,6 +8,7 @@ INCLUDEPATH += $$PWD/..
 RESOURCES += ../resources/resources.qrc
 SOURCES += \
     test_client_core.cpp \
+    ../core/app_settings.cpp \
     ../core/message_time.cpp \
     ../core/message_store.cpp \
     ../core/outbox.cpp \
@@ -19,6 +20,7 @@ SOURCES += \
     ../ui/message_action_bar.cpp \
     ../ui/profile_dialog.cpp
 HEADERS += \
+    ../core/app_settings.h \
     ../core/chat_message.h \
     ../core/message_time.h \
     ../core/message_store.h \

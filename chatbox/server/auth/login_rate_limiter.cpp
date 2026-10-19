@@ -1,6 +1,6 @@
 #include "server/auth/login_rate_limiter.h"
 
-namespace chatroom {
+namespace chatbox {
 
 LoginRateLimiter::LoginRateLimiter(int max_failures, int window_seconds)
     : max_failures_(max_failures), window_(window_seconds) {}
@@ -58,4 +58,4 @@ void LoginRateLimiter::eraseExpiredLocked(
     }
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

@@ -1,8 +1,8 @@
-CREATE DATABASE IF NOT EXISTS chatroom
+CREATE DATABASE IF NOT EXISTS chatbox
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_general_ci;
 
-USE chatroom;
+USE chatbox;
 
 CREATE TABLE IF NOT EXISTS users (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

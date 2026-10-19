@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_CORE_MESSAGE_RENDERER_H
-#define CHATROOM_CLIENT_CORE_MESSAGE_RENDERER_H
+#ifndef CHATBOX_CLIENT_CORE_MESSAGE_RENDERER_H
+#define CHATBOX_CLIENT_CORE_MESSAGE_RENDERER_H
 
 #include <QDateTime>
 #include <QString>
@@ -7,7 +7,7 @@
 
 #include "core/chat_message.h"
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 // The server allows a recall only while the message is younger than this
@@ -37,6 +37,6 @@ QString renderConversationHtml(const QVector<ChatMessage>& messages,
                                QVector<MessageKey>* rendered_messages = nullptr);
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_CLIENT_CORE_MESSAGE_RENDERER_H
+#endif  // CHATBOX_CLIENT_CORE_MESSAGE_RENDERER_H

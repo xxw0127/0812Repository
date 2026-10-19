@@ -9,7 +9,7 @@
 #include "core/message_time.h"
 #include "core/ui_theme.h"
 
-namespace theme = chatroom::client::theme;  // Coinbase palette tokens
+namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
 namespace {
 
@@ -131,9 +131,9 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
                                                             preview_rect.width()));
 
     if (!time.isEmpty()) {
-        const QDateTime utc = chatroom::client::parseServerUtc(time);
+        const QDateTime utc = chatbox::client::parseServerUtc(time);
         const QString local =
-            utc.isValid() ? chatroom::client::formatLocalTime(utc) : time;
+            utc.isValid() ? chatbox::client::formatLocalTime(utc) : time;
         QFont time_font = painter->font();
         time_font.setPixelSize(10);
         painter->setFont(time_font);

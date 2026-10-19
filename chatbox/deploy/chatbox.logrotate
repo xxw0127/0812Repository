@@ -1,4 +1,4 @@
-/home/xxw/桌面/0917/chatroom/logs/chatroom.log {
+/home/xxw/桌面/0917/chatbox/logs/chatbox.log {
     su xxw xxw
     daily
     rotate 7
@@ -9,6 +9,6 @@
     delaycompress
     create 0640 xxw xxw
     postrotate
-        systemctl kill -s USR1 chatroom.service || true
+        systemctl kill -s USR1 chatbox.service || true
     endscript
 }

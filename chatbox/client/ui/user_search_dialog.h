@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_UI_USER_SEARCH_DIALOG_H
-#define CHATROOM_CLIENT_UI_USER_SEARCH_DIALOG_H
+#ifndef CHATBOX_CLIENT_UI_USER_SEARCH_DIALOG_H
+#define CHATBOX_CLIENT_UI_USER_SEARCH_DIALOG_H
 
 #include <QDialog>
 #include <QVector>
@@ -49,4 +49,4 @@ private:
     QLabel* status_label_ = nullptr;
 };
 
-#endif  // CHATROOM_CLIENT_UI_USER_SEARCH_DIALOG_H
+#endif  // CHATBOX_CLIENT_UI_USER_SEARCH_DIALOG_H

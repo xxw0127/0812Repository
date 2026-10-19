@@ -1,9 +1,9 @@
-#ifndef CHATROOM_SERVER_UTIL_LOGGING_H
-#define CHATROOM_SERVER_UTIL_LOGGING_H
+#ifndef CHATBOX_SERVER_UTIL_LOGGING_H
+#define CHATBOX_SERVER_UTIL_LOGGING_H
 
 #include <string>
 
-namespace chatroom {
+namespace chatbox {
 
 enum class LogLevel {
     kDebug = 0,
@@ -17,6 +17,6 @@ void reopenLogging();
 void logMessage(LogLevel level, const std::string& module, const std::string& message);
 bool parseLogLevel(const std::string& text, LogLevel& level);
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_UTIL_LOGGING_H
+#endif  // CHATBOX_SERVER_UTIL_LOGGING_H

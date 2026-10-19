@@ -8,7 +8,7 @@
 #include "common/text_utils.h"
 #include "server/util/logging.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -245,4 +245,4 @@ ProfileResult ProfileService::handleProfileUpdate(const Frame& request,
     return result;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

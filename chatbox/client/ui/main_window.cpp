@@ -58,16 +58,16 @@
 #include "ui/settings_dialog.h"
 #include "ui/user_search_dialog.h"
 
-namespace theme = chatroom::client::theme;  // Coinbase palette tokens
+namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
 namespace {
 
-bool readString(chatroom::ByteReader& reader, QString& value) {
+bool readString(chatbox::ByteReader& reader, QString& value) {
     std::string text;
     if (!reader.getString(text)) {
         return false;
     }
-    value = chatroom::fromUtf8(text);
+    value = chatbox::fromUtf8(text);
     return true;
 }
 
@@ -76,7 +76,7 @@ bool readString(chatroom::ByteReader& reader, QString& value) {
 // different colours in the lists and in the profile dialog.
 QIcon avatarIcon(const QString& name, quint64 seed) {
     return QIcon(
-        QPixmap::fromImage(chatroom::client::fallbackAvatar(name, seed, 36)));
+        QPixmap::fromImage(chatbox::client::fallbackAvatar(name, seed, 36)));
 }
 
 QString errorText(quint16 code, const QString& message) {
@@ -214,7 +214,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
             });
     if (message_action_bar_ != nullptr) {
         connect(message_action_bar_, &MessageActionBar::replyRequested, this, [this] {
-            const chatroom::client::ChatMessage* message =
+            const chatbox::client::ChatMessage* message =
                 message_store_.findMessage(action_bar_message_id_);
             if (message != nullptr) {
                 setReplyTo(*message);
@@ -254,7 +254,7 @@ MainWindow::~MainWindow() {
     profile_dialog_ = nullptr;
     profile_dialog_user_id_ = 0;
     profile_dialog_fallback_name_.clear();
-    profile_dialog_profile_ = chatroom::client::UserProfile();
+    profile_dialog_profile_ = chatbox::client::UserProfile();
     if (network_ != nullptr) {
         network_->requestStop();
         network_->wait();
@@ -577,8 +577,8 @@ void MainWindow::logout() {
         return;
     }
     logging_out_ = true;
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdLogout;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdLogout;
     frame.header.seq = next_seq_++;
     sendFrame(frame);
     QTimer::singleShot(800, this, &MainWindow::finishLogout);
@@ -599,7 +599,7 @@ void MainWindow::finishLogout() {
 }
 
 void MainWindow::openSettings() {
-    SettingsDialog dialog(chatroom::client::publicUserId(user_id_), this);
+    SettingsDialog dialog(chatbox::client::publicUserId(user_id_), this);
     connect(&dialog, &SettingsDialog::settingsSaved, this,
             [this](const QString& host, quint16 port, bool tls,
                    bool notifications) {
@@ -638,10 +638,10 @@ void MainWindow::openSettings() {
 }
 
 void MainWindow::sendMarkRead(quint64 peer_id, quint64 message_id) {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdPrivateMarkRead;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdPrivateMarkRead;
     frame.header.seq = next_seq_++;
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     writer.putU64(peer_id);
     writer.putU64(message_id);
     frame.body = writer.data();
@@ -665,7 +665,7 @@ void MainWindow::updateFriendView(quint64 peer_id, int unread, const QString& ni
         return;
     }
     peer_names_.insert(peer_id, nickname);
-    chatroom::client::FriendView& view = friend_views_[peer_id];
+    chatbox::client::FriendView& view = friend_views_[peer_id];
     view.user_id = peer_id;
     if (!nickname.isEmpty()) {
         view.nickname = nickname;
@@ -692,17 +692,17 @@ void MainWindow::refreshFriendListView() {
         context_type_ == ContextType::Private ? current_peer_id_ : 0;
     conversation_list_->clear();
 
-    QVector<chatroom::client::FriendView> online;
-    QVector<chatroom::client::FriendView> offline;
-    for (const chatroom::client::FriendView& view : friend_views_) {
+    QVector<chatbox::client::FriendView> online;
+    QVector<chatbox::client::FriendView> offline;
+    for (const chatbox::client::FriendView& view : friend_views_) {
         if (view.online) {
             online.push_back(view);
         } else {
             offline.push_back(view);
         }
     }
-    const auto by_name = [](const chatroom::client::FriendView& a,
-                            const chatroom::client::FriendView& b) {
+    const auto by_name = [](const chatbox::client::FriendView& a,
+                            const chatbox::client::FriendView& b) {
         const QString a_name = a.remark.isEmpty() ? a.nickname : a.remark;
         const QString b_name = b.remark.isEmpty() ? b.nickname : b.remark;
         return a_name.localeAwareCompare(b_name) < 0;
@@ -716,7 +716,7 @@ void MainWindow::refreshFriendListView() {
         item->setData(Qt::UserRole, QVariant::fromValue<qulonglong>(0));
         item->setSizeHint(QSize(0, 26));
     };
-    const auto add_friend = [this](const chatroom::client::FriendView& view) {
+    const auto add_friend = [this](const chatbox::client::FriendView& view) {
         auto* item = new QListWidgetItem(conversation_list_);
         item->setData(Qt::UserRole, QVariant::fromValue<qulonglong>(view.user_id));
         item->setData(Qt::UserRole + 1, view.nickname);
@@ -729,10 +729,10 @@ void MainWindow::refreshFriendListView() {
         if (avatar_cache_.lookup(view.user_id, image) && !image.isNull()) {
             item->setData(FriendItemDelegate::kAvatarRole,
                           QPixmap::fromImage(
-                              chatroom::client::circularAvatar(image, 36)));
+                              chatbox::client::circularAvatar(image, 36)));
         }
         item->setToolTip(QString("ID: %1\n用户名: @%2")
-                             .arg(chatroom::client::publicUserId(view.user_id),
+                             .arg(chatbox::client::publicUserId(view.user_id),
                                   view.username));
         item->setSizeHint(QSize(0, 56));
     };
@@ -773,12 +773,12 @@ void MainWindow::updateOwnProfileStrip() {
     }
     my_profile_name_->setText(name);
     my_profile_uid_->setText(
-        user_id_ == 0 ? QString() : chatroom::client::publicUserId(user_id_));
+        user_id_ == 0 ? QString() : chatbox::client::publicUserId(user_id_));
 
     QPixmap avatar;
     QImage image;
     if (user_id_ != 0 && avatar_cache_.lookup(user_id_, image) && !image.isNull()) {
-        avatar = QPixmap::fromImage(chatroom::client::circularAvatar(image, 32));
+        avatar = QPixmap::fromImage(chatbox::client::circularAvatar(image, 32));
     } else {
         avatar = avatarIcon(name, user_id_).pixmap(32, 32);
     }
@@ -786,7 +786,7 @@ void MainWindow::updateOwnProfileStrip() {
     my_profile_button_->setToolTip(
         user_id_ == 0
             ? QString("未登录")
-            : QString("%1\n%2").arg(name, chatroom::client::publicUserId(user_id_)));
+            : QString("%1\n%2").arg(name, chatbox::client::publicUserId(user_id_)));
 }
 
 bool MainWindow::isCurrentProfileRequest(quint64 user_id, quint32 seq) const {
@@ -837,11 +837,11 @@ void MainWindow::requestProfile(quint64 user_id) {
         return;
     }
 
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdProfileGet;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdProfileGet;
     const quint32 seq = next_seq_++;
     frame.header.seq = seq;
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     writer.putU64(user_id);
     frame.body = writer.data();
     if (!sendFrame(frame)) {
@@ -873,11 +873,11 @@ void MainWindow::requestAvatar(quint64 user_id, quint32 version) {
         return;
     }
 
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdAvatarGet;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdAvatarGet;
     const quint32 seq = next_seq_++;
     frame.header.seq = seq;
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     writer.putU64(user_id);
     frame.body = writer.data();
     if (!sendFrame(frame)) {
@@ -920,7 +920,7 @@ void MainWindow::updatePrivateHeaderAvatar(quint64 peer_id, const QString& name)
     QImage image;
     if (avatar_cache_.lookup(peer_id, image) && !image.isNull()) {
         context_avatar_->setPixmap(
-            QPixmap::fromImage(chatroom::client::circularAvatar(image, 32)));
+            QPixmap::fromImage(chatbox::client::circularAvatar(image, 32)));
         return;
     }
     QString fallback_name = name;
@@ -928,7 +928,7 @@ void MainWindow::updatePrivateHeaderAvatar(quint64 peer_id, const QString& name)
         fallback_name = peer_names_.value(peer_id);
     }
     if (fallback_name.isEmpty()) {
-        fallback_name = chatroom::client::publicUserId(peer_id);
+        fallback_name = chatbox::client::publicUserId(peer_id);
     }
     context_avatar_->setPixmap(avatarIcon(fallback_name, peer_id).pixmap(32, 32));
 }
@@ -939,10 +939,10 @@ QIcon MainWindow::memberAvatarIcon(quint64 member_id, const QString& nickname,
     if (member_id != 0 && avatar_cache_.lookup(member_id, image) &&
         !image.isNull()) {
         return QIcon(
-            QPixmap::fromImage(chatroom::client::circularAvatar(image, size)));
+            QPixmap::fromImage(chatbox::client::circularAvatar(image, size)));
     }
     const QString fallback_name =
-        nickname.isEmpty() ? chatroom::client::publicUserId(member_id)
+        nickname.isEmpty() ? chatbox::client::publicUserId(member_id)
                            : nickname;
     return avatarIcon(fallback_name, member_id);
 }
@@ -969,7 +969,7 @@ void MainWindow::closeProfileDialog() {
     profile_dialog_ = nullptr;
     profile_dialog_user_id_ = 0;
     profile_dialog_fallback_name_.clear();
-    profile_dialog_profile_ = chatroom::client::UserProfile();
+    profile_dialog_profile_ = chatbox::client::UserProfile();
     dialog->close();
 }
 
@@ -1046,7 +1046,7 @@ void MainWindow::onProfileAvatarReceived(quint64 user_id, quint32 version,
 }
 
 void MainWindow::onProfileDataReceived(
-    const chatroom::client::UserProfile& profile) {
+    const chatbox::client::UserProfile& profile) {
     if (profile.user_id == 0) {
         return;
     }
@@ -1116,14 +1116,14 @@ void MainWindow::onProfileDataReceived(
     refreshMemberListAvatar(profile.user_id);
 
     if (profile_dialog_ != nullptr && profile_dialog_user_id_ == profile.user_id) {
-        chatroom::client::UserProfile displayed = profile;
+        chatbox::client::UserProfile displayed = profile;
         if (displayed.avatar_version < profile_dialog_profile_.avatar_version) {
             displayed.avatar_version = profile_dialog_profile_.avatar_version;
             displayed.avatar = profile_dialog_profile_.avatar;
         }
         profile_dialog_profile_ = displayed;
         profile_dialog_fallback_name_ =
-            chatroom::client::profileDisplayName(displayed).trimmed();
+            chatbox::client::profileDisplayName(displayed).trimmed();
         profile_dialog_->setProfile(displayed, displayed.user_id == user_id_);
         profile_dialog_->setBusy(false);
         profile_dialog_->setStatus(QString());
@@ -1158,7 +1158,7 @@ void MainWindow::openProfile(quint64 user_id, const QString& fallback_name) {
     closeProfileDialog();
 
     const bool self = user_id == user_id_;
-    chatroom::client::UserProfile fallback;
+    chatbox::client::UserProfile fallback;
     fallback.user_id = user_id;
     fallback.relationship = self ? 0 : 2;
     if (self) {
@@ -1207,7 +1207,7 @@ void MainWindow::openProfile(quint64 user_id, const QString& fallback_name) {
         }
         profile_dialog_user_id_ = 0;
         profile_dialog_fallback_name_.clear();
-        profile_dialog_profile_ = chatroom::client::UserProfile();
+        profile_dialog_profile_ = chatbox::client::UserProfile();
     });
     connect(dialog, &ProfileDialog::saveRequested, this,
             &MainWindow::onProfileSaveRequested);
@@ -1216,7 +1216,7 @@ void MainWindow::openProfile(quint64 user_id, const QString& fallback_name) {
             return;
         }
         QString name =
-            chatroom::client::profileDisplayName(profile_dialog_profile_).trimmed();
+            chatbox::client::profileDisplayName(profile_dialog_profile_).trimmed();
         if (name.isEmpty()) {
             name = profile_dialog_fallback_name_.trimmed();
         }
@@ -1224,7 +1224,7 @@ void MainWindow::openProfile(quint64 user_id, const QString& fallback_name) {
             name = peer_names_.value(id);
         }
         if (name.isEmpty()) {
-            name = chatroom::client::publicUserId(id);
+            name = chatbox::client::publicUserId(id);
         }
         selectPrivate(id, name);
         closeProfileDialog();
@@ -1243,7 +1243,7 @@ void MainWindow::openProfile(quint64 user_id, const QString& fallback_name) {
             return;
         }
         QString name =
-            chatroom::client::profileDisplayName(profile_dialog_profile_).trimmed();
+            chatbox::client::profileDisplayName(profile_dialog_profile_).trimmed();
         if (name.isEmpty()) {
             name = profile_dialog_fallback_name_.trimmed();
         }
@@ -1251,7 +1251,7 @@ void MainWindow::openProfile(quint64 user_id, const QString& fallback_name) {
             name = peer_names_.value(id);
         }
         if (name.isEmpty()) {
-            name = chatroom::client::publicUserId(id);
+            name = chatbox::client::publicUserId(id);
         }
         const auto answer = QMessageBox::question(
             dialog, "删除好友", QString("确定要删除好友“%1”吗？").arg(name),
@@ -1358,13 +1358,13 @@ void MainWindow::onProfileSaveRequested(const QString& nickname,
         return;
     }
 
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdProfileUpdate;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdProfileUpdate;
     const quint32 seq = next_seq_++;
     frame.header.seq = seq;
-    chatroom::ByteWriter writer;
-    writer.putString(chatroom::toUtf8(trimmed_nickname));
-    writer.putString(chatroom::toUtf8(trimmed_signature));
+    chatbox::ByteWriter writer;
+    writer.putString(chatbox::toUtf8(trimmed_nickname));
+    writer.putString(chatbox::toUtf8(trimmed_signature));
     writer.putU8(static_cast<uint8_t>(avatar_action));
     if (avatar_action == 1) {
         writer.putString(std::string(avatar_jpeg.constData(),
@@ -1443,7 +1443,7 @@ void MainWindow::applyOwnProfileUpdate(const QString& nickname,
     updateRoomMemberNickname(user_id_, nickname_);
 
     if (profile_dialog_ != nullptr && profile_dialog_user_id_ == user_id_) {
-        chatroom::client::UserProfile displayed = profile_dialog_profile_;
+        chatbox::client::UserProfile displayed = profile_dialog_profile_;
         displayed.nickname = nickname_;
         displayed.signature = signature;
         displayed.relationship = 0;
@@ -1456,7 +1456,7 @@ void MainWindow::applyOwnProfileUpdate(const QString& nickname,
         }
         profile_dialog_profile_ = displayed;
         profile_dialog_fallback_name_ =
-            chatroom::client::profileDisplayName(displayed).trimmed();
+            chatbox::client::profileDisplayName(displayed).trimmed();
         const bool still_loading =
             pending_profile_requests_.contains(user_id_) ||
             pending_profile_seqs_.contains(user_id_);
@@ -1540,7 +1540,7 @@ void MainWindow::applyProfileUpdatePush(quint64 user_id, const QString& nickname
     }
 
     if (profile_dialog_ != nullptr && profile_dialog_user_id_ == user_id) {
-        chatroom::client::UserProfile displayed = profile_dialog_profile_;
+        chatbox::client::UserProfile displayed = profile_dialog_profile_;
         bool changed = false;
         if (!nickname.isEmpty() && displayed.nickname != nickname) {
             displayed.nickname = nickname;
@@ -1556,7 +1556,7 @@ void MainWindow::applyProfileUpdatePush(quint64 user_id, const QString& nickname
         if (changed) {
             profile_dialog_profile_ = displayed;
             profile_dialog_fallback_name_ =
-                chatroom::client::profileDisplayName(displayed).trimmed();
+                chatbox::client::profileDisplayName(displayed).trimmed();
             const bool still_loading =
                 pending_profile_requests_.contains(user_id) ||
                 pending_profile_seqs_.contains(user_id);
@@ -1606,12 +1606,12 @@ void MainWindow::setFriendRemark(quint64 peer_id) {
         setStatus("好友备注不能超过 32 个字符", true);
         return;
     }
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdFriendSetRemark;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdFriendSetRemark;
     frame.header.seq = next_seq_++;
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     writer.putU64(peer_id);
-    writer.putString(chatroom::toUtf8(remark));
+    writer.putString(chatbox::toUtf8(remark));
     frame.body = writer.data();
     sendFrame(frame);
     setStatus("正在保存好友备注...");
@@ -1806,21 +1806,21 @@ void MainWindow::scheduleReconnect() {
     }
 }
 
-bool MainWindow::sendFrame(const chatroom::Frame& frame) {
+bool MainWindow::sendFrame(const chatbox::Frame& frame) {
     if (network_ == nullptr || !connected_) {
         setStatus("网络未连接", true);
         return false;
     }
-    return network_->enqueueFrame(chatroom::encodeToByteArray(frame));
+    return network_->enqueueFrame(chatbox::encodeToByteArray(frame));
 }
 
 void MainWindow::sendLogin() {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdLogin;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdLogin;
     frame.header.seq = next_seq_++;
-    chatroom::ByteWriter writer;
-    writer.putString(chatroom::toUtf8(username_));
-    writer.putString(chatroom::toUtf8(password_));
+    chatbox::ByteWriter writer;
+    writer.putString(chatbox::toUtf8(username_));
+    writer.putString(chatbox::toUtf8(password_));
     frame.body = writer.data();
     sendFrame(frame);
     if (auth_timeout_timer_ != nullptr) {
@@ -1830,13 +1830,13 @@ void MainWindow::sendLogin() {
 }
 
 void MainWindow::sendRegister() {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdRegister;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdRegister;
     frame.header.seq = next_seq_++;
-    chatroom::ByteWriter writer;
-    writer.putString(chatroom::toUtf8(username_));
-    writer.putString(chatroom::toUtf8(password_));
-    writer.putString(chatroom::toUtf8(nickname_));
+    chatbox::ByteWriter writer;
+    writer.putString(chatbox::toUtf8(username_));
+    writer.putString(chatbox::toUtf8(password_));
+    writer.putString(chatbox::toUtf8(nickname_));
     frame.body = writer.data();
     sendFrame(frame);
     if (auth_timeout_timer_ != nullptr) {
@@ -1847,11 +1847,11 @@ void MainWindow::sendRegister() {
 
 void MainWindow::sendResume() {
     resuming_ = true;
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdResume;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdResume;
     frame.header.seq = next_seq_++;
-    chatroom::ByteWriter writer;
-    writer.putString(chatroom::toUtf8(token_));
+    chatbox::ByteWriter writer;
+    writer.putString(chatbox::toUtf8(token_));
     frame.body = writer.data();
     sendFrame(frame);
     if (auth_timeout_timer_ != nullptr) {
@@ -1860,29 +1860,29 @@ void MainWindow::sendResume() {
 }
 
 void MainWindow::requestRoomList() {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdRoomList;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdRoomList;
     frame.header.seq = next_seq_++;
     sendFrame(frame);
 }
 
 void MainWindow::requestConversations() {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdPrivateConversations;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdPrivateConversations;
     frame.header.seq = next_seq_++;
     sendFrame(frame);
 }
 
 void MainWindow::requestFriendList() {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdFriendList;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdFriendList;
     frame.header.seq = next_seq_++;
     sendFrame(frame);
 }
 
 void MainWindow::requestFriendRequests() {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdFriendRequests;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdFriendRequests;
     frame.header.seq = next_seq_++;
     sendFrame(frame);
 }
@@ -1891,11 +1891,11 @@ void MainWindow::sendFriendRequest(quint64 user_id) {
     if (user_id == 0 || user_id == user_id_) {
         return;
     }
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdFriendRequest;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdFriendRequest;
     const quint32 seq = next_seq_++;
     frame.header.seq = seq;
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     writer.putU64(user_id);
     frame.body = writer.data();
     if (sendFrame(frame)) {
@@ -1905,10 +1905,10 @@ void MainWindow::sendFriendRequest(quint64 user_id) {
 }
 
 void MainWindow::sendFriendResponse(quint64 requester_id, bool accept) {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdFriendRespond;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdFriendRespond;
     frame.header.seq = next_seq_++;
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     writer.putU64(requester_id);
     writer.putU8(accept ? 1 : 0);
     frame.body = writer.data();
@@ -1916,10 +1916,10 @@ void MainWindow::sendFriendResponse(quint64 requester_id, bool accept) {
 }
 
 void MainWindow::sendFriendRemove(quint64 friend_id) {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdFriendRemove;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdFriendRemove;
     frame.header.seq = next_seq_++;
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     writer.putU64(friend_id);
     frame.body = writer.data();
     sendFrame(frame);
@@ -1973,11 +1973,11 @@ void MainWindow::requestUserSearch(const QString& keyword) {
     user_search_dialog_->setBusy(true);
     user_search_dialog_->setStatus("正在搜索...");
 
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdUserSearch;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdUserSearch;
     frame.header.seq = seq;
-    chatroom::ByteWriter writer;
-    writer.putString(chatroom::toUtf8(keyword));
+    chatbox::ByteWriter writer;
+    writer.putString(chatbox::toUtf8(keyword));
     frame.body = writer.data();
     if (!sendFrame(frame)) {
         user_search_seq_ = 0;
@@ -2056,7 +2056,7 @@ void MainWindow::insertMention() {
     input_edit_->setFocus();
 }
 
-void MainWindow::setReplyTo(const chatroom::client::ChatMessage& message) {
+void MainWindow::setReplyTo(const chatbox::client::ChatMessage& message) {
     reply_to_id_ = message.message_id;
     reply_sender_name_ = message.outgoing ? QString("我") : message.sender_name;
     reply_content_ = message.recalled ? QString("消息已撤回") : message.content;
@@ -2086,10 +2086,10 @@ void MainWindow::sendRecall(quint64 message_id) {
     if (context_type_ == ContextType::None || message_id == 0) {
         return;
     }
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdMessageRecall;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdMessageRecall;
     frame.header.seq = next_seq_++;
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     if (context_type_ == ContextType::Room) {
         writer.putU8(1);
         writer.putU64(static_cast<quint64>(current_room_id_));
@@ -2107,14 +2107,14 @@ void MainWindow::showMessageActions(quint64 message_id, const QRect& meta_rect) 
         hideMessageActionBar();
         return;
     }
-    const chatroom::client::ChatMessage* message =
+    const chatbox::client::ChatMessage* message =
         message_store_.findMessage(message_id);
     if (message == nullptr) {
         hideMessageActionBar();
         return;
     }
-    const chatroom::client::MessageActions actions =
-        chatroom::client::messageActions(*message, user_id_);
+    const chatbox::client::MessageActions actions =
+        chatbox::client::messageActions(*message, user_id_);
     if (!actions.can_reply && !actions.can_recall) {
         hideMessageActionBar();
         return;
@@ -2199,14 +2199,14 @@ void MainWindow::hideMessageActionsUnlessHovered() {
 
 void MainWindow::showMessageMenu(quint64 message_id, const QString& client_msg_id,
                                  const QPoint& global_pos) {
-    const chatroom::client::ChatMessage* message =
+    const chatbox::client::ChatMessage* message =
         message_id != 0 ? message_store_.findMessage(message_id)
                         : message_store_.findByClientId(client_msg_id);
     if (message == nullptr) {
         return;
     }
-    const chatroom::client::MessageActions actions =
-        chatroom::client::messageActions(*message, user_id_);
+    const chatbox::client::MessageActions actions =
+        chatbox::client::messageActions(*message, user_id_);
     hideMessageActionBar();
 
     QMenu menu(this);
@@ -2253,7 +2253,7 @@ void MainWindow::showMessageMenu(quint64 message_id, const QString& client_msg_i
     }
 }
 
-void MainWindow::copyMessageText(const chatroom::client::ChatMessage& message) {
+void MainWindow::copyMessageText(const chatbox::client::ChatMessage& message) {
     const QTextCursor selection = chat_view_->textCursor();
     if (selection.hasSelection()) {
         QApplication::clipboard()->setText(selection.selectedText());
@@ -2292,10 +2292,10 @@ void MainWindow::requestMessageSearch(const QString& keyword) {
     message_search_dialog_->setBusy(true);
     message_search_dialog_->setStatus("正在搜索...");
 
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdMessageSearch;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdMessageSearch;
     frame.header.seq = seq;
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     if (context_type_ == ContextType::Room) {
         writer.putU8(1);
         writer.putU64(static_cast<quint64>(current_room_id_));
@@ -2303,7 +2303,7 @@ void MainWindow::requestMessageSearch(const QString& keyword) {
         writer.putU8(2);
         writer.putU64(current_peer_id_);
     }
-    writer.putString(chatroom::toUtf8(keyword));
+    writer.putString(chatbox::toUtf8(keyword));
     writer.putU16(50);
     frame.body = writer.data();
     if (!sendFrame(frame)) {
@@ -2334,7 +2334,7 @@ void MainWindow::refreshContacts() {
         return;
     }
     contact_list_->clear();
-    for (const chatroom::client::Contact& contact : contact_store_.contacts()) {
+    for (const chatbox::client::Contact& contact : contact_store_.contacts()) {
         QString text = contact.nickname;
         if (!contact.username.isEmpty()) {
             text += " (" + contact.username + ")";
@@ -2427,20 +2427,20 @@ void MainWindow::onContactContextMenu(const QPoint& position) {
 }
 
 void MainWindow::requestMembers(int room_id) {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdRoomMembers;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdRoomMembers;
     frame.header.seq = next_seq_++;
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     writer.putU32(static_cast<uint32_t>(room_id));
     frame.body = writer.data();
     sendFrame(frame);
 }
 
 void MainWindow::requestHistory(int kind, quint64 target, quint64 before_id) {
-    chatroom::Frame frame;
-    frame.header.cmd = chatroom::kCmdHistory;
+    chatbox::Frame frame;
+    frame.header.cmd = chatbox::kCmdHistory;
     frame.header.seq = next_seq_++;
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     writer.putU8(static_cast<uint8_t>(kind));
     writer.putU64(target);
     writer.putU64(before_id);
@@ -2471,11 +2471,11 @@ void MainWindow::onSendClicked() {
 
     const QString client_msg_id =
         QUuid::createUuid().toString(QUuid::WithoutBraces);
-    chatroom::client::ChatMessage message;
+    chatbox::client::ChatMessage message;
     message.client_msg_id = client_msg_id;
     message.context = context_type_ == ContextType::Room
-                          ? chatroom::client::ChatContext::kRoom
-                          : chatroom::client::ChatContext::kPrivate;
+                          ? chatbox::client::ChatContext::kRoom
+                          : chatbox::client::ChatContext::kPrivate;
     message.target_id = context_type_ == ContextType::Room
                             ? static_cast<quint64>(current_room_id_)
                             : current_peer_id_;
@@ -2487,7 +2487,7 @@ void MainWindow::onSendClicked() {
     message.reply_sender_name = reply_sender_name_;
     message.reply_content = reply_content_;
     message.outgoing = true;
-    message.status = chatroom::client::MessageStatus::kSending;
+    message.status = chatbox::client::MessageStatus::kSending;
 
     outbox_.add(message, message.created_at_utc);
     message_store_.addPending(message);
@@ -2497,21 +2497,21 @@ void MainWindow::onSendClicked() {
     clearReply();
 }
 
-void MainWindow::sendMessage(const chatroom::client::ChatMessage& message) {
-    chatroom::Frame frame;
-    chatroom::ByteWriter writer;
-    if (message.context == chatroom::client::ChatContext::kRoom) {
-        frame.header.cmd = chatroom::kCmdChatSend;
+void MainWindow::sendMessage(const chatbox::client::ChatMessage& message) {
+    chatbox::Frame frame;
+    chatbox::ByteWriter writer;
+    if (message.context == chatbox::client::ChatContext::kRoom) {
+        frame.header.cmd = chatbox::kCmdChatSend;
         writer.putU32(static_cast<uint32_t>(message.target_id));
     } else {
-        frame.header.cmd = chatroom::kCmdPrivateSend;
+        frame.header.cmd = chatbox::kCmdPrivateSend;
         writer.putU64(message.target_id);
     }
-    writer.putString(chatroom::toUtf8(message.client_msg_id));
-    writer.putString(chatroom::toUtf8(message.content));
+    writer.putString(chatbox::toUtf8(message.client_msg_id));
+    writer.putString(chatbox::toUtf8(message.content));
     writer.putU64(message.reply_to_id);
-    writer.putString(chatroom::toUtf8(message.reply_sender_name));
-    writer.putString(chatroom::toUtf8(message.reply_content));
+    writer.putString(chatbox::toUtf8(message.reply_sender_name));
+    writer.putString(chatbox::toUtf8(message.reply_content));
     frame.header.seq = next_seq_++;
     frame.body = writer.data();
 
@@ -2529,12 +2529,12 @@ void MainWindow::sendMessage(const chatroom::client::ChatMessage& message) {
 }
 
 void MainWindow::retryMessage(const QString& client_msg_id) {
-    const QVector<chatroom::client::ChatMessage> pending = outbox_.pending();
-    for (const chatroom::client::ChatMessage& message : pending) {
+    const QVector<chatbox::client::ChatMessage> pending = outbox_.pending();
+    for (const chatbox::client::ChatMessage& message : pending) {
         if (message.client_msg_id != client_msg_id) {
             continue;
         }
-        if (message.status != chatroom::client::MessageStatus::kFailed) {
+        if (message.status != chatbox::client::MessageStatus::kFailed) {
             return;
         }
         const QDateTime now = QDateTime::currentDateTimeUtc();
@@ -2589,12 +2589,12 @@ void MainWindow::onAuthTimeout() {
 }
 
 void MainWindow::restorePendingForCurrentContext() {
-    chatroom::client::ChatContext context;
+    chatbox::client::ChatContext context;
     quint64 target_id = 0;
     if (!currentChatContext(context, target_id)) {
         return;
     }
-    for (const chatroom::client::ChatMessage& message : outbox_.pending()) {
+    for (const chatbox::client::ChatMessage& message : outbox_.pending()) {
         if (message.context == context && message.target_id == target_id) {
             message_store_.addPending(message);
         }
@@ -2646,7 +2646,7 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
     }
     if (context_avatar_ != nullptr) {
         context_avatar_->setPixmap(
-            QPixmap::fromImage(chatroom::client::roomAvatar(32)));
+            QPixmap::fromImage(chatbox::client::roomAvatar(32)));
     }
     chat_view_->clear();
     chat_view_->clearHoverState();
@@ -2655,7 +2655,7 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
         input_edit_->clear();
     }
     clearReply();
-    message_store_.reset(chatroom::client::ChatContext::kRoom,
+    message_store_.reset(chatbox::client::ChatContext::kRoom,
                          static_cast<quint64>(room_id));
     restorePendingForCurrentContext();
     renderCurrentConversation(ScrollMode::kBottom);
@@ -2665,10 +2665,10 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
     loading_older_history_ = false;
     next_before_id_ = 0;
 
-    chatroom::Frame join;
-    join.header.cmd = chatroom::kCmdJoinRoom;
+    chatbox::Frame join;
+    join.header.cmd = chatbox::kCmdJoinRoom;
     join.header.seq = next_seq_++;
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     writer.putU32(static_cast<uint32_t>(room_id));
     join.body = writer.data();
     sendFrame(join);
@@ -2725,7 +2725,7 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
         input_edit_->clear();
     }
     clearReply();
-    message_store_.reset(chatroom::client::ChatContext::kPrivate, peer_id);
+    message_store_.reset(chatbox::client::ChatContext::kPrivate, peer_id);
     restorePendingForCurrentContext();
     renderCurrentConversation(ScrollMode::kBottom);
     member_list_->clear();
@@ -2804,17 +2804,17 @@ bool MainWindow::currentContextMatches(int kind, quint64 target) const {
 }
 
 void MainWindow::onFrameReceived(const QByteArray& data) {
-    chatroom::Frame frame;
-    if (!chatroom::decodeFromByteArray(data, frame)) {
+    chatbox::Frame frame;
+    if (!chatbox::decodeFromByteArray(data, frame)) {
         setStatus("收到非法协议帧", true);
         return;
     }
-    chatroom::ByteReader reader(frame.body.data(), frame.body.size());
+    chatbox::ByteReader reader(frame.body.data(), frame.body.size());
 
     switch (frame.header.cmd) {
-        case chatroom::kCmdPing:
+        case chatbox::kCmdPing:
             break;
-        case chatroom::kCmdLogin: {
+        case chatbox::kCmdLogin: {
             uint64_t user_id = 0;
             QString nickname;
             QString token;
@@ -2876,10 +2876,10 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             setStatus("登录成功");
             break;
         }
-        case chatroom::kCmdLogout:
+        case chatbox::kCmdLogout:
             finishLogout();
             break;
-        case chatroom::kCmdRegister: {
+        case chatbox::kCmdRegister: {
             uint64_t user_id = 0;
             if (!reader.getU64(user_id)) {
                 pending_auth_ = PendingAuth::None;
@@ -2900,7 +2900,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             sendLogin();
             break;
         }
-        case chatroom::kCmdResume: {
+        case chatbox::kCmdResume: {
             uint64_t user_id = 0;
             QString nickname;
             if (!reader.getU64(user_id) || !readString(reader, nickname)) {
@@ -2972,7 +2972,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             setStatus("会话已恢复");
             break;
         }
-        case chatroom::kCmdRoomList: {
+        case chatbox::kCmdRoomList: {
             uint16_t count = 0;
             if (!reader.getU16(count)) {
                 setStatus("房间列表格式错误", true);
@@ -2999,7 +2999,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                     QString("%1  (%2/%3)").arg(name).arg(online).arg(max_members),
                     room_list_);
                 item->setIcon(
-                    QIcon(QPixmap::fromImage(chatroom::client::roomAvatar(36))));
+                    QIcon(QPixmap::fromImage(chatbox::client::roomAvatar(36))));
                 item->setSizeHint(QSize(0, 48));
                 item->setData(Qt::UserRole, static_cast<uint>(id));
                 item->setData(Qt::UserRole + 1, name);
@@ -3019,12 +3019,12 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             break;
         }
-        case chatroom::kCmdJoinRoom:
+        case chatbox::kCmdJoinRoom:
             setStatus("已加入房间");
             requestMembers(current_room_id_);
             requestRoomList();
             break;
-        case chatroom::kCmdRoomMembers: {
+        case chatbox::kCmdRoomMembers: {
             uint32_t room_id = 0;
             uint16_t count = 0;
             if (!reader.getU32(room_id) || !reader.getU16(count)) {
@@ -3063,7 +3063,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             break;
         }
-        case chatroom::kCmdChatSendResp: {
+        case chatbox::kCmdChatSendResp: {
             uint64_t message_id = 0;
             QString created_at;
             if (!reader.getU64(message_id) || !readString(reader, created_at)) {
@@ -3075,14 +3075,14 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                 outbox_.markSent(client_msg_id);
                 if (message_store_.markSent(
                         client_msg_id, message_id,
-                        chatroom::client::parseServerUtc(created_at))) {
+                        chatbox::client::parseServerUtc(created_at))) {
                     renderCurrentConversation(ScrollMode::kPreserve);
                 }
             }
             setStatus("消息已发送");
             break;
         }
-        case chatroom::kCmdChatPush: {
+        case chatbox::kCmdChatPush: {
             uint32_t room_id = 0;
             uint64_t message_id = 0;
             uint64_t sender_id = 0;
@@ -3113,24 +3113,24 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             peer_names_.insert(sender_id, nickname);
             if (context_type_ == ContextType::Room &&
                 room_id == static_cast<uint32_t>(current_room_id_)) {
-                chatroom::client::ChatMessage message;
+                chatbox::client::ChatMessage message;
                 message.message_id = message_id;
-                message.context = chatroom::client::ChatContext::kRoom;
+                message.context = chatbox::client::ChatContext::kRoom;
                 message.target_id = room_id;
                 message.sender_id = sender_id;
                 message.sender_name = nickname;
                 message.content = content;
-                message.created_at_utc = chatroom::client::parseServerUtc(created_at);
+                message.created_at_utc = chatbox::client::parseServerUtc(created_at);
                 message.reply_to_id = reply_to_id;
                 message.reply_sender_name = reply_sender_name;
                 message.reply_content = reply_content;
                 message.outgoing = false;
-                message.status = chatroom::client::MessageStatus::kSent;
+                message.status = chatbox::client::MessageStatus::kSent;
                 addIncomingMessage(message);
             }
             break;
         }
-        case chatroom::kCmdPrivateSendResp: {
+        case chatbox::kCmdPrivateSendResp: {
             uint64_t message_id = 0;
             QString created_at;
             if (!reader.getU64(message_id) || !readString(reader, created_at)) {
@@ -3142,7 +3142,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                 outbox_.markSent(client_msg_id);
                 if (message_store_.markSent(
                         client_msg_id, message_id,
-                        chatroom::client::parseServerUtc(created_at))) {
+                        chatbox::client::parseServerUtc(created_at))) {
                     renderCurrentConversation(ScrollMode::kPreserve);
                 }
             }
@@ -3150,7 +3150,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             setStatus("私聊已发送");
             break;
         }
-        case chatroom::kCmdPrivatePush: {
+        case chatbox::kCmdPrivatePush: {
             uint64_t from_id = 0;
             uint64_t message_id = 0;
             QString nickname;
@@ -3183,19 +3183,19 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                                     ? true
                                     : item->data(Qt::UserRole + 3).toBool();
             if (context_type_ == ContextType::Private && from_id == current_peer_id_) {
-                chatroom::client::ChatMessage message;
+                chatbox::client::ChatMessage message;
                 message.message_id = message_id;
-                message.context = chatroom::client::ChatContext::kPrivate;
+                message.context = chatbox::client::ChatContext::kPrivate;
                 message.target_id = from_id;
                 message.sender_id = from_id;
                 message.sender_name = nickname;
                 message.content = content;
-                message.created_at_utc = chatroom::client::parseServerUtc(created_at);
+                message.created_at_utc = chatbox::client::parseServerUtc(created_at);
                 message.reply_to_id = reply_to_id;
                 message.reply_sender_name = reply_sender_name;
                 message.reply_content = reply_content;
                 message.outgoing = false;
-                message.status = chatroom::client::MessageStatus::kSent;
+                message.status = chatbox::client::MessageStatus::kSent;
                 addIncomingMessage(message);
                 sendMarkRead(from_id, message_id);
                 updateConversationItem(from_id, 0, nickname, content, created_at, online);
@@ -3213,7 +3213,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             break;
         }
-        case chatroom::kCmdPrivateConversations: {
+        case chatbox::kCmdPrivateConversations: {
             uint16_t count = 0;
             if (!reader.getU16(count)) {
                 setStatus("会话列表格式错误", true);
@@ -3250,7 +3250,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             break;
         }
-        case chatroom::kCmdHistoryResp: {
+        case chatbox::kCmdHistoryResp: {
             uint8_t kind = 0;
             uint64_t target = 0;
             uint16_t count = 0;
@@ -3264,10 +3264,10 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             if (!currentContextMatches(kind, target)) {
                 break;
             }
-            QVector<chatroom::client::ChatMessage> page;
-            const chatroom::client::ChatContext chat_context =
-                kind == 1 ? chatroom::client::ChatContext::kRoom
-                          : chatroom::client::ChatContext::kPrivate;
+            QVector<chatbox::client::ChatMessage> page;
+            const chatbox::client::ChatContext chat_context =
+                kind == 1 ? chatbox::client::ChatContext::kRoom
+                          : chatbox::client::ChatContext::kPrivate;
             for (uint16_t i = 0; i < count; ++i) {
                 uint64_t message_id = 0;
                 uint64_t sender_id = 0;
@@ -3286,20 +3286,20 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                     setStatus("历史消息格式错误", true);
                     return;
                 }
-                chatroom::client::ChatMessage message;
+                chatbox::client::ChatMessage message;
                 message.message_id = message_id;
                 message.context = chat_context;
                 message.target_id = target;
                 message.sender_id = sender_id;
                 message.sender_name = nickname;
                 message.content = content;
-                message.created_at_utc = chatroom::client::parseServerUtc(created_at);
+                message.created_at_utc = chatbox::client::parseServerUtc(created_at);
                 message.reply_to_id = reply_to_id;
                 message.reply_sender_name = reply_sender_name;
                 message.reply_content = reply_content;
                 message.recalled = recalled != 0;
                 message.outgoing = sender_id == user_id_;
-                message.status = chatroom::client::MessageStatus::kSent;
+                message.status = chatbox::client::MessageStatus::kSent;
                 page.push_back(message);
                 peer_names_.insert(sender_id, nickname);
             }
@@ -3325,7 +3325,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             break;
         }
-        case chatroom::kCmdUserSearch: {
+        case chatbox::kCmdUserSearch: {
             if (frame.header.seq != user_search_seq_) {
                 break;
             }
@@ -3363,7 +3363,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             break;
         }
-        case chatroom::kCmdMessageRecall: {
+        case chatbox::kCmdMessageRecall: {
             uint8_t kind = 0;
             uint64_t target_id = 0;
             uint64_t message_id = 0;
@@ -3382,7 +3382,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             break;
         }
-        case chatroom::kCmdMessageSearch: {
+        case chatbox::kCmdMessageSearch: {
             if (frame.header.seq != message_search_seq_) {
                 break;
             }
@@ -3425,7 +3425,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             break;
         }
-        case chatroom::kCmdFriendList: {
+        case chatbox::kCmdFriendList: {
             uint16_t count = 0;
             if (!reader.getU16(count)) {
                 setStatus("好友列表格式错误", true);
@@ -3448,7 +3448,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                     return;
                 }
                 friend_ids_.insert(friend_id);
-                chatroom::client::FriendView view;
+                chatbox::client::FriendView view;
                 view.user_id = friend_id;
                 view.username = username;
                 view.nickname = nickname;
@@ -3458,7 +3458,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                 friend_views_.insert(friend_id, view);
             }
             refreshFriendListView();
-            for (const chatroom::client::FriendView& view : friend_views_) {
+            for (const chatbox::client::FriendView& view : friend_views_) {
                 if (view.avatar_version != 0 &&
                     avatar_cache_.needsFetch(view.user_id, view.avatar_version)) {
                     requestAvatar(view.user_id, view.avatar_version);
@@ -3467,7 +3467,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             requestConversations();
             break;
         }
-        case chatroom::kCmdFriendRequests: {
+        case chatbox::kCmdFriendRequests: {
             uint16_t count = 0;
             if (!reader.getU16(count)) {
                 setStatus("好友申请格式错误", true);
@@ -3499,7 +3499,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             break;
         }
-        case chatroom::kCmdFriendRequest: {
+        case chatbox::kCmdFriendRequest: {
             const quint64 requested_user = friend_request_seqs_.take(frame.header.seq);
             if (profile_dialog_ != nullptr && requested_user != 0 &&
                 profile_dialog_user_id_ == requested_user &&
@@ -3511,16 +3511,16 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             setStatus("好友申请已发送");
             break;
         }
-        case chatroom::kCmdFriendRespond:
+        case chatbox::kCmdFriendRespond:
             setStatus("好友申请已处理");
             requestFriendList();
             requestFriendRequests();
             break;
-        case chatroom::kCmdFriendRemove:
+        case chatbox::kCmdFriendRemove:
             setStatus("已删除好友");
             requestFriendList();
             break;
-        case chatroom::kCmdFriendSetRemark:
+        case chatbox::kCmdFriendSetRemark:
             setStatus("好友备注已保存");
             requestFriendList();
             if (profile_dialog_ != nullptr &&
@@ -3528,7 +3528,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                 requestProfile(profile_dialog_user_id_);
             }
             break;
-        case chatroom::kCmdProfileUpdate: {
+        case chatbox::kCmdProfileUpdate: {
             const quint32 response_seq = frame.header.seq;
             if (pending_profile_update_seq_ == 0 ||
                 response_seq != pending_profile_update_seq_) {
@@ -3562,7 +3562,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                                   static_cast<quint32>(avatar_version));
             break;
         }
-        case chatroom::kCmdProfileGet: {
+        case chatbox::kCmdProfileGet: {
             const quint32 response_seq = frame.header.seq;
             const quint64 requested_user = profile_request_seqs_.value(response_seq);
             uint64_t target_id = 0;
@@ -3600,7 +3600,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                 return;
             }
 
-            chatroom::client::UserProfile profile;
+            chatbox::client::UserProfile profile;
             profile.user_id = target_id;
             profile.username = username;
             profile.nickname = nickname;
@@ -3631,7 +3631,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             onProfileDataReceived(profile);
             break;
         }
-        case chatroom::kCmdAvatarGet: {
+        case chatbox::kCmdAvatarGet: {
             const quint32 response_seq = frame.header.seq;
             const quint64 requested_user = avatar_request_seqs_.value(response_seq);
             uint64_t target_id = 0;
@@ -3679,7 +3679,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             onProfileAvatarReceived(target_id, avatar_version, image);
             break;
         }
-        case chatroom::kCmdProfileUpdatePush: {
+        case chatbox::kCmdProfileUpdatePush: {
             uint64_t pushed_user_id = 0;
             QString pushed_nickname;
             uint32_t pushed_avatar_version = 0;
@@ -3702,7 +3702,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                 static_cast<quint32>(pushed_avatar_version));
             break;
         }
-        case chatroom::kCmdFriendRequestPush: {
+        case chatbox::kCmdFriendRequestPush: {
             uint64_t from_id = 0;
             QString username;
             QString nickname;
@@ -3718,7 +3718,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             break;
         }
-        case chatroom::kCmdFriendAcceptPush: {
+        case chatbox::kCmdFriendAcceptPush: {
             uint64_t friend_id = 0;
             QString username;
             QString nickname;
@@ -3737,7 +3737,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             requestFriendList();
             break;
         }
-        case chatroom::kCmdError: {
+        case chatbox::kCmdError: {
             uint16_t code = 0;
             QString message;
             if (!reader.getU16(code) || !readString(reader, message)) {
@@ -3978,7 +3978,7 @@ void MainWindow::resetContext() {
     current_room_id_ = 0;
     current_peer_id_ = 0;
     current_peer_name_.clear();
-    message_store_.reset(chatroom::client::ChatContext::kRoom, 0);
+    message_store_.reset(chatbox::client::ChatContext::kRoom, 0);
     has_more_ = false;
     loading_older_history_ = false;
     next_before_id_ = 0;
@@ -4012,9 +4012,9 @@ void MainWindow::renderCurrentConversation(ScrollMode mode) {
     QScrollBar* bar = chat_view_->verticalScrollBar();
     const int previous = bar->value();
     hideMessageActionBar();
-    QVector<chatroom::client::MessageKey> rendered_messages;
+    QVector<chatbox::client::MessageKey> rendered_messages;
     chat_view_->setConversationHtml(
-        chatroom::client::renderConversationHtml(message_store_.messages(), user_id_,
+        chatbox::client::renderConversationHtml(message_store_.messages(), user_id_,
                                                  &rendered_messages),
         rendered_messages);
     switch (mode) {
@@ -4030,7 +4030,7 @@ void MainWindow::renderCurrentConversation(ScrollMode mode) {
     }
 }
 
-void MainWindow::addIncomingMessage(const chatroom::client::ChatMessage& message) {
+void MainWindow::addIncomingMessage(const chatbox::client::ChatMessage& message) {
     if (!message_store_.isCurrent(message.context, message.target_id)) {
         return;
     }
@@ -4040,15 +4040,15 @@ void MainWindow::addIncomingMessage(const chatroom::client::ChatMessage& message
     renderCurrentConversation(at_bottom ? ScrollMode::kBottom : ScrollMode::kPreserve);
 }
 
-bool MainWindow::currentChatContext(chatroom::client::ChatContext& context,
+bool MainWindow::currentChatContext(chatbox::client::ChatContext& context,
                                     quint64& target_id) const {
     if (context_type_ == ContextType::Room) {
-        context = chatroom::client::ChatContext::kRoom;
+        context = chatbox::client::ChatContext::kRoom;
         target_id = static_cast<quint64>(current_room_id_);
         return true;
     }
     if (context_type_ == ContextType::Private) {
-        context = chatroom::client::ChatContext::kPrivate;
+        context = chatbox::client::ChatContext::kPrivate;
         target_id = current_peer_id_;
         return true;
     }

@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_CORE_OUTBOX_H
-#define CHATROOM_CLIENT_CORE_OUTBOX_H
+#ifndef CHATBOX_CLIENT_CORE_OUTBOX_H
+#define CHATBOX_CLIENT_CORE_OUTBOX_H
 
 #include <QDateTime>
 #include <QString>
@@ -7,7 +7,7 @@
 
 #include "core/chat_message.h"
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 struct OutboxEntry {
@@ -35,6 +35,6 @@ private:
 };
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_CLIENT_CORE_OUTBOX_H
+#endif  // CHATBOX_CLIENT_CORE_OUTBOX_H

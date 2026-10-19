@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_CORE_NETWORK_THREAD_H
-#define CHATROOM_CLIENT_CORE_NETWORK_THREAD_H
+#ifndef CHATBOX_CLIENT_CORE_NETWORK_THREAD_H
+#define CHATBOX_CLIENT_CORE_NETWORK_THREAD_H
 
 #include <atomic>
 #include <deque>
@@ -55,4 +55,4 @@ private:
     QByteArray receive_buffer_;
 };
 
-#endif  // CHATROOM_CLIENT_CORE_NETWORK_THREAD_H
+#endif  // CHATBOX_CLIENT_CORE_NETWORK_THREAD_H

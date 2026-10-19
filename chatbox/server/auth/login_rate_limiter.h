@@ -1,5 +1,5 @@
-#ifndef CHATROOM_SERVER_AUTH_LOGIN_RATE_LIMITER_H
-#define CHATROOM_SERVER_AUTH_LOGIN_RATE_LIMITER_H
+#ifndef CHATBOX_SERVER_AUTH_LOGIN_RATE_LIMITER_H
+#define CHATBOX_SERVER_AUTH_LOGIN_RATE_LIMITER_H
 
 #include <chrono>
 #include <cstdint>
@@ -7,7 +7,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace chatroom {
+namespace chatbox {
 
 class LoginRateLimiter {
 public:
@@ -32,6 +32,6 @@ private:
     mutable std::unordered_map<std::string, Entry> entries_;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_AUTH_LOGIN_RATE_LIMITER_H
+#endif  // CHATBOX_SERVER_AUTH_LOGIN_RATE_LIMITER_H

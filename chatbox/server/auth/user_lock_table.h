@@ -1,12 +1,12 @@
-#ifndef CHATROOM_SERVER_AUTH_USER_LOCK_TABLE_H
-#define CHATROOM_SERVER_AUTH_USER_LOCK_TABLE_H
+#ifndef CHATBOX_SERVER_AUTH_USER_LOCK_TABLE_H
+#define CHATBOX_SERVER_AUTH_USER_LOCK_TABLE_H
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
 
-namespace chatroom {
+namespace chatbox {
 
 class UserLockTable {
 public:
@@ -18,6 +18,6 @@ private:
     std::array<std::mutex, 256> locks_;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_AUTH_USER_LOCK_TABLE_H
+#endif  // CHATBOX_SERVER_AUTH_USER_LOCK_TABLE_H

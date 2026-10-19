@@ -10,7 +10,7 @@
 #include <netinet/tcp.h>
 #endif
 
-namespace chatroom {
+namespace chatbox {
 
 #ifdef _WIN32
 
@@ -196,4 +196,4 @@ void closeSocket(SocketHandle socket) {
 #endif
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

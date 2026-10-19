@@ -39,6 +39,3 @@ desktop.ini
 *.p12
 *.pfx
 chatbox/conf/chatbox.env
-
-# ================= 改名遗留（旧目录里被进程占用、无法搬走的构建产物，待删除） =================
-chatroom/

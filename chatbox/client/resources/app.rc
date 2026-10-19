@@ -18,8 +18,8 @@ BEGIN
             VALUE "CompanyName", "ChatBox"
             VALUE "FileDescription", "ChatBox"
             VALUE "FileVersion", "0.2.0"
-            VALUE "InternalName", "chatroom_client"
-            VALUE "OriginalFilename", "chatroom_client.exe"
+            VALUE "InternalName", "chatbox"
+            VALUE "OriginalFilename", "chatbox.exe"
             VALUE "ProductName", "ChatBox"
             VALUE "ProductVersion", "0.2.0"
         END

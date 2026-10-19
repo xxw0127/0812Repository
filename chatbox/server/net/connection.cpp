@@ -12,7 +12,7 @@
 
 #include "server/util/metrics.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 constexpr std::size_t kWriteBufferHardLimit = 2 * 1024 * 1024;
@@ -264,4 +264,4 @@ bool Connection::closeAfterFlush() const {
     return close_after_flush_;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

@@ -1,13 +1,13 @@
-#ifndef CHATROOM_SERVER_AUTH_PASSWORD_HASH_H
-#define CHATROOM_SERVER_AUTH_PASSWORD_HASH_H
+#ifndef CHATBOX_SERVER_AUTH_PASSWORD_HASH_H
+#define CHATBOX_SERVER_AUTH_PASSWORD_HASH_H
 
 #include <string>
 
-namespace chatroom {
+namespace chatbox {
 
 bool hashPassword(const std::string& password, std::string& encoded, std::string& error);
 bool verifyPassword(const std::string& password, const std::string& encoded);
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_AUTH_PASSWORD_HASH_H
+#endif  // CHATBOX_SERVER_AUTH_PASSWORD_HASH_H

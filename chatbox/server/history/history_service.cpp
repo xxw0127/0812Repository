@@ -5,7 +5,7 @@
 
 #include "server/util/logging.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -175,4 +175,4 @@ Frame HistoryService::handleSearch(const Frame& request, const RoomMember& calle
     return response;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

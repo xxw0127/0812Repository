@@ -1,11 +1,11 @@
-#ifndef CHATROOM_SERVER_UTIL_METRICS_H
-#define CHATROOM_SERVER_UTIL_METRICS_H
+#ifndef CHATBOX_SERVER_UTIL_METRICS_H
+#define CHATBOX_SERVER_UTIL_METRICS_H
 
 #include <atomic>
 #include <cstdint>
 #include <string>
 
-namespace chatroom {
+namespace chatbox {
 
 struct Metrics {
     std::atomic<uint64_t> connections_total{0};
@@ -42,6 +42,6 @@ std::string formatMetrics(const MetricsSnapshot& snapshot);
 void startStatsReporter();
 void stopStatsReporter();
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_UTIL_METRICS_H
+#endif  // CHATBOX_SERVER_UTIL_METRICS_H

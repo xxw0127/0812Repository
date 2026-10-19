@@ -5,7 +5,7 @@
 #include <QJsonObject>
 #include <QSettings>
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 namespace {
@@ -127,4 +127,4 @@ bool ContactStore::remove(quint64 user_id) {
 }
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox

@@ -9,7 +9,7 @@
 #include <sstream>
 #include <thread>
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -110,4 +110,4 @@ bool parseLogLevel(const std::string& text, LogLevel& level) {
     return false;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

@@ -4,7 +4,7 @@
 
 #include "server/util/logging.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 constexpr std::size_t kMaxQueueSize = 10000;
@@ -155,4 +155,4 @@ void WorkerPool::workerLoop(std::size_t index) {
     mysql_thread_end();
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

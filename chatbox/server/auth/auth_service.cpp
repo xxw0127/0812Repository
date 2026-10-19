@@ -10,7 +10,7 @@
 #include "server/util/logging.h"
 #include "server/util/metrics.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -314,4 +314,4 @@ AuthResult AuthService::handleResume(const Frame& request, const SessionBinding&
     return result;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

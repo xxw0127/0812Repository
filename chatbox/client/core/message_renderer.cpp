@@ -5,7 +5,7 @@
 #include "core/message_time.h"
 #include "core/ui_theme.h"
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 namespace {
@@ -135,4 +135,4 @@ QString renderConversationHtml(const QVector<ChatMessage>& messages,
 }
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox

@@ -7,7 +7,7 @@
 #include "common/text_utils.h"
 #include "server/util/logging.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -114,7 +114,7 @@ PrivateResult PrivateService::handlePrivateSend(const Frame& request,
     if (content.empty() || content.size() > 2000) {
         return PrivateResult{makeError(request.header.seq, 1011, "message length invalid")};
     }
-    if (chatroom::utf8CodePointCount(reply_sender_name) > 32 ||
+    if (chatbox::utf8CodePointCount(reply_sender_name) > 32 ||
         reply_content.size() > 2000) {
         return PrivateResult{makeError(request.header.seq, 1001, "invalid reply content")};
     }
@@ -306,4 +306,4 @@ PrivateResult PrivateService::handleRecall(const Frame& request,
     return result;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

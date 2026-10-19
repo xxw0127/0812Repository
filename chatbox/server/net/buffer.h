@@ -1,5 +1,5 @@
-#ifndef CHATROOM_SERVER_NET_BUFFER_H
-#define CHATROOM_SERVER_NET_BUFFER_H
+#ifndef CHATBOX_SERVER_NET_BUFFER_H
+#define CHATBOX_SERVER_NET_BUFFER_H
 
 #include <cstddef>
 #include <string>
@@ -7,7 +7,7 @@
 
 #include "common/protocol.h"
 
-namespace chatroom {
+namespace chatbox {
 
 class Buffer {
 public:
@@ -32,6 +32,6 @@ enum class FrameParseResult {
 
 FrameParseResult extractFrame(Buffer& buffer, Frame& frame, std::string& error);
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_NET_BUFFER_H
+#endif  // CHATBOX_SERVER_NET_BUFFER_H

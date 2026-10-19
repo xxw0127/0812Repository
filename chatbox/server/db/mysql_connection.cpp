@@ -9,7 +9,7 @@
 #include "server/util/logging.h"
 #include "server/util/metrics.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -2528,4 +2528,4 @@ bool MysqlConnection::listFriendIds(uint64_t user_id, std::vector<uint64_t>& ids
     return true;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

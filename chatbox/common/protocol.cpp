@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace chatroom {
+namespace chatbox {
 
 void appendU16(std::string& out, uint16_t value) {
     out.push_back(static_cast<char>((value >> 8) & 0xFF));
@@ -156,4 +156,4 @@ bool validateHeader(const FrameHeader& header, uint32_t max_body, std::string& e
     return true;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

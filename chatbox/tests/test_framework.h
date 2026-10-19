@@ -1,5 +1,5 @@
-#ifndef CHATROOM_TESTS_TEST_FRAMEWORK_H
-#define CHATROOM_TESTS_TEST_FRAMEWORK_H
+#ifndef CHATBOX_TESTS_TEST_FRAMEWORK_H
+#define CHATBOX_TESTS_TEST_FRAMEWORK_H
 
 #include <iostream>
 #include <string>
@@ -22,4 +22,4 @@
         }                                                                              \
     } while (false)
 
-#endif  // CHATROOM_TESTS_TEST_FRAMEWORK_H
+#endif  // CHATBOX_TESTS_TEST_FRAMEWORK_H

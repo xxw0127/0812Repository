@@ -1,5 +1,5 @@
-#ifndef CHATROOM_SERVER_NET_IO_THREAD_H
-#define CHATROOM_SERVER_NET_IO_THREAD_H
+#ifndef CHATBOX_SERVER_NET_IO_THREAD_H
+#define CHATBOX_SERVER_NET_IO_THREAD_H
 
 #include <atomic>
 #include <cstdint>
@@ -12,7 +12,7 @@
 
 #include "server/net/connection.h"
 
-namespace chatroom {
+namespace chatbox {
 
 class IoThread {
 public:
@@ -75,6 +75,6 @@ private:
     std::unordered_map<uint64_t, Connection::Ptr> connections_by_id_;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_NET_IO_THREAD_H
+#endif  // CHATBOX_SERVER_NET_IO_THREAD_H

@@ -178,14 +178,14 @@ bool NetworkThread::sendAll(SocketHandle socket, const QByteArray& data,
             written = static_cast<int>(
                 ::send(socket, data.constData() + sent, data.size() - sent, 0));
             if (written <= 0) {
-                if (chatroom::socketWouldBlock()) {
+                if (chatbox::socketWouldBlock()) {
                     if (!waitForSocket(socket, true, 1000)) {
                         error = "send timeout";
                         return false;
                     }
                     continue;
                 }
-                error = chatroom::lastSocketError();
+                error = chatbox::lastSocketError();
                 return false;
             }
         }
@@ -219,10 +219,10 @@ int NetworkThread::receive(SocketHandle socket, char* buffer, int size,
     if (received == 0) {
         return 0;
     }
-    if (chatroom::socketWouldBlock()) {
+    if (chatbox::socketWouldBlock()) {
         return -2;
     }
-    error = chatroom::lastSocketError();
+    error = chatbox::lastSocketError();
     return -1;
 }
 
@@ -245,18 +245,18 @@ bool NetworkThread::hasPendingTlsData() const {
 void NetworkThread::run() {
     std::string error;
     SocketHandle socket = kInvalidSocket;
-    if (!chatroom::connectWithTimeout(chatroom::toUtf8(host_), port_, 5000, socket, error)) {
+    if (!chatbox::connectWithTimeout(chatbox::toUtf8(host_), port_, 5000, socket, error)) {
         running_ = false;
         emit disconnected(QString::fromStdString(error));
         return;
     }
 
     active_socket_.store(socket);
-    if (!chatroom::setSocketNonBlocking(socket, true)) {
+    if (!chatbox::setSocketNonBlocking(socket, true)) {
         error = "failed to set socket non-blocking";
         running_ = false;
         active_socket_.store(kInvalidSocket);
-        chatroom::closeSocket(socket);
+        chatbox::closeSocket(socket);
         emit disconnected(QString::fromStdString(error));
         return;
     }
@@ -264,7 +264,7 @@ void NetworkThread::run() {
         running_ = false;
         active_socket_.store(kInvalidSocket);
         shutdownTls();
-        chatroom::closeSocket(socket);
+        chatbox::closeSocket(socket);
         emit disconnected(QString::fromStdString(error));
         return;
     }
@@ -292,10 +292,10 @@ void NetworkThread::run() {
 
         const qint64 now = QDateTime::currentMSecsSinceEpoch();
         if (now - last_heartbeat >= 30000) {
-            chatroom::Frame ping;
-            ping.header.cmd = chatroom::kCmdPing;
+            chatbox::Frame ping;
+            ping.header.cmd = chatbox::kCmdPing;
             ping.header.seq = 0;
-            const QByteArray frame = chatroom::encodeToByteArray(ping);
+            const QByteArray frame = chatbox::encodeToByteArray(ping);
             if (!sendAll(socket, frame, error)) {
                 reason = QString::fromStdString(error);
                 break;
@@ -316,10 +316,10 @@ void NetworkThread::run() {
             const int ready = ::select(socket + 1, &read_set, nullptr, nullptr, &timeout);
 #endif
             if (ready < 0) {
-                if (chatroom::socketWouldBlock()) {
+                if (chatbox::socketWouldBlock()) {
                     continue;
                 }
-                reason = QString::fromStdString(chatroom::lastSocketError());
+                reason = QString::fromStdString(chatbox::lastSocketError());
                 break;
             }
             if (ready == 0) {
@@ -347,7 +347,7 @@ void NetworkThread::run() {
     running_ = false;
     active_socket_.store(kInvalidSocket);
     shutdownTls();
-    chatroom::closeSocket(socket);
+    chatbox::closeSocket(socket);
     if (intentional_stop_) {
         reason = "已断开";
     } else if (reason.isEmpty()) {
@@ -357,19 +357,19 @@ void NetworkThread::run() {
 }
 
 bool NetworkThread::parseIncoming(std::string& error) {
-    while (receive_buffer_.size() >= static_cast<int>(chatroom::kFrameHeaderSize)) {
-        chatroom::FrameHeader header;
-        if (!chatroom::decodeHeader(receive_buffer_.constData(),
-                                    chatroom::kFrameHeaderSize, header)) {
+    while (receive_buffer_.size() >= static_cast<int>(chatbox::kFrameHeaderSize)) {
+        chatbox::FrameHeader header;
+        if (!chatbox::decodeHeader(receive_buffer_.constData(),
+                                    chatbox::kFrameHeaderSize, header)) {
             error = "invalid frame header";
             receive_buffer_.clear();
             return false;
         }
-        if (!chatroom::validateHeader(header, chatroom::kMaxInFrameBody, error)) {
+        if (!chatbox::validateHeader(header, chatbox::kMaxInFrameBody, error)) {
             receive_buffer_.clear();
             return false;
         }
-        const int total = static_cast<int>(chatroom::kFrameHeaderSize + header.body_len);
+        const int total = static_cast<int>(chatbox::kFrameHeaderSize + header.body_len);
         if (receive_buffer_.size() < total) {
             break;
         }

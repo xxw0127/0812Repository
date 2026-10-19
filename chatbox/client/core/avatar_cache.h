@@ -1,11 +1,11 @@
-#ifndef CHATROOM_CLIENT_CORE_AVATAR_CACHE_H
-#define CHATROOM_CLIENT_CORE_AVATAR_CACHE_H
+#ifndef CHATBOX_CLIENT_CORE_AVATAR_CACHE_H
+#define CHATBOX_CLIENT_CORE_AVATAR_CACHE_H
 
 #include <QHash>
 #include <QImage>
 #include <QtGlobal>
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 // In-memory cache of avatar images keyed by user_id. Version 0 means the user
@@ -32,6 +32,6 @@ private:
 };
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_CLIENT_CORE_AVATAR_CACHE_H
+#endif  // CHATBOX_CLIENT_CORE_AVATAR_CACHE_H

@@ -1,12 +1,12 @@
-#ifndef CHATROOM_CLIENT_CORE_AVATAR_UTILS_H
-#define CHATROOM_CLIENT_CORE_AVATAR_UTILS_H
+#ifndef CHATBOX_CLIENT_CORE_AVATAR_UTILS_H
+#define CHATBOX_CLIENT_CORE_AVATAR_UTILS_H
 
 #include <QByteArray>
 #include <QImage>
 #include <QString>
 #include <QtGlobal>
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 // Crops the largest centered square out of source.
@@ -31,6 +31,6 @@ QImage circularAvatar(const QImage& source, int size);
 QImage roomAvatar(int size);
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_CLIENT_CORE_AVATAR_UTILS_H
+#endif  // CHATBOX_CLIENT_CORE_AVATAR_UTILS_H

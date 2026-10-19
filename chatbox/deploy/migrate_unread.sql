@@ -1,4 +1,4 @@
-USE chatroom;
+USE chatbox;
 
 INSERT INTO private_read_state (user_id, peer_id, last_read_message_id)
 SELECT receiver_id, sender_id, MAX(id)

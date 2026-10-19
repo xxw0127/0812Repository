@@ -12,12 +12,12 @@ if ($LASTEXITCODE -ne 0) { throw "build_client.ps1 failed" }
 
 $release = Join-Path $root "build\release"
 $distRoot = Join-Path $root "dist"
-$name = "chatroom-client-$Version"
+$name = "chatbox-$Version"
 $target = Join-Path $distRoot $name
 if (Test-Path $target) { Remove-Item $target -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $target | Out-Null
 
-Copy-Item (Join-Path $release "chatroom_client.exe") $target -Force
+Copy-Item (Join-Path $release "chatbox.exe") $target -Force
 Copy-Item (Join-Path $release "*.dll") $target -Force
 foreach ($directory in @("certs", "platforms", "styles")) {
     $source = Join-Path $release $directory

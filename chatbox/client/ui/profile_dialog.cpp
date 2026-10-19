@@ -18,7 +18,7 @@
 #include "core/identity.h"
 #include "core/ui_theme.h"
 
-namespace theme = chatroom::client::theme;  // Coinbase palette tokens
+namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
 namespace {
 
@@ -42,7 +42,7 @@ void setCounterText(QLabel* label, const QString& text, bool over_limit) {
 
 ProfileDialog::ProfileDialog(QWidget* parent) : QDialog(parent) {
     buildUi();
-    setProfile(chatroom::client::UserProfile(), true);
+    setProfile(chatbox::client::UserProfile(), true);
 }
 
 void ProfileDialog::buildUi() {
@@ -271,7 +271,7 @@ void ProfileDialog::buildUi() {
     });
 }
 
-void ProfileDialog::setProfile(const chatroom::client::UserProfile& profile,
+void ProfileDialog::setProfile(const chatbox::client::UserProfile& profile,
                                bool self) {
     const bool new_user = profile_.user_id != profile.user_id;
     const bool avatar_version_changed =
@@ -372,7 +372,7 @@ void ProfileDialog::chooseAvatar() {
     painter.end();
 
     const QByteArray jpeg =
-        chatroom::client::encodeAvatarJpeg(flattened, kAvatarMaxBytes);
+        chatbox::client::encodeAvatarJpeg(flattened, kAvatarMaxBytes);
     if (jpeg.isEmpty()) {
         setStatus("图片压缩后仍然过大", true);
         return;
@@ -459,7 +459,7 @@ void ProfileDialog::updateDisplay() {
 
     const QString username = profile_.username.trimmed();
     username_label_->setText(username.isEmpty() ? "@-" : "@" + username);
-    uid_label_->setText(chatroom::client::publicUserId(profile_.user_id));
+    uid_label_->setText(chatbox::client::publicUserId(profile_.user_id));
 
     const bool has_remark = !self_ && !profile_.remark.trimmed().isEmpty();
     secondary_nickname_label_->setText(
@@ -486,9 +486,9 @@ void ProfileDialog::updateAvatarPreview() {
         name = profile_.username.trimmed();
     }
     const QImage image = source.isNull()
-                             ? chatroom::client::fallbackAvatar(
+                             ? chatbox::client::fallbackAvatar(
                                    name, profile_.user_id, kAvatarSize)
-                             : chatroom::client::circularAvatar(source, kAvatarSize);
+                             : chatbox::client::circularAvatar(source, kAvatarSize);
     avatar_label_->setPixmap(QPixmap::fromImage(image));
 }
 
@@ -572,7 +572,7 @@ QString ProfileDialog::currentDisplayName() const {
         }
         return profile_.nickname;
     }
-    return chatroom::client::profileDisplayName(profile_);
+    return chatbox::client::profileDisplayName(profile_);
 }
 
 QString ProfileDialog::currentSignature() const {

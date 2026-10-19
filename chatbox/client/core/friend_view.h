@@ -1,10 +1,10 @@
-#ifndef CHATROOM_CLIENT_CORE_FRIEND_VIEW_H
-#define CHATROOM_CLIENT_CORE_FRIEND_VIEW_H
+#ifndef CHATBOX_CLIENT_CORE_FRIEND_VIEW_H
+#define CHATBOX_CLIENT_CORE_FRIEND_VIEW_H
 
 #include <QString>
 #include <QtGlobal>
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 struct FriendView {
@@ -20,6 +20,6 @@ struct FriendView {
 };
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_CLIENT_CORE_FRIEND_VIEW_H
+#endif  // CHATBOX_CLIENT_CORE_FRIEND_VIEW_H

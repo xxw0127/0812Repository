@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace chatroom {
+namespace chatbox {
 
 void Buffer::append(const char* data, std::size_t size) {
     if (data == nullptr || size == 0) {
@@ -72,4 +72,4 @@ FrameParseResult extractFrame(Buffer& buffer, Frame& frame, std::string& error) 
     return FrameParseResult::kOk;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

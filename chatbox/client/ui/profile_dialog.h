@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_UI_PROFILE_DIALOG_H
-#define CHATROOM_CLIENT_UI_PROFILE_DIALOG_H
+#ifndef CHATBOX_CLIENT_UI_PROFILE_DIALOG_H
+#define CHATBOX_CLIENT_UI_PROFILE_DIALOG_H
 
 #include <QByteArray>
 #include <QDialog>
@@ -23,7 +23,7 @@ class ProfileDialog : public QDialog {
 public:
     explicit ProfileDialog(QWidget* parent = nullptr);
 
-    void setProfile(const chatroom::client::UserProfile& profile, bool self);
+    void setProfile(const chatbox::client::UserProfile& profile, bool self);
     void setAvatar(const QImage& image);
     void setBusy(bool busy);
     void setStatus(const QString& text, bool error = false);
@@ -56,7 +56,7 @@ private:
     QString currentSignature() const;
     QImage currentAvatarSource() const;
 
-    chatroom::client::UserProfile profile_;
+    chatbox::client::UserProfile profile_;
     bool self_ = false;
     bool busy_ = false;
 
@@ -97,4 +97,4 @@ private:
     QPushButton* close_button_ = nullptr;
 };
 
-#endif  // CHATROOM_CLIENT_UI_PROFILE_DIALOG_H
+#endif  // CHATBOX_CLIENT_UI_PROFILE_DIALOG_H

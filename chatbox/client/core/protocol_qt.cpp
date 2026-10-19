@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace chatroom {
+namespace chatbox {
 
 QByteArray encodeToByteArray(const Frame& frame) {
     const std::string data = encodeFrame(frame);
@@ -39,4 +39,4 @@ std::string toUtf8(const QString& value) {
     return std::string(data.constData(), static_cast<std::size_t>(data.size()));
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

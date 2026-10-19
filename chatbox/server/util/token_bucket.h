@@ -1,10 +1,10 @@
-#ifndef CHATROOM_SERVER_UTIL_TOKEN_BUCKET_H
-#define CHATROOM_SERVER_UTIL_TOKEN_BUCKET_H
+#ifndef CHATBOX_SERVER_UTIL_TOKEN_BUCKET_H
+#define CHATBOX_SERVER_UTIL_TOKEN_BUCKET_H
 
 #include <algorithm>
 #include <chrono>
 
-namespace chatroom {
+namespace chatbox {
 
 class TokenBucket {
 public:
@@ -34,6 +34,6 @@ private:
     std::chrono::steady_clock::time_point last_refill_;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_UTIL_TOKEN_BUCKET_H
+#endif  // CHATBOX_SERVER_UTIL_TOKEN_BUCKET_H

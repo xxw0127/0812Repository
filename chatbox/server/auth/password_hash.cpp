@@ -6,7 +6,7 @@
 #include <sys/random.h>
 #include <vector>
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -66,4 +66,4 @@ bool verifyPassword(const std::string& password, const std::string& encoded) {
     return argon2id_verify(encoded.c_str(), password.data(), password.size()) == ARGON2_OK;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

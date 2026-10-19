@@ -1,4 +1,4 @@
-USE chatroom;
+USE chatbox;
 
 ALTER TABLE messages
     ADD COLUMN reply_to_id BIGINT UNSIGNED NOT NULL DEFAULT 0,

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string>
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -116,14 +116,14 @@ void printUsage(const char* program) {
               << "  --max-connections <n>  global connection limit (default 20000)\n"
               << "  --max-conn-per-ip <n>  per-IP connection limit, 0=off (default 20)\n"
               << "  --idle-timeout <sec>   heartbeat timeout (default 90)\n"
-              << "  --log-file <path>      log file path (default logs/chatroom.log)\n"
+              << "  --log-file <path>      log file path (default logs/chatbox.log)\n"
               << "  --log-level <level>    debug|info|warn|error (default info)\n"
               << "  --db-host <host>       MySQL host (default 127.0.0.1)\n"
               << "  --db-port <port>       MySQL port (default 3306)\n"
-              << "  --db-user <user>       MySQL user (default chatroom)\n"
-              << "  --db-name <database>   MySQL database (default chatroom)\n"
-              << "  CHATROOM_DB_PASSWORD   MySQL password (environment variable)\n"
+              << "  --db-user <user>       MySQL user (default chatbox)\n"
+              << "  --db-name <database>   MySQL database (default chatbox)\n"
+              << "  CHATBOX_DB_PASSWORD   MySQL password (environment variable)\n"
               << "  --help, -h             show this help\n";
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

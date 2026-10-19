@@ -1,5 +1,5 @@
-#ifndef CHATROOM_SERVER_NET_ACCEPTOR_H
-#define CHATROOM_SERVER_NET_ACCEPTOR_H
+#ifndef CHATBOX_SERVER_NET_ACCEPTOR_H
+#define CHATBOX_SERVER_NET_ACCEPTOR_H
 
 #include <atomic>
 #include <cstdint>
@@ -10,7 +10,7 @@
 #include "server/net/connection_limiter.h"
 #include "server/net/io_thread.h"
 
-namespace chatroom {
+namespace chatbox {
 
 class Acceptor {
 public:
@@ -42,6 +42,6 @@ private:
     std::size_t next_io_ = 0;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_NET_ACCEPTOR_H
+#endif  // CHATBOX_SERVER_NET_ACCEPTOR_H

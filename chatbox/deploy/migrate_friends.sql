@@ -1,4 +1,4 @@
-USE chatroom;
+USE chatbox;
 
 CREATE TABLE IF NOT EXISTS friend_requests (
     id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

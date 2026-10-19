@@ -7,14 +7,14 @@
 namespace {
 
 int testHeaderRoundTrip() {
-    chatroom::Frame frame;
+    chatbox::Frame frame;
     frame.header.flags = 0x05;
     frame.header.cmd = 0x1234;
     frame.header.seq = 0x01020304;
     frame.body = "hello";
 
-    const std::string encoded = chatroom::encodeFrame(frame);
-    CHECK_EQ(encoded.size(), chatroom::kFrameHeaderSize + 5);
+    const std::string encoded = chatbox::encodeFrame(frame);
+    CHECK_EQ(encoded.size(), chatbox::kFrameHeaderSize + 5);
     CHECK_EQ(static_cast<uint8_t>(encoded[0]), 0x43);
     CHECK_EQ(static_cast<uint8_t>(encoded[1]), 0x48);
     CHECK_EQ(static_cast<uint8_t>(encoded[2]), 0x01);
@@ -29,49 +29,49 @@ int testHeaderRoundTrip() {
     CHECK_EQ(static_cast<uint8_t>(encoded[11]), 0x00);
     CHECK_EQ(static_cast<uint8_t>(encoded[12]), 0x00);
     CHECK_EQ(static_cast<uint8_t>(encoded[13]), 0x05);
-    CHECK_EQ(encoded.substr(chatroom::kFrameHeaderSize), "hello");
+    CHECK_EQ(encoded.substr(chatbox::kFrameHeaderSize), "hello");
 
-    chatroom::FrameHeader header;
-    CHECK_TRUE(chatroom::decodeHeader(encoded.data(), chatroom::kFrameHeaderSize, header));
-    CHECK_EQ(header.magic, chatroom::kProtocolMagic);
-    CHECK_EQ(header.version, chatroom::kProtocolVersion);
+    chatbox::FrameHeader header;
+    CHECK_TRUE(chatbox::decodeHeader(encoded.data(), chatbox::kFrameHeaderSize, header));
+    CHECK_EQ(header.magic, chatbox::kProtocolMagic);
+    CHECK_EQ(header.version, chatbox::kProtocolVersion);
     CHECK_EQ(header.flags, 0x05);
     CHECK_EQ(header.cmd, 0x1234);
     CHECK_EQ(header.seq, 0x01020304);
     CHECK_EQ(header.body_len, 5);
 
     std::string error;
-    CHECK_TRUE(chatroom::validateHeader(header, chatroom::kMaxInFrameBody, error));
+    CHECK_TRUE(chatbox::validateHeader(header, chatbox::kMaxInFrameBody, error));
     CHECK_TRUE(error.empty());
     return 0;
 }
 
 int testValidationRejectsBadHeaders() {
     std::string error;
-    chatroom::FrameHeader header;
+    chatbox::FrameHeader header;
 
     header.magic = 0x0000;
-    CHECK_TRUE(!chatroom::validateHeader(header, chatroom::kMaxInFrameBody, error));
+    CHECK_TRUE(!chatbox::validateHeader(header, chatbox::kMaxInFrameBody, error));
     CHECK_EQ(error, "invalid magic");
 
-    header.magic = chatroom::kProtocolMagic;
+    header.magic = chatbox::kProtocolMagic;
     header.version = 2;
-    CHECK_TRUE(!chatroom::validateHeader(header, chatroom::kMaxInFrameBody, error));
+    CHECK_TRUE(!chatbox::validateHeader(header, chatbox::kMaxInFrameBody, error));
     CHECK_EQ(error, "unsupported protocol version");
 
-    header.version = chatroom::kProtocolVersion;
-    header.body_len = chatroom::kMaxInFrameBody + 1;
-    CHECK_TRUE(!chatroom::validateHeader(header, chatroom::kMaxInFrameBody, error));
+    header.version = chatbox::kProtocolVersion;
+    header.body_len = chatbox::kMaxInFrameBody + 1;
+    CHECK_TRUE(!chatbox::validateHeader(header, chatbox::kMaxInFrameBody, error));
     CHECK_EQ(error, "frame body too large");
 
     header.body_len = 0;
-    CHECK_TRUE(chatroom::validateHeader(header, chatroom::kMaxInFrameBody, error));
+    CHECK_TRUE(chatbox::validateHeader(header, chatbox::kMaxInFrameBody, error));
     CHECK_TRUE(error.empty());
     return 0;
 }
 
 int testByteReaderWriter() {
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     writer.putU8(0x7F);
     writer.putU16(0x1234);
     writer.putU32(0x01020304);
@@ -79,7 +79,7 @@ int testByteReaderWriter() {
     writer.putString("abc");
     CHECK_EQ(writer.data().size(), 20);
 
-    chatroom::ByteReader reader(writer.data().data(), writer.data().size());
+    chatbox::ByteReader reader(writer.data().data(), writer.data().size());
     uint8_t u8 = 0;
     uint16_t u16 = 0;
     uint32_t u32 = 0;
@@ -100,16 +100,16 @@ int testByteReaderWriter() {
 }
 
 int testByteReaderRejectsTruncatedValues() {
-    chatroom::ByteWriter writer;
+    chatbox::ByteWriter writer;
     writer.putString("abcdef");
     const std::string data = writer.data();
 
-    chatroom::ByteReader reader(data.data(), data.size() - 1);
+    chatbox::ByteReader reader(data.data(), data.size() - 1);
     std::string text;
     CHECK_TRUE(!reader.getString(text));
     CHECK_EQ(reader.remaining(), data.size() - 1);
 
-    chatroom::ByteReader empty_reader(nullptr, 0);
+    chatbox::ByteReader empty_reader(nullptr, 0);
     uint32_t value = 0;
     CHECK_TRUE(!empty_reader.getU32(value));
     CHECK_EQ(empty_reader.remaining(), 0u);

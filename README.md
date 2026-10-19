@@ -1,2 +1,91 @@
-# 0812Repository
-NULL
+# ChatBox
+
+C++ 聊天室：Windows 端 Qt 5.15 桌面客户端 + Linux C++17 高并发服务端（epoll ET + MySQL + nginx TLS 终结）。
+
+- 客户端：Qt Widgets、原生 Winsock + 独立网络线程、浅色三栏聊天界面、原生 TCP + TLS。
+- 服务端：IO 线程池 + 业务工作线程池、MySQL 连接池（每线程独立连接 / 预处理语句）、心跳与断线重连、限流与连接上限。
+- 协议：自定义二进制帧（14 字节大端帧头 + TLV 消息体），登录/注册、房间与大厅广播、私聊、历史分页、引用回复、撤回、消息搜索、好友与备注、个人资料与头像。
+
+## 目录结构
+
+```text
+├── chatbox/
+│   ├── client/          # Qt 5.15 客户端（qmake + MinGW），含 QtTest 回归与截图
+│   ├── server/          # Linux 服务端（CMake，epoll + MySQL + Argon2id + OpenSSL）
+│   ├── common/          # 协议编解码、命令字、错误码（客户端共用）
+│   ├── tools/           # 协议级联调/压测脚本（Python）、run_server.sh
+│   ├── deploy/          # systemd、logrotate、nginx stream、证书脚本、建库/迁移 SQL
+│   ├── conf/            # 环境配置示例（真实口令不入库）
+│   └── tests/           # 服务端 CTest 用例
+├── docs/                # 设计与实施文档（docs/superpowers/ 为规格与计划）
+└── README.md
+```
+
+## 快速开始
+
+### 1. 服务端（Linux，Ubuntu 20.04+，GCC 9+）
+
+```bash
+sudo apt-get install -y cmake g++ libmysqlclient-dev libargon2-dev libssl-dev
+sudo mysql < chatbox/deploy/schema.sql      # 建库 chatbox + 建表
+cd chatbox
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j"$(nproc)"
+(cd build && ctest --output-on-failure)     # CTest 5/5
+cp conf/chatbox.env.example conf/chatbox.env   # 写入 CHATBOX_DB_PASSWORD=...
+./tools/run_server.sh --listen 127.0.0.1 --port 9100 --proxy-protocol
+```
+
+完整的数据库账号、systemd、nginx stream TLS（9443）与联调工具用法见 [`chatbox/README.md`](chatbox/README.md)。
+
+### 2. 客户端（Windows，Qt 5.15.2 + MinGW 8.1）
+
+```powershell
+cd chatbox\client
+.\build_client.ps1
+.\build\release\chatbox.exe
+```
+
+- 默认服务器：`192.168.2.113:9443`（TLS，校验 `client\certs\ca.crt`）。
+- 回归测试：`cd chatbox\client\tests; .\run_client_tests.ps1`（当前 44 passed / 0 failed）。
+- 便携分发包：`.\package_client.ps1` → `dist\chatbox-0.2.0-win64.zip`。
+- 详细说明见 [`chatbox/client/README.md`](chatbox/client/README.md)。
+
+## 部署拓扑
+
+```text
+Qt 客户端 --TLS 9443--> nginx stream（证书 /etc/chatbox/certs）--PROXY--> 127.0.0.1:9100 服务端 --> MySQL(chatbox)
+```
+
+- 服务端只监听回环，systemd 服务名 `chatbox`，日志 `logs/chatbox.log`（logrotate 按天/100M 轮转）。
+- 自签 CA 与内网 IP 仅用于内网开发环境；换 IP/域名需重新签发证书并同步客户端 `ca.crt`。
+
+## 截图
+
+| 登录 | 聊天（大厅） |
+|---|---|
+| ![登录](chatbox/client/screenshot-coinbase-login.png) | ![主界面](chatbox/client/screenshot-coinbase-main.png) |
+
+| 个人资料 | 设置 |
+|---|---|
+| ![资料](chatbox/client/screenshot-coinbase-profile.png) | ![设置](chatbox/client/screenshot-coinbase-settings.png) |
+
+更多界面与验证证据（图标、消息操作、好友、头像修复等）见 `chatbox/client/` 下的 `screenshot-*.png` 与客户端 README 索引。
+
+## 文档
+
+| 文档 | 内容 |
+|---|---|
+| [`chatbox/README.md`](chatbox/README.md) | 服务端：依赖、建库、配置、构建、运行、systemd、监控指标、协议表、联调工具 |
+| [`chatbox/client/README.md`](chatbox/client/README.md) | 客户端：构建、分发、TLS、各功能说明、回归测试、截图索引 |
+| [`docs/2026-10-18-linux-chatroom-design.md`](docs/2026-10-18-linux-chatroom-design.md) | 服务端架构规划书（历史设计稿，保留原始命名） |
+| [`docs/superpowers/specs/`](docs/superpowers/specs) | 各功能的规格（换肤、图标、客户端可用性等） |
+| [`docs/superpowers/plans/`](docs/superpowers/plans) | 对应的实施计划与台账 |
+| [`docs/ssh-key-only.md`](docs/ssh-key-only.md) | 部署机 SSH 仅密钥登录配置记录 |
+
+## 说明
+
+- 客户端不直连数据库；所有数据操作经服务端命令字。
+- 网络传输一律大端序列化，禁止直接发送内存结构体。
+- Token 只存哈希（`SHA-256`），密码使用 Argon2id；日志不打印口令与 Token。
+- 本仓库为个人学习/演示项目，未附开源许可证。

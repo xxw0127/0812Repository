@@ -48,19 +48,19 @@ sudo mysql < deploy/migrate_profiles.sql
 创建应用账号（密码换成自己的强密码）：
 
 ```sql
-CREATE USER 'chatroom'@'127.0.0.1' IDENTIFIED BY 'your-strong-password';
-CREATE USER 'chatroom'@'localhost' IDENTIFIED BY 'your-strong-password';
-GRANT SELECT, INSERT, UPDATE, DELETE ON chatroom.* TO 'chatroom'@'127.0.0.1';
-GRANT SELECT, INSERT, UPDATE, DELETE ON chatroom.* TO 'chatroom'@'localhost';
+CREATE USER 'chatbox'@'127.0.0.1' IDENTIFIED BY 'your-strong-password';
+CREATE USER 'chatbox'@'localhost' IDENTIFIED BY 'your-strong-password';
+GRANT SELECT, INSERT, UPDATE, DELETE ON chatbox.* TO 'chatbox'@'127.0.0.1';
+GRANT SELECT, INSERT, UPDATE, DELETE ON chatbox.* TO 'chatbox'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
 配置密码文件：
 
 ```bash
-cp conf/chatroom.env.example conf/chatroom.env
-chmod 600 conf/chatroom.env
-# 编辑 conf/chatroom.env，写入 CHATROOM_DB_PASSWORD=...
+cp conf/chatbox.env.example conf/chatbox.env
+chmod 600 conf/chatbox.env
+# 编辑 conf/chatbox.env，写入 CHATBOX_DB_PASSWORD=...
 ```
 
 `tools/run_server.sh` 会自动加载该文件并导出环境变量。
@@ -90,7 +90,7 @@ chmod +x tools/run_server.sh
 ./tools/run_server.sh --listen 0.0.0.0 --port 9100 --max-conn-per-ip 20
 ```
 
-日志默认写入 `logs/chatroom.log`。停止：
+日志默认写入 `logs/chatbox.log`。停止：
 
 ```bash
 kill -TERM <pid>
@@ -108,14 +108,14 @@ kill -TERM <pid>
 安装 systemd 与日志轮转：
 
 ```bash
-sudo cp deploy/chatroom.service /etc/systemd/system/chatroom.service
-sudo cp deploy/chatroom.logrotate /etc/logrotate.d/chatroom
+sudo cp deploy/chatbox.service /etc/systemd/system/chatbox.service
+sudo cp deploy/chatbox.logrotate /etc/logrotate.d/chatbox
 sudo systemctl daemon-reload
-sudo systemctl enable --now chatroom
-sudo systemctl status chatroom --no-pager
+sudo systemctl enable --now chatbox
+sudo systemctl status chatbox --no-pager
 ```
 
-日志轮转通过 `SIGUSR1` 让进程重新打开日志文件，配置位于 `deploy/chatroom.logrotate`。
+日志轮转通过 `SIGUSR1` 让进程重新打开日志文件，配置位于 `deploy/chatbox.logrotate`。
 
 ## 监控
 
@@ -157,8 +157,9 @@ sudo cp deploy/nginx-chat-stream.conf /etc/nginx/stream.d/chat.conf
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-- 服务端证书 SAN：`IP:192.168.2.113`、`DNS:chatroom.local`
-- CA：`/etc/chatroom/certs/ca.crt`，客户端副本在 `client/certs/ca.crt`
+- 服务端证书 SAN：`IP:192.168.2.113`、`DNS:chatbox.local`
+- CA：`/etc/chatbox/certs/ca.crt`，客户端副本在 `client/certs/ca.crt`
+- `deploy/gen_certs.sh` 会重新生成 CA 与服务器证书；**重新生成 CA 会让所有现有客户端拒绝连接**，必须同步把新的 `ca.crt` 分发到各客户端 `certs` 目录。只换服务器证书时应复用原 CA（保留 `ca.crt`/`ca.key`）
 - nginx 开启 `proxy_protocol on`
 - 服务端必须使用 `--proxy-protocol`，否则无法读取真实 IP
 - 客户端默认 `9443 + TLS`，并校验 CA 与 IP SAN
@@ -263,15 +264,15 @@ python3 tools/tls_smoke.py --host 192.168.2.113 --port 9443 --ca client/certs/ca
 Windows Qt 5.15.2 客户端位于 `client/`，构建与运行见 `client/README.md`：
 
 ```powershell
-cd D:\OpenCode_WorkSpace\chatroom\client
+cd D:\OpenCode_WorkSpace\chatbox\client
 .\build_client.ps1
-.\build\release\chatroom_client.exe
+.\build\release\chatbox.exe
 ```
 
 客户端核心测试：
 
 ```powershell
-cd D:\OpenCode_WorkSpace\chatroom\client\tests
+cd D:\OpenCode_WorkSpace\chatbox\client\tests
 .\run_client_tests.ps1
 ```
 
@@ -280,9 +281,9 @@ cd D:\OpenCode_WorkSpace\chatroom\client\tests
 客户端便携分发包：
 
 ```powershell
-cd D:\OpenCode_WorkSpace\chatroom\client
+cd D:\OpenCode_WorkSpace\chatbox\client
 .\package_client.ps1
-# 输出 dist\chatroom-client-0.2.0-win64.zip
+# 输出 dist\chatbox-0.2.0-win64.zip
 ```
 
 已支持登录/注册、房间、群聊、私聊、用户搜索、服务端好友申请/列表/备注、个人主页（查看他人/编辑自己）、头像上传与清除、昵称/签名修改与在线好友推送、引用回复、@提及、消息撤回、消息搜索、消息发送状态与失败重发、聊天气泡与本地时间、连接横幅、私聊未读角标与托盘提醒、历史分页、Token 自动登录、设置页、客户端日志、退出登录、心跳和断线重连；界面为浅色 Telegram 风格三栏布局。
@@ -293,6 +294,8 @@ cd D:\OpenCode_WorkSpace\chatroom\client
 
 已完成：TCP 框架、MySQL 8.4 连接与自动重连、注册/登录/登出/Token 恢复、单会话踢下线、Argon2id 密码哈希、单大厅、好友申请/接受/删除、服务端好友列表与好友备注、不可变用户身份标识、用户资料 `PROFILE_GET`/`PROFILE_UPDATE`/`AVATAR_GET`/`PROFILE_UPDATE_PUSH`、昵称与签名编辑、头像上传/清除与版本缓存、Unicode 昵称计数与读取缓冲区修复、好友列表 `avatar_version`、群聊消息落库与广播、重复 `client_msg_id` 幂等、私聊发送/推送/离线持久化、最近会话列表、私聊未读数与提醒、用户搜索、引用回复、@提及、2 分钟撤回、消息搜索、房间/私聊历史游标分页、Qt 客户端 MVP、个人主页与头像 UI、Token 自动登录、登录失败限流、消息令牌桶、全局/单 IP 连接上限、systemd 常驻、日志轮转、10 秒 stats 监控、客户端 OpenSSL TLS、nginx stream TLS 终结、PROXY protocol 真实 IP、客户端日志/设置页/图标/版本/便携 ZIP。
 
-验证记录：200 个客户端加入同一房间，发送 10 条消息，2000 次推送 0 失败；私聊历史 `limit=2` 连续翻页通过；断线、踢下线、登出后房间成员均被清理；登录失败第 6 次返回 1005；消息突发 30 条时 20 条通过、10 条返回 1005；单 IP 25 个连接时 20 个通过；TLS 1.3 登录成功，服务端日志记录真实客户端 IP；`9100` 外部不可直连，`9443` 正常。MySQL 连接被 `KILL` 后旧服务持续返回 2001，新服务自动重连并恢复；生产 MySQL 服务重启后，`9443` TLS 登录和房间列表成功，日志出现 `mysql connection lost` / `mysql connection restored` 和 `stats` 行。用户搜索按用户名/昵称/用户ID通过，未知关键词返回空；客户端重启/退出登录后服务端好友和备注保留；设置项持久化；客户端日志写入且不含密码/Token；便携 ZIP 可解压运行。房间/私聊引用快照、撤回推送、消息搜索均通过 `message_features_client.py`；好友申请/推送/接受/双方列表/删除、好友备注所有者隔离、清除备注、公开展示ID搜索均通过 `friend_client.py`。用户资料 GET/UPDATE/AVATAR/PUSH、昵称/签名校验、32 个中文字符昵称、头像上传/清除版本递增、在线好友推送和离线不推送均通过 `profile_client.py`。2026-10-19 生产部署后服务端 CTest 5/5、QtTest 27/27、9102 的 `profile_client.py`/`friend_client.py`/`room_client.py` 全部通过；`chatroom`、`nginx`、`mysql` 均为 active，`127.0.0.1:9100` 仅回环监听，`9443` TLS smoke 通过，当前客户端自动恢复生产会话并在服务重启后 2 秒内重连、RESUME 成功。
+验证记录：200 个客户端加入同一房间，发送 10 条消息，2000 次推送 0 失败；私聊历史 `limit=2` 连续翻页通过；断线、踢下线、登出后房间成员均被清理；登录失败第 6 次返回 1005；消息突发 30 条时 20 条通过、10 条返回 1005；单 IP 25 个连接时 20 个通过；TLS 1.3 登录成功，服务端日志记录真实客户端 IP；`9100` 外部不可直连，`9443` 正常。MySQL 连接被 `KILL` 后旧服务持续返回 2001，新服务自动重连并恢复；生产 MySQL 服务重启后，`9443` TLS 登录和房间列表成功，日志出现 `mysql connection lost` / `mysql connection restored` 和 `stats` 行。用户搜索按用户名/昵称/用户ID通过，未知关键词返回空；客户端重启/退出登录后服务端好友和备注保留；设置项持久化；客户端日志写入且不含密码/Token；便携 ZIP 可解压运行。房间/私聊引用快照、撤回推送、消息搜索均通过 `message_features_client.py`；好友申请/推送/接受/双方列表/删除、好友备注所有者隔离、清除备注、公开展示ID搜索均通过 `friend_client.py`。用户资料 GET/UPDATE/AVATAR/PUSH、昵称/签名校验、32 个中文字符昵称、头像上传/清除版本递增、在线好友推送和离线不推送均通过 `profile_client.py`。2026-10-19 生产部署后服务端 CTest 5/5、QtTest 27/27、9102 的 `profile_client.py`/`friend_client.py`/`room_client.py` 全部通过；`chatbox`、`nginx`、`mysql` 均为 active，`127.0.0.1:9100` 仅回环监听，`9443` TLS smoke 通过，当前客户端自动恢复生产会话并在服务重启后 2 秒内重连、RESUME 成功。
+
+2026-10-19 全量改名验证（chatroom → chatbox 统一）：部署目录 `~/桌面/0917/chatbox`、systemd 服务 `chatbox.service`、证书目录 `/etc/chatbox/certs`、日志 `logs/chatbox.log`、MySQL 库与用户 `chatbox`。切换前逐表比对行数一致（users 556 / sessions 628 / messages 183 / private_messages 52 / friendships 17 / friend_requests 30 / friend_remarks 2 / private_read_state 14 / rooms 12），切换后服务端 CTest 5/5、`openssl verify` 链校验通过且 CA 指纹与旧目录完全一致（客户端 `ca.crt` 无需更新）、9102 临时实例 `auth_client.py` 全部通过（注册/重复注册/错误口令/登录/踢下线/恢复/登出，均写入改名后的 `chatbox` 库、无 ERROR），生产客户端停机 23 秒后自动重连并 RESUME 成功。回滚点：`~/backup/chatroom-db-cutover-*.sql`、旧库 `chatroom`、旧证书目录 `/etc/chatroom/certs`、旧单元文件 `/etc/systemd/system/chatroom.service`（已禁用）。
 
 未完成：IP 展示（本轮明确留到以后，不预埋 UI）、TLS 证书自动续期、离线推送、监控告警、24 小时稳定性测试。

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace chatroom {
+namespace chatbox {
 
 RoomManager::RoomManager(std::vector<RoomInfo> rooms) {
     for (auto& room : rooms) {
@@ -157,4 +157,4 @@ void RoomManager::removeRoomFromConnection(uint64_t connection_id, int room_id) 
     }
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

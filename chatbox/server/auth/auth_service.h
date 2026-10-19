@@ -1,5 +1,5 @@
-#ifndef CHATROOM_SERVER_AUTH_AUTH_SERVICE_H
-#define CHATROOM_SERVER_AUTH_AUTH_SERVICE_H
+#ifndef CHATBOX_SERVER_AUTH_AUTH_SERVICE_H
+#define CHATBOX_SERVER_AUTH_AUTH_SERVICE_H
 
 #include <cstdint>
 #include <string>
@@ -11,7 +11,7 @@
 #include "server/auth/user_lock_table.h"
 #include "server/db/mysql_connection.h"
 
-namespace chatroom {
+namespace chatbox {
 
 struct AuthResult {
     Frame response;
@@ -50,6 +50,6 @@ private:
     LoginRateLimiter& login_limiter_;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_AUTH_AUTH_SERVICE_H
+#endif  // CHATBOX_SERVER_AUTH_AUTH_SERVICE_H

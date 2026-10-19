@@ -19,7 +19,7 @@
 #include "core/client_log.h"
 #include "core/ui_theme.h"
 
-namespace theme = chatroom::client::theme;  // Coinbase palette tokens
+namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
 SettingsDialog::SettingsDialog(const QString& public_id, QWidget* parent)
     : QDialog(parent) {

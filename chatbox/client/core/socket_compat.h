@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_CORE_SOCKET_COMPAT_H
-#define CHATROOM_CLIENT_CORE_SOCKET_COMPAT_H
+#ifndef CHATBOX_CLIENT_CORE_SOCKET_COMPAT_H
+#define CHATBOX_CLIENT_CORE_SOCKET_COMPAT_H
 
 #include <cstdint>
 #include <string>
@@ -22,7 +22,7 @@ using SocketHandle = int;
 constexpr SocketHandle kInvalidSocket = -1;
 #endif
 
-namespace chatroom {
+namespace chatbox {
 
 bool initializeSockets(std::string& error);
 void cleanupSockets();
@@ -34,6 +34,6 @@ void closeSocket(SocketHandle socket);
 bool socketWouldBlock();
 std::string lastSocketError();
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_CLIENT_CORE_SOCKET_COMPAT_H
+#endif  // CHATBOX_CLIENT_CORE_SOCKET_COMPAT_H

@@ -11,7 +11,7 @@
 #include "core/identity.h"
 #include "core/ui_theme.h"
 
-namespace theme = chatroom::client::theme;  // Coinbase palette tokens
+namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
 UserSearchDialog::UserSearchDialog(QWidget* parent) : QDialog(parent) {
     setWindowTitle("搜索用户");
@@ -58,7 +58,7 @@ void UserSearchDialog::setResults(const QVector<UserSearchResult>& results) {
         if (!result.username.isEmpty()) {
             text += " (" + result.username + ")";
         }
-        text += "  " + chatroom::client::publicUserId(result.user_id);
+        text += "  " + chatbox::client::publicUserId(result.user_id);
         if (result.online) {
             text += " ●";
         }

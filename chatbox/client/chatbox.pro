@@ -2,7 +2,7 @@ QT += core gui widgets
 
 CONFIG += c++17
 TEMPLATE = app
-TARGET = chatroom_client
+TARGET = chatbox
 
 INCLUDEPATH += $$PWD/..
 
@@ -21,6 +21,7 @@ win32 {
 SOURCES += \
     main.cpp \
     ../common/protocol.cpp \
+    core/app_settings.cpp \
     core/socket_compat.cpp \
     core/protocol_qt.cpp \
     core/network_thread.cpp \
@@ -45,6 +46,7 @@ SOURCES += \
     ui/profile_dialog.cpp
 
 HEADERS += \
+    core/app_settings.h \
     core/socket_compat.h \
     core/protocol_qt.h \
     core/network_thread.h \

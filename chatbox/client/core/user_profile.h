@@ -1,11 +1,11 @@
-#ifndef CHATROOM_CLIENT_CORE_USER_PROFILE_H
-#define CHATROOM_CLIENT_CORE_USER_PROFILE_H
+#ifndef CHATBOX_CLIENT_CORE_USER_PROFILE_H
+#define CHATBOX_CLIENT_CORE_USER_PROFILE_H
 
 #include <QImage>
 #include <QString>
 #include <QtGlobal>
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 // Public profile data returned by PROFILE_GET. relationship follows the
@@ -32,6 +32,6 @@ inline QString profileDisplayName(const UserProfile& profile) {
 }
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_CLIENT_CORE_USER_PROFILE_H
+#endif  // CHATBOX_CLIENT_CORE_USER_PROFILE_H

@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_CORE_CHAT_MESSAGE_H
-#define CHATROOM_CLIENT_CORE_CHAT_MESSAGE_H
+#ifndef CHATBOX_CLIENT_CORE_CHAT_MESSAGE_H
+#define CHATBOX_CLIENT_CORE_CHAT_MESSAGE_H
 
 #include <QDateTime>
 #include <QString>
@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 enum class ChatContext {
@@ -49,6 +49,6 @@ struct MessageKey {
 };
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_CLIENT_CORE_CHAT_MESSAGE_H
+#endif  // CHATBOX_CLIENT_CORE_CHAT_MESSAGE_H

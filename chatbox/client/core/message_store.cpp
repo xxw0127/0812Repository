@@ -2,7 +2,7 @@
 
 #include <QSet>
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 void MessageStore::reset(ChatContext context, quint64 target_id) {
@@ -220,4 +220,4 @@ bool MessageStore::hasMessageId(quint64 message_id) const {
 }
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox

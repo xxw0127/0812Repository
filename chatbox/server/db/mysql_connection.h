@@ -1,19 +1,19 @@
-#ifndef CHATROOM_SERVER_DB_MYSQL_CONNECTION_H
-#define CHATROOM_SERVER_DB_MYSQL_CONNECTION_H
+#ifndef CHATBOX_SERVER_DB_MYSQL_CONNECTION_H
+#define CHATBOX_SERVER_DB_MYSQL_CONNECTION_H
 
 #include <cstdint>
 #include <mysql/mysql.h>
 #include <string>
 #include <vector>
 
-namespace chatroom {
+namespace chatbox {
 
 struct DbConfig {
     std::string host = "127.0.0.1";
     unsigned int port = 3306;
-    std::string user = "chatroom";
+    std::string user = "chatbox";
     std::string password;
-    std::string database = "chatroom";
+    std::string database = "chatbox";
 };
 
 struct UserRecord {
@@ -182,6 +182,6 @@ private:
     DbConfig config_;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_DB_MYSQL_CONNECTION_H
+#endif  // CHATBOX_SERVER_DB_MYSQL_CONNECTION_H

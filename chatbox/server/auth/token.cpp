@@ -5,7 +5,7 @@
 #include <openssl/evp.h>
 #include <sys/random.h>
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -60,4 +60,4 @@ std::string hashToken(const std::string& token) {
     return toHex(digest, digest_length);
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

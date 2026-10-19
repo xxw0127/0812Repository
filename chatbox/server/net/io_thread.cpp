@@ -14,7 +14,7 @@
 #include "server/util/logging.h"
 #include "server/util/metrics.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 constexpr int kMaxEvents = 128;
@@ -505,4 +505,4 @@ void IoThread::closeAll() {
     }
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

@@ -1,5 +1,5 @@
-#ifndef CHATROOM_SERVER_AUTH_SESSION_MANAGER_H
-#define CHATROOM_SERVER_AUTH_SESSION_MANAGER_H
+#ifndef CHATBOX_SERVER_AUTH_SESSION_MANAGER_H
+#define CHATBOX_SERVER_AUTH_SESSION_MANAGER_H
 
 #include <cstdint>
 #include <memory>
@@ -8,7 +8,7 @@
 
 #include "server/net/connection.h"
 
-namespace chatroom {
+namespace chatbox {
 
 struct SessionBinding {
     uint64_t connection_id = 0;
@@ -32,6 +32,6 @@ private:
     std::unordered_map<uint64_t, SessionBinding> bindings_;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_AUTH_SESSION_MANAGER_H
+#endif  // CHATBOX_SERVER_AUTH_SESSION_MANAGER_H

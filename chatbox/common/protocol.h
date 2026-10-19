@@ -1,11 +1,11 @@
-#ifndef CHATROOM_COMMON_PROTOCOL_H
-#define CHATROOM_COMMON_PROTOCOL_H
+#ifndef CHATBOX_COMMON_PROTOCOL_H
+#define CHATBOX_COMMON_PROTOCOL_H
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
 
-namespace chatroom {
+namespace chatbox {
 
 constexpr uint16_t kProtocolMagic = 0x4348;
 constexpr uint8_t kProtocolVersion = 1;
@@ -108,6 +108,6 @@ std::string encodeFrame(const Frame& frame);
 bool decodeHeader(const char* data, std::size_t size, FrameHeader& header);
 bool validateHeader(const FrameHeader& header, uint32_t max_body, std::string& error);
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_COMMON_PROTOCOL_H
+#endif  // CHATBOX_COMMON_PROTOCOL_H

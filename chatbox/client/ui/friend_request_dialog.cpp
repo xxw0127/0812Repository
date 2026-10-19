@@ -58,12 +58,12 @@ void FriendRequestDialog::setRequests(const QVector<FriendRequestInfo>& requests
         if (!request.username.isEmpty()) {
             text += " (" + request.username + ")";
         }
-        text += "  " + chatroom::client::publicUserId(request.user_id);
+        text += "  " + chatbox::client::publicUserId(request.user_id);
         if (!request.created_at.isEmpty()) {
-            const QDateTime utc = chatroom::client::parseServerUtc(request.created_at);
+            const QDateTime utc = chatbox::client::parseServerUtc(request.created_at);
             text += "  " + (utc.isValid()
-                                ? chatroom::client::formatLocalDate(utc) + " " +
-                                      chatroom::client::formatLocalTime(utc)
+                                ? chatbox::client::formatLocalDate(utc) + " " +
+                                      chatbox::client::formatLocalTime(utc)
                                 : request.created_at);
         }
         auto* item = new QListWidgetItem(text, request_list_);

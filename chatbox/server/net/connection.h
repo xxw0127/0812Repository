@@ -1,5 +1,5 @@
-#ifndef CHATROOM_SERVER_NET_CONNECTION_H
-#define CHATROOM_SERVER_NET_CONNECTION_H
+#ifndef CHATBOX_SERVER_NET_CONNECTION_H
+#define CHATBOX_SERVER_NET_CONNECTION_H
 
 #include <chrono>
 #include <cstddef>
@@ -11,7 +11,7 @@
 #include "server/net/buffer.h"
 #include "server/util/token_bucket.h"
 
-namespace chatroom {
+namespace chatbox {
 
 class Connection : public std::enable_shared_from_this<Connection> {
 public:
@@ -80,6 +80,6 @@ private:
     TokenBucket message_bucket_{10.0, 20.0};
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_NET_CONNECTION_H
+#endif  // CHATBOX_SERVER_NET_CONNECTION_H

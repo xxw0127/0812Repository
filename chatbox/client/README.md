@@ -1,6 +1,6 @@
 # ChatBox 客户端（Qt 5.15）
 
-产品名 **ChatBox**；目录、可执行文件名（`chatroom_client.exe`）、QSettings 键与服务端 systemd 服务名沿用 `chatroom`，以保持部署与用户会话兼容。
+产品名 **ChatBox**；目录、可执行文件（`chatbox.exe`）、QSettings 键与服务端 systemd 服务名在 2026-10-19 已全部统一为 `chatbox`/`ChatBox`。启动时会把旧的 `Chatroom/ChatroomClient` 设置一次性迁移到 `ChatBox/ChatBox`，已有登录会话和设置不受改名影响。
 
 Windows Qt 5.15.2 Widgets 客户端，原生 Winsock + 独立网络线程。
 
@@ -17,7 +17,7 @@ OpenSSL: C:\Program Files\OpenSSL-Win64
 ## 构建
 
 ```powershell
-cd D:\OpenCode_WorkSpace\chatroom\client
+cd D:\OpenCode_WorkSpace\chatbox\client
 .\build_client.ps1
 ```
 
@@ -26,26 +26,26 @@ cd D:\OpenCode_WorkSpace\chatroom\client
 `imageformats\qjpeg.dll` 是 JPEG 头像编解码的运行时依赖；脚本会自动创建
 `build\release\imageformats` 并复制该插件。缺少它时头像上传/显示会回退或失败。
 
-如果客户端正在运行，先关闭 `chatroom_client.exe`，否则链接会失败。
+如果客户端正在运行，先关闭 `chatbox.exe`，否则链接会失败。
 
 ## 分发包
 
 ```powershell
-cd D:\OpenCode_WorkSpace\chatroom\client
+cd D:\OpenCode_WorkSpace\chatbox\client
 .\package_client.ps1
 ```
 
 生成：
 
 ```text
-dist\chatroom-client-0.2.0-win64.zip
+dist\chatbox-0.2.0-win64.zip
 ```
 
 ZIP 内含 exe、Qt/MinGW/OpenSSL DLL、`vcruntime140.dll`、`certs`、`platforms`、`styles` 和 README，可直接解压运行。
-`installer\chatroom.iss` 是 Inno Setup 模板；当前机器未安装 Inno Setup，所以只生成便携 ZIP。
+`installer\chatbox.iss` 是 Inno Setup 模板；当前机器未安装 Inno Setup，所以只生成便携 ZIP。
 Windows 10/11 自带 UCRT；更旧的系统需要安装 VC++ 2015-2022 Redistributable。
 
-> 注意：当前 `package_client.ps1` 和已生成的 `dist\chatroom-client-0.2.0-win64.zip`
+> 注意：当前 `package_client.ps1` 和已生成的 `dist\chatbox-0.2.0-win64.zip`
 > 不包含 `imageformats\qjpeg.dll`；分发/安装包工作已暂停。只有
 > `build\release` 构建输出包含该插件，重新打包前需要把 `imageformats`
 > 加入分发流程。
@@ -60,7 +60,7 @@ Windows 10/11 自带 UCRT；更旧的系统需要安装 VC++ 2015-2022 Redistrib
 ## 运行
 
 ```powershell
-.\build\release\chatroom_client.exe
+.\build\release\chatbox.exe
 ```
 
 默认服务器地址：`192.168.2.113:9443`，TLS 已勾选。
@@ -70,10 +70,10 @@ Windows 10/11 自带 UCRT；更旧的系统需要安装 VC++ 2015-2022 Redistrib
 客户端校验证书链和 IP SAN，CA 在：
 
 ```text
-D:\OpenCode_WorkSpace\chatroom\client\certs\ca.crt
+D:\OpenCode_WorkSpace\chatbox\client\certs\ca.crt
 ```
 
-服务端证书 SAN 为 `IP:192.168.2.113, DNS:chatroom.local`。如果服务器 IP 或域名变化，需要重新生成证书并把新的 `ca.crt` 放到客户端 `certs` 目录，否则客户端会拒绝连接。
+服务端证书 SAN 为 `IP:192.168.2.113, DNS:chatbox.local`。如果服务器 IP 或域名变化，需要重新生成证书并把新的 `ca.crt` 放到客户端 `certs` 目录，否则客户端会拒绝连接。
 
 ## 个人资料
 
@@ -99,11 +99,11 @@ D:\OpenCode_WorkSpace\chatroom\client\certs\ca.crt
 客户端核心逻辑使用 QtTest：
 
 ```powershell
-cd D:\OpenCode_WorkSpace\chatroom\client\tests
+cd D:\OpenCode_WorkSpace\chatbox\client\tests
 .\run_client_tests.ps1
 ```
 
-当前回归结果：41 passed、0 failed（含头像裁剪/压缩/回退、头像缓存版本、资料页按钮状态、昵称/签名字符计数、消息操作可用性、撤回窗口判定、气泡位置映射、悬停重入、重试链接样式、主题色板与 `style.qss` 一致性守卫、气泡配色来源、操作条单层阴影、`app.ico` 多帧尺寸守卫、大厅徽标配色、托盘图标来源守卫、在线成员列表头像来源守卫、字母头像调色板单一来源守卫、产品名品牌守卫等）。
+当前回归结果：44 passed、0 failed（含头像裁剪/压缩/回退、头像缓存版本、资料页按钮状态、昵称/签名字符计数、消息操作可用性、撤回窗口判定、气泡位置映射、悬停重入、重试链接样式、主题色板与 `style.qss` 一致性守卫、气泡配色来源、操作条单层阴影、`app.ico` 多帧尺寸守卫、大厅徽标配色、托盘图标来源守卫、在线成员列表头像来源守卫、字母头像调色板单一来源守卫、产品名品牌守卫、QSettings 迁移（拷贝/不覆盖）与统一标识符守卫等）。
 
 ## 已实现
 
@@ -128,6 +128,7 @@ cd D:\OpenCode_WorkSpace\chatroom\client\tests
 - 在线成员列表头像（2026-10-19）：成员行优先取头像缓存，未命中时按「版本未知先问一次」请求 `AVATAR_GET`，响应到达后重绘该行（含自己；证据图 `screenshot-member-avatar.png`）
 - 服务端好友备注、在线/离线分组、两行消息预览、时间/未读角标
 - 用户身份标识 `U + 8 位 user_id`，设置页可查看，搜索和好友申请中展示
+- 全量改名统一（2026-10-19）：目录 `chatbox/`、可执行文件 `chatbox.exe`、C++ 命名空间 `chatbox::client`、头文件宏 `CHATBOX_*`、QSettings `ChatBox/ChatBox`、服务端目标 `chatbox_server`、systemd 服务 `chatbox`、MySQL 库/用户 `chatbox` 全部一致；启动时自动迁移旧 QSettings（`Chatroom/ChatroomClient` → `ChatBox/ChatBox`），用户无感
 - 设置页：服务器、TLS、私聊通知、日志目录
 - 客户端日志文件、图标、版本信息和便携 ZIP
 - 自己的推送按 `sender_id` 忽略，避免与本地回显重复
@@ -146,7 +147,7 @@ cd D:\OpenCode_WorkSpace\chatroom\client\tests
 - JPEG 头像运行时必须有 `imageformats\qjpeg.dll`；该文件由 `build_client.ps1` 复制到构建输出。
 - 窗口/托盘图标运行时读取 `resources/app.ico`，需要 `imageformats\qico.dll`（`build_client.ps1` 一并复制）；缺少该插件时窗口图标回退为 exe 内嵌图标（`app.rc` 的 `IDI_ICON1`），托盘图标可能不显示。
 - 设置页修改服务器/TLS 会结束当前会话，返回登录页并使用新地址登录。
-- 日志：`%APPDATA%\Chatroom\ChatroomClient\logs\client.log`，超过 5 MB 轮转为 `.1`。
+- 日志：`%APPDATA%\ChatBox\ChatBox\logs\client.log`，超过 5 MB 轮转为 `.1`。
 - Outbox 只保存在进程内：应用退出后，未发送/失败消息会丢失；跨进程持久化尚未实现。
 - 当前仍没有聊天图片/文件传输（头像除外）、群管理。
 - @提及目前按昵称匹配并触发客户端提醒，不保存服务端 mention 表。
@@ -174,4 +175,5 @@ cd D:\OpenCode_WorkSpace\chatroom\client\tests
   `screenshot-coinbase-friend-request.png`；
   品牌图标证据（2026-10-19）：`screenshot-coinbase-icons.png`（多帧 app.ico 阶梯、任务栏按钮、托盘图标、大厅徽标）；
   在线成员列表头像修复（2026-10-19）：`screenshot-member-avatar.png`（修复前字母头像 / 修复后照片）；
-  字母头像调色板统一（2026-10-19）：`screenshot-avatar-palette.png`（三处底色统一 + 像素级验证）。
+  字母头像调色板统一（2026-10-19）：`screenshot-avatar-palette.png`（三处底色统一 + 像素级验证）；
+  全量改名统一（2026-10-19）：`screenshot-chatbox-rename.png`（exe 为 `chatbox.exe`、窗口标题 ChatBox、会话经 QSettings 迁移后自动登录成功）。

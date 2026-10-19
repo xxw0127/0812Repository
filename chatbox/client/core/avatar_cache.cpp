@@ -1,6 +1,6 @@
 #include "core/avatar_cache.h"
 
-namespace chatroom {
+namespace chatbox {
 namespace client {
 
 bool AvatarCache::needsFetch(quint64 user_id, quint32 version) const {
@@ -50,4 +50,4 @@ void AvatarCache::clear() {
 }
 
 }  // namespace client
-}  // namespace chatroom
+}  // namespace chatbox

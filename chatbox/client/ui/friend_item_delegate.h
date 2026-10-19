@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_UI_FRIEND_ITEM_DELEGATE_H
-#define CHATROOM_CLIENT_UI_FRIEND_ITEM_DELEGATE_H
+#ifndef CHATBOX_CLIENT_UI_FRIEND_ITEM_DELEGATE_H
+#define CHATBOX_CLIENT_UI_FRIEND_ITEM_DELEGATE_H
 
 #include <QStyledItemDelegate>
 
@@ -17,4 +17,4 @@ public:
                    const QModelIndex& index) const override;
 };
 
-#endif  // CHATROOM_CLIENT_UI_FRIEND_ITEM_DELEGATE_H
+#endif  // CHATBOX_CLIENT_UI_FRIEND_ITEM_DELEGATE_H

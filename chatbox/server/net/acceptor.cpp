@@ -12,7 +12,7 @@
 
 #include "server/util/logging.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 constexpr int kListenBacklog = 1024;
@@ -238,4 +238,4 @@ void Acceptor::run() {
     }
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

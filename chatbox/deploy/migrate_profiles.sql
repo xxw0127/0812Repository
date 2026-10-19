@@ -1,4 +1,4 @@
-USE chatroom;
+USE chatbox;
 
 DROP PROCEDURE IF EXISTS migrate_profiles;
 

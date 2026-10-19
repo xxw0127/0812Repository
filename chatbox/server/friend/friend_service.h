@@ -1,5 +1,5 @@
-#ifndef CHATROOM_SERVER_FRIEND_FRIEND_SERVICE_H
-#define CHATROOM_SERVER_FRIEND_FRIEND_SERVICE_H
+#ifndef CHATBOX_SERVER_FRIEND_FRIEND_SERVICE_H
+#define CHATBOX_SERVER_FRIEND_FRIEND_SERVICE_H
 
 #include <string>
 #include <utility>
@@ -9,7 +9,7 @@
 #include "server/db/mysql_connection.h"
 #include "server/room/room_manager.h"
 
-namespace chatroom {
+namespace chatbox {
 
 struct FriendResult {
     Frame response;
@@ -40,6 +40,6 @@ private:
     SessionManager& sessions_;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_FRIEND_FRIEND_SERVICE_H
+#endif  // CHATBOX_SERVER_FRIEND_FRIEND_SERVICE_H

@@ -11,7 +11,7 @@
 
 #include "server/util/logging.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -124,4 +124,4 @@ void stopStatsReporter() {
     }
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

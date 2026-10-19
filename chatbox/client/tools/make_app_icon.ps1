@@ -1,4 +1,4 @@
-# Generates resources/app.ico (Chatroom brand mark, multi-frame) from vector
+# Generates resources/app.ico (ChatBox brand mark, multi-frame) from vector
 # geometry. No third-party dependencies: PowerShell + System.Drawing only.
 #
 # Geometry spec: docs/superpowers/specs/2026-10-19-client-brand-icons.md

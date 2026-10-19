@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_UI_LOGIN_PAGE_H
-#define CHATROOM_CLIENT_UI_LOGIN_PAGE_H
+#ifndef CHATBOX_CLIENT_UI_LOGIN_PAGE_H
+#define CHATBOX_CLIENT_UI_LOGIN_PAGE_H
 
 #include <QWidget>
 
@@ -44,4 +44,4 @@ private:
     QLabel* status_label_ = nullptr;
 };
 
-#endif  // CHATROOM_CLIENT_UI_LOGIN_PAGE_H
+#endif  // CHATBOX_CLIENT_UI_LOGIN_PAGE_H

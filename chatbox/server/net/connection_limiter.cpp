@@ -2,7 +2,7 @@
 
 #include "server/util/metrics.h"
 
-namespace chatroom {
+namespace chatbox {
 
 ConnectionLimiter::ConnectionLimiter(int max_connections, int max_per_ip)
     : max_connections_(max_connections), max_per_ip_(max_per_ip) {}
@@ -54,4 +54,4 @@ void ConnectionLimiter::release(uint64_t connection_id) {
     metrics().connections_active.fetch_sub(1, std::memory_order_relaxed);
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

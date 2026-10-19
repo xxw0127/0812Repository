@@ -1,5 +1,5 @@
-#ifndef CHATROOM_SERVER_BUSINESS_WORKER_POOL_H
-#define CHATROOM_SERVER_BUSINESS_WORKER_POOL_H
+#ifndef CHATBOX_SERVER_BUSINESS_WORKER_POOL_H
+#define CHATBOX_SERVER_BUSINESS_WORKER_POOL_H
 
 #include <atomic>
 #include <condition_variable>
@@ -24,7 +24,7 @@
 #include "server/room/room_manager.h"
 #include "server/room/room_service.h"
 
-namespace chatroom {
+namespace chatbox {
 
 struct WorkerContext {
     MysqlConnection& database;
@@ -78,6 +78,6 @@ private:
     std::string startup_error_;
 };
 
-}  // namespace chatroom
+}  // namespace chatbox
 
-#endif  // CHATROOM_SERVER_BUSINESS_WORKER_POOL_H
+#endif  // CHATBOX_SERVER_BUSINESS_WORKER_POOL_H

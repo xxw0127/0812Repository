@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_UI_CHAT_VIEW_H
-#define CHATROOM_CLIENT_UI_CHAT_VIEW_H
+#ifndef CHATBOX_CLIENT_UI_CHAT_VIEW_H
+#define CHATBOX_CLIENT_UI_CHAT_VIEW_H
 
 #include <QRect>
 #include <QTextBrowser>
@@ -21,7 +21,7 @@ public:
 
     // Replaces the document and rebuilds the position -> message map.
     void setConversationHtml(const QString& html,
-                             const QVector<chatroom::client::MessageKey>& message_keys);
+                             const QVector<chatbox::client::MessageKey>& message_keys);
 
     // Server message id at a viewport position, or 0 when the position is
     // not inside a mapped message bubble or the bubble has no server id yet.
@@ -30,7 +30,7 @@ public:
     // Full key (server id or client message id) of the bubble at a viewport
     // position; false when the position is not on a message.
     bool messageKeyAt(const QPoint& viewport_pos,
-                      chatroom::client::MessageKey* key) const;
+                      chatbox::client::MessageKey* key) const;
 
     // Rect (viewport coordinates) of the message's meta line (time/status),
     // used to place the hover action bar. Null when the id is unknown.
@@ -63,15 +63,15 @@ private:
     struct MessageRange {
         int first = 0;
         int last = 0;
-        chatroom::client::MessageKey key;
+        chatbox::client::MessageKey key;
         QTextTable* frame = nullptr;
     };
 
-    void buildMessageRanges(const QVector<chatroom::client::MessageKey>& message_keys);
+    void buildMessageRanges(const QVector<chatbox::client::MessageKey>& message_keys);
     void styleAnchors();
 
     QVector<MessageRange> message_ranges_;
     quint64 hovered_id_ = 0;
 };
 
-#endif  // CHATROOM_CLIENT_UI_CHAT_VIEW_H
+#endif  // CHATBOX_CLIENT_UI_CHAT_VIEW_H

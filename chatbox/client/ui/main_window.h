@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_UI_MAIN_WINDOW_H
-#define CHATROOM_CLIENT_UI_MAIN_WINDOW_H
+#ifndef CHATBOX_CLIENT_UI_MAIN_WINDOW_H
+#define CHATBOX_CLIENT_UI_MAIN_WINDOW_H
 
 #include <QByteArray>
 #include <QHash>
@@ -82,8 +82,8 @@ private:
     void buildUi();
     QWidget* buildChatPage();
     void startConnection();
-    bool sendFrame(const chatroom::Frame& frame);
-    void sendMessage(const chatroom::client::ChatMessage& message);
+    bool sendFrame(const chatbox::Frame& frame);
+    void sendMessage(const chatbox::client::ChatMessage& message);
     void retryMessage(const QString& client_msg_id);
     void onSendTimeout();
     void onAuthTimeout();
@@ -112,7 +112,7 @@ private:
     void clearPendingAvatarRequest(quint64 user_id, quint32 seq);
     void openProfile(quint64 user_id, const QString& fallback_name = QString());
     void onProfileAvatarReceived(quint64 user_id, quint32 version, const QImage& image);
-    void onProfileDataReceived(const chatroom::client::UserProfile& profile);
+    void onProfileDataReceived(const chatbox::client::UserProfile& profile);
     void requestPeerAvatar(quint64 peer_id);
     void updatePrivateHeaderAvatar(quint64 peer_id, const QString& name);
     // Member list row icon: cached avatar when one is available, letter
@@ -128,7 +128,7 @@ private:
                                 quint32 avatar_version);
     void updateRoomMemberNickname(quint64 user_id, const QString& nickname);
     void insertMention();
-    void setReplyTo(const chatroom::client::ChatMessage& message);
+    void setReplyTo(const chatbox::client::ChatMessage& message);
     void clearReply();
     void sendRecall(quint64 message_id);
     void showMessageActions(quint64 message_id, const QRect& meta_rect);
@@ -136,15 +136,15 @@ private:
     void hideMessageActionsUnlessHovered();
     void showMessageMenu(quint64 message_id, const QString& client_msg_id,
                          const QPoint& global_pos);
-    void copyMessageText(const chatroom::client::ChatMessage& message);
+    void copyMessageText(const chatbox::client::ChatMessage& message);
     void requestMembers(int room_id);
     void requestHistory(int kind, quint64 target, quint64 before_id);
     void selectRoom(int room_id, const QString& name);
     void selectPrivate(quint64 peer_id, const QString& nickname);
     void resetContext();
     void renderCurrentConversation(ScrollMode mode);
-    void addIncomingMessage(const chatroom::client::ChatMessage& message);
-    bool currentChatContext(chatroom::client::ChatContext& context,
+    void addIncomingMessage(const chatbox::client::ChatMessage& message);
+    bool currentChatContext(chatbox::client::ChatContext& context,
                             quint64& target_id) const;
     void restorePendingForCurrentContext();
     void setOnline(bool online, const QString& text = QString());
@@ -199,7 +199,7 @@ private:
     ProfileDialog* profile_dialog_ = nullptr;
     quint64 profile_dialog_user_id_ = 0;
     QString profile_dialog_fallback_name_;
-    chatroom::client::UserProfile profile_dialog_profile_;
+    chatbox::client::UserProfile profile_dialog_profile_;
     QPushButton* friend_requests_button_ = nullptr;
     QPushButton* my_profile_button_ = nullptr;
     QLabel* my_profile_avatar_ = nullptr;
@@ -207,7 +207,7 @@ private:
     QLabel* my_profile_uid_ = nullptr;
     int friend_request_count_ = 0;
     MessageSearchDialog* message_search_dialog_ = nullptr;
-    chatroom::client::ContactStore contact_store_;
+    chatbox::client::ContactStore contact_store_;
     QTimer* send_timeout_timer_ = nullptr;
     QTimer* auth_timeout_timer_ = nullptr;
     QTimer* reconnect_timer_ = nullptr;
@@ -236,8 +236,8 @@ private:
     int current_room_id_ = 0;
     quint64 current_peer_id_ = 0;
     QString current_peer_name_;
-    chatroom::client::MessageStore message_store_;
-    chatroom::client::Outbox outbox_;
+    chatbox::client::MessageStore message_store_;
+    chatbox::client::Outbox outbox_;
     QHash<quint32, QString> pending_sequences_;
     quint64 next_before_id_ = 0;
     bool has_more_ = false;
@@ -254,9 +254,9 @@ private:
     quint64 connection_generation_ = 0;
     quint32 next_seq_ = 1;
     QHash<quint64, QString> peer_names_;
-    QHash<quint64, chatroom::client::FriendView> friend_views_;
+    QHash<quint64, chatbox::client::FriendView> friend_views_;
     QSet<quint64> friend_ids_;
-    chatroom::client::AvatarCache avatar_cache_;
+    chatbox::client::AvatarCache avatar_cache_;
     QSet<quint64> pending_avatar_requests_;
     QSet<quint64> pending_profile_requests_;
     QHash<quint32, quint64> profile_request_seqs_;
@@ -269,4 +269,4 @@ private:
     quint32 pending_profile_update_seq_ = 0;
 };
 
-#endif  // CHATROOM_CLIENT_UI_MAIN_WINDOW_H
+#endif  // CHATBOX_CLIENT_UI_MAIN_WINDOW_H

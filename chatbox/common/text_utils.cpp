@@ -1,6 +1,6 @@
 #include "common/text_utils.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -36,4 +36,4 @@ bool containsControlCharacters(const std::string& value) {
     return false;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

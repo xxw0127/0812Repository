@@ -5,7 +5,7 @@
 
 #include "server/util/logging.h"
 
-namespace chatroom {
+namespace chatbox {
 
 namespace {
 
@@ -297,4 +297,4 @@ FriendResult FriendService::handleSetRemark(const Frame& request,
     return result;
 }
 
-}  // namespace chatroom
+}  // namespace chatbox

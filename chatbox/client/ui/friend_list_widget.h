@@ -1,5 +1,5 @@
-#ifndef CHATROOM_CLIENT_UI_FRIEND_LIST_WIDGET_H
-#define CHATROOM_CLIENT_UI_FRIEND_LIST_WIDGET_H
+#ifndef CHATBOX_CLIENT_UI_FRIEND_LIST_WIDGET_H
+#define CHATBOX_CLIENT_UI_FRIEND_LIST_WIDGET_H
 
 #include <QListWidget>
 #include <QPoint>
@@ -25,4 +25,4 @@ private:
     quint64 avatar_press_user_id_ = 0;
 };
 
-#endif  // CHATROOM_CLIENT_UI_FRIEND_LIST_WIDGET_H
+#endif  // CHATBOX_CLIENT_UI_FRIEND_LIST_WIDGET_H
