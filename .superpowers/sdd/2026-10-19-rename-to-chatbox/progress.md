@@ -48,4 +48,9 @@ Final: minor (deferred): `chatbox/tools/__pycache__/*.pyc`（4 个）是入库�
 
 Task 10: complete（台账/README/证据图齐备；旧库 chatroom、旧证书目录 /etc/chatroom/certs、旧 unit chatroom.service（disabled）、备份 dump 均保留为回滚点；便携 ZIP 未重建——用户此前暂停发行包工作；SSH 别名 chatroom-dev 与 2 份历史文档保留旧名）
 
+Ruling: 提交粒度按「① 纯结构移动（git 以 100% 相似度识别重命名）② 内容替换 + 迁移代码 + 文档」拆成两个提交（计划里写的是「机械改名 + 迁移与文档」）—— 让评审 diff 干净可读 —— 代价：无（历史更清晰）。
+
+Final review: 独立评审已执行（subagent，全新上下文，覆盖计划 Review Focus 四项），1 Important 修复 + 4 Minor 记录在案。
+
+
 
