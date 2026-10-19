@@ -1,14 +1,14 @@
 # ================= 构建产物（不入库） =================
-chatroom/client/build/
-chatroom/client/dist/
-chatroom/client/tests/release/
-chatroom/client/tests/debug/
-chatroom/client/tests/Makefile
-chatroom/client/tests/Makefile.*
-chatroom/client/tests/object_script.*
-chatroom/client/tests/client_tests.exe
-chatroom/client/tests/results*.txt
-chatroom/client/tests/.qmake.stash
+chatbox/client/build/
+chatbox/client/dist/
+chatbox/client/tests/release/
+chatbox/client/tests/debug/
+chatbox/client/tests/Makefile
+chatbox/client/tests/Makefile.*
+chatbox/client/tests/object_script.*
+chatbox/client/tests/client_tests.exe
+chatbox/client/tests/results*.txt
+chatbox/client/tests/.qmake.stash
 *.o
 *.obj
 *.a
@@ -38,4 +38,4 @@ desktop.ini
 *.pem
 *.p12
 *.pfx
-chatroom/conf/chatroom.env
+chatbox/conf/chatbox.env

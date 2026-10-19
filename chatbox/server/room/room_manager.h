@@ -1,0 +1,62 @@
+#ifndef CHATBOX_SERVER_ROOM_ROOM_MANAGER_H
+#define CHATBOX_SERVER_ROOM_ROOM_MANAGER_H
+
+#include <cstdint>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "server/net/connection.h"
+
+namespace chatbox {
+
+struct RoomInfo {
+    int id = 0;
+    std::string name;
+    int max_members = 0;
+};
+
+struct RoomView {
+    RoomInfo info;
+    int online = 0;
+};
+
+struct RoomMember {
+    uint64_t user_id = 0;
+    uint64_t connection_id = 0;
+    int io_thread_id = -1;
+    std::string nickname;
+    std::weak_ptr<Connection> connection;
+};
+
+class RoomManager {
+public:
+    explicit RoomManager(std::vector<RoomInfo> rooms);
+
+    std::vector<RoomView> list() const;
+    bool join(int room_id, const RoomMember& member, std::string& error);
+    bool leave(int room_id, uint64_t user_id);
+    bool isMember(int room_id, uint64_t user_id) const;
+    bool snapshot(int room_id, std::vector<RoomMember>& members) const;
+    int onlineCount(int room_id) const;
+    void updateNickname(uint64_t user_id, const std::string& nickname);
+    void removeConnection(uint64_t connection_id);
+
+private:
+    struct RoomState {
+        RoomInfo info;
+        std::unordered_map<uint64_t, RoomMember> members;
+    };
+
+    void removeRoomFromConnection(uint64_t connection_id, int room_id);
+
+    mutable std::mutex mutex_;
+    std::unordered_map<int, RoomState> rooms_;
+    std::unordered_map<uint64_t, std::vector<int>> connection_rooms_;
+};
+
+}  // namespace chatbox
+
+#endif  // CHATBOX_SERVER_ROOM_ROOM_MANAGER_H
