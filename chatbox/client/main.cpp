@@ -1,5 +1,6 @@
 #include "core/app_settings.h"
 #include "core/client_log.h"
+#include "core/client_policy.h"
 #include "core/socket_compat.h"
 
 #include <QApplication>
@@ -12,7 +13,6 @@
 #include <QSettings>
 #include <QStandardPaths>
 #include <QStyleFactory>
-#include <QSystemTrayIcon>
 
 #include "ui/main_window.h"
 
@@ -67,7 +67,8 @@ int main(int argc, char** argv) {
     const bool start_minimized =
         QCoreApplication::arguments().contains(QStringLiteral("--minimized"));
     MainWindow window;
-    if (!start_minimized || !QSystemTrayIcon::isSystemTrayAvailable()) {
+    if (!chatbox::client::shouldStartHidden(
+            start_minimized, chatbox::client::shellNotificationAreaAvailable())) {
         window.show();
     }
     const int result = application.exec();

@@ -25,6 +25,7 @@
 
 #include "core/app_settings.h"
 #include "core/autostart.h"
+#include "core/client_policy.h"
 #include "core/avatar_cache.h"
 #include "core/avatar_utils.h"
 #include "core/contact_store.h"
@@ -128,6 +129,8 @@ private slots:
     void autostartCommandCarriesMinimizedFlag();
     void autostartSettingWritesAndRemovesRunValue();
     void startupHonoursMinimizedAndSingleInstance();
+    void startupPolicyRequiresUsableTray();
+    void unreadBadgesHonourAlertsSwitch();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -1569,6 +1572,22 @@ void TestClientCore::headerUsesAvatarAndMoreMenu() {
                  avatar_click.contains(QStringLiteral("ContextType::Private")) &&
                  avatar_click.contains(QStringLiteral("openProfile(current_peer_id_")),
              "only a private-chat avatar opens the peer profile");
+    const QString room_section =
+        functionSection(source, QStringLiteral("void MainWindow::selectRoom("));
+    const QString private_section =
+        functionSection(source, QStringLiteral("void MainWindow::selectPrivate("));
+    const QString reset_section =
+        functionSection(source, QStringLiteral("void MainWindow::resetContext("));
+    QVERIFY2(room_section.contains(QStringLiteral("load_more_action_->setEnabled(false)")) &&
+                 private_section.contains(
+                     QStringLiteral("load_more_action_->setEnabled(false)")) &&
+                 reset_section.contains(
+                     QStringLiteral("load_more_action_->setEnabled(false)")),
+             "every context switch must disable load-more until history says otherwise");
+    const QString search_section =
+        functionSection(source, QStringLiteral("void MainWindow::openMessageSearch("));
+    QVERIFY2(search_section.contains(QStringLiteral("ContextType::None")),
+             "search must refuse to open without a selected conversation");
 }
 
 // 系统弹窗是独立开关：关掉后仍保留任务栏闪烁，但不再调用托盘气泡。
@@ -1620,12 +1639,36 @@ void TestClientCore::startupHonoursMinimizedAndSingleInstance() {
     QVERIFY2(!source.isEmpty(), "main.cpp must be readable");
     QVERIFY2(source.contains(QStringLiteral("--minimized")),
              "startup must understand the autostart flag");
-    QVERIFY2(source.contains(QStringLiteral("QSystemTrayIcon::isSystemTrayAvailable()")),
-             "minimized startup must fall back to a visible window without a tray");
+    QVERIFY2(source.contains(QStringLiteral("shouldStartHidden(")),
+             "startup must use the testable visibility policy");
+    QVERIFY2(!source.contains(QStringLiteral("QSystemTrayIcon::isSystemTrayAvailable()")),
+             "Qt's Windows tray probe is a constant; the shell must be checked instead");
     QVERIFY2(source.contains(QStringLiteral("QLockFile")),
              "a second instance must not run concurrently");
     QVERIFY2(source.contains(QStringLiteral("setStaleLockTime")),
              "a crashed instance must not block startup forever");
+}
+
+// Qt's Windows platform plugin reports a system tray unconditionally, so the
+// shell check is separate and the visibility decision is a pure policy.
+void TestClientCore::startupPolicyRequiresUsableTray() {
+    QVERIFY(chatbox::client::shouldStartHidden(true, true));
+    QVERIFY(!chatbox::client::shouldStartHidden(true, false));
+    QVERIFY(!chatbox::client::shouldStartHidden(false, true));
+    QVERIFY(!chatbox::client::shouldStartHidden(false, false));
+}
+
+// Turning the alert master switch off must also hide unread badges and the
+// window-title counter, not only the taskbar flash and popups.
+void TestClientCore::unreadBadgesHonourAlertsSwitch() {
+    QCOMPARE(chatbox::client::displayedUnread(true, 5), 5);
+    QCOMPARE(chatbox::client::displayedUnread(false, 5), 0);
+    QCOMPARE(chatbox::client::displayedUnread(true, -1), 0);
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString refresh = functionSection(
+        source, QStringLiteral("void MainWindow::refreshFriendListView("));
+    QVERIFY2(refresh.contains(QStringLiteral("displayedUnread(notifications_enabled_")),
+             "the conversation list must route unread counts through the policy");
 }
 
 QTEST_MAIN(TestClientCore)

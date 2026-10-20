@@ -52,7 +52,7 @@ ChatBox 目前的消息只存在于进程内 `MessageStore`：关闭客户端后
 - 删除 `context_profile_button_`（成员、创建、show/hide、连接全部移除）。
 - 头部右侧新增 `QToolButton` `more_button_`，文本 `⋮`，`setPopupMode(QToolButton::InstantPopup)`，挂 `QMenu`：
   - `消息搜索`（始终可用；点击 → 现有 `openMessageSearch()`）；
-  - `加载更早消息`（仅房间；`has_more_ == true` 时启用，点击 → 现有 `onLoadMoreClicked()`）。
+  - `加载更早消息`（房间与私聊都保留；`has_more_ == true` 时启用，点击 → 现有 `onLoadMoreClicked()`）。
 - 输入区移除消息搜索按钮；`mention_button_` 保留在输入区（房间可见）。
 - `load_more_button_` 视觉按钮移除（只保留菜单项），`onLoadMoreClicked()` 逻辑不变。
 - 菜单样式沿用现有 QSS 规则（新增 `QToolButton#MoreButton` 与 `QMenu` 样式，使用 `theme` token）。
