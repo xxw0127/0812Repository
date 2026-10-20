@@ -252,6 +252,7 @@ private:
     bool connected_ = false;
     bool online_ = false;
     bool notifications_enabled_ = true;
+    bool system_popup_enabled_ = true;
     bool logged_in_ = false;
     bool shutting_down_ = false;
     bool logging_out_ = false;

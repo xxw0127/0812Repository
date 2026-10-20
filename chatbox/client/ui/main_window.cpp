@@ -127,6 +127,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     QSettings initial_settings;
     notifications_enabled_ =
         initial_settings.value("settings/notifications", true).toBool();
+    system_popup_enabled_ =
+        initial_settings.value("settings/system_popup", true).toBool();
     send_timeout_timer_ = new QTimer(this);
     send_timeout_timer_->setInterval(1000);
     connect(send_timeout_timer_, &QTimer::timeout, this, &MainWindow::onSendTimeout);
@@ -598,12 +600,13 @@ void MainWindow::openSettings() {
     SettingsDialog dialog(chatbox::client::publicUserId(user_id_), this);
     connect(&dialog, &SettingsDialog::settingsSaved, this,
             [this](const QString& host, quint16 port, bool tls,
-                   bool notifications) {
+                   bool notifications, bool system_popup) {
                 QSettings settings;
                 settings.setValue("server/host", host);
                 settings.setValue("server/port", port);
                 settings.setValue("server/tls", tls);
                 settings.setValue("settings/notifications", notifications);
+                settings.setValue("settings/system_popup", system_popup);
                 const bool server_changed =
                     host != host_ || port != port_ || tls != use_tls_;
                 if (server_changed) {
@@ -611,6 +614,7 @@ void MainWindow::openSettings() {
                 }
                 settings.sync();
                 notifications_enabled_ = notifications;
+                system_popup_enabled_ = system_popup;
                 login_page_->setServerSettings(host, port, tls);
                 if (server_changed && logged_in_) {
                     logging_out_ = true;
@@ -626,9 +630,9 @@ void MainWindow::openSettings() {
                 } else {
                     setStatus("设置已保存");
                 }
-                qInfo("settings saved host=%s port=%u tls=%d notifications=%d",
+                qInfo("settings saved host=%s port=%u tls=%d notifications=%d system_popup=%d",
                       qPrintable(host), static_cast<unsigned>(port), tls ? 1 : 0,
-                      notifications ? 1 : 0);
+                      notifications ? 1 : 0, system_popup ? 1 : 0);
             });
     dialog.exec();
 }
@@ -1628,7 +1632,7 @@ void MainWindow::showPrivateNotification(const QString& nickname,
         return;
     }
     QApplication::alert(this, 3000);
-    if (tray_ != nullptr) {
+    if (system_popup_enabled_ && tray_ != nullptr) {
         tray_->showMessage("私聊消息", nickname + ": " + content,
                            QSystemTrayIcon::Information, 3000);
     }
@@ -2319,7 +2323,7 @@ void MainWindow::showMentionNotification(const QString& nickname,
         return;
     }
     QApplication::alert(this, 3000);
-    if (tray_ != nullptr) {
+    if (system_popup_enabled_ && tray_ != nullptr) {
         tray_->showMessage("有人@你", nickname + ": " + content,
                            QSystemTrayIcon::Information, 3000);
     }
@@ -3702,7 +3706,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             Q_UNUSED(username);
             requestFriendRequests();
-            if (notifications_enabled_ && tray_ != nullptr) {
+            if (notifications_enabled_ && system_popup_enabled_ && tray_ != nullptr) {
                 tray_->showMessage("好友申请", nickname + " 请求添加你为好友",
                                    QSystemTrayIcon::Information, 3000);
             }
@@ -3720,7 +3724,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             Q_UNUSED(username);
             friend_ids_.insert(friend_id);
             updateConversationItem(friend_id, 0, nickname, "", "", online != 0);
-            if (notifications_enabled_ && tray_ != nullptr) {
+            if (notifications_enabled_ && system_popup_enabled_ && tray_ != nullptr) {
                 tray_->showMessage("好友申请", nickname + " 已添加你为好友",
                                    QSystemTrayIcon::Information, 3000);
             }

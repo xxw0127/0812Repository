@@ -24,7 +24,7 @@ namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 SettingsDialog::SettingsDialog(const QString& public_id, QWidget* parent)
     : QDialog(parent) {
     setWindowTitle("设置");
-    resize(440, 330);
+    resize(440, 370);
 
     auto* layout = new QVBoxLayout(this);
     auto* form = new QFormLayout();
@@ -43,14 +43,18 @@ SettingsDialog::SettingsDialog(const QString& public_id, QWidget* parent)
     port_spin_->setValue(settings.value("server/port", 9443).toInt());
     tls_check_ = new QCheckBox("TLS 加密连接", this);
     tls_check_->setChecked(settings.value("server/tls", true).toBool());
-    notifications_check_ = new QCheckBox("私聊托盘通知", this);
+    notifications_check_ = new QCheckBox("消息提醒（任务栏闪烁/未读角标）", this);
     notifications_check_->setChecked(
         settings.value("settings/notifications", true).toBool());
+    system_popup_check_ = new QCheckBox("系统弹窗通知", this);
+    system_popup_check_->setChecked(
+        settings.value("settings/system_popup", true).toBool());
 
     form->addRow("服务器", host_edit_);
     form->addRow("端口", port_spin_);
     form->addRow("连接", tls_check_);
     form->addRow("通知", notifications_check_);
+    form->addRow("", system_popup_check_);
     layout->addLayout(form);
 
     auto* log_layout = new QHBoxLayout();
@@ -88,7 +92,8 @@ void SettingsDialog::saveSettings() {
     } else if (!tls && port == 9443) {
         port = 9100;
     }
-    emit settingsSaved(host, port, tls, notifications_check_->isChecked());
+    emit settingsSaved(host, port, tls, notifications_check_->isChecked(),
+                       system_popup_check_->isChecked());
     accept();
 }
 

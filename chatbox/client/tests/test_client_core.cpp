@@ -122,6 +122,7 @@ private slots:
     void privateChatHasNoMentionEntry();
     void privatePushSkipsMentionNotification();
     void headerUsesAvatarAndMoreMenu();
+    void systemPopupNotificationIsOptional();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -1563,6 +1564,28 @@ void TestClientCore::headerUsesAvatarAndMoreMenu() {
                  avatar_click.contains(QStringLiteral("ContextType::Private")) &&
                  avatar_click.contains(QStringLiteral("openProfile(current_peer_id_")),
              "only a private-chat avatar opens the peer profile");
+}
+
+// 系统弹窗是独立开关：关掉后仍保留任务栏闪烁，但不再调用托盘气泡。
+void TestClientCore::systemPopupNotificationIsOptional() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY2(source.contains(QStringLiteral("settings/system_popup")),
+             "the system-popup preference must be persisted");
+    const QString private_notify = functionSection(
+        source, QStringLiteral("void MainWindow::showPrivateNotification("));
+    QVERIFY2(private_notify.contains(QStringLiteral("system_popup_enabled_")),
+             "private popups must honour the system-popup switch");
+    const QString mention_notify = functionSection(
+        source, QStringLiteral("void MainWindow::showMentionNotification("));
+    QVERIFY2(mention_notify.contains(QStringLiteral("system_popup_enabled_")),
+             "mention popups must honour the system-popup switch");
+    QVERIFY2(source.contains(
+                 QStringLiteral("notifications_enabled_ && system_popup_enabled_ && tray_ != nullptr")),
+             "friend-request popups must honour both switches");
+    const QString dialog = readClientSource(QStringLiteral("ui/settings_dialog.cpp"));
+    QVERIFY2(dialog.contains(QStringLiteral("系统弹窗通知")),
+             "the settings dialog exposes the system-popup switch");
 }
 
 QTEST_MAIN(TestClientCore)
