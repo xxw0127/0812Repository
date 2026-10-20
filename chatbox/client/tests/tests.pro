@@ -1,4 +1,4 @@
-QT += core gui widgets testlib
+QT += core gui widgets testlib sql
 CONFIG += console c++17
 CONFIG -= app_bundle
 TEMPLATE = app
@@ -18,6 +18,7 @@ SOURCES += \
     ../core/contact_store.cpp \
     ../core/avatar_utils.cpp \
     ../core/avatar_cache.cpp \
+    ../core/history_store.cpp \
     ../ui/chat_view.cpp \
     ../ui/message_action_bar.cpp \
     ../ui/profile_dialog.cpp
@@ -34,6 +35,7 @@ HEADERS += \
     ../core/contact_store.h \
     ../core/avatar_utils.h \
     ../core/avatar_cache.h \
+    ../core/history_store.h \
     ../core/user_profile.h \
     ../ui/chat_view.h \
     ../ui/message_action_bar.h \

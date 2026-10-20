@@ -17,6 +17,9 @@
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QSettings>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QStringList>
 #include <QTemporaryDir>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -29,6 +32,7 @@
 #include "core/avatar_cache.h"
 #include "core/avatar_utils.h"
 #include "core/contact_store.h"
+#include "core/history_store.h"
 #include "core/identity.h"
 #include "core/message_renderer.h"
 #include "core/message_store.h"
@@ -131,6 +135,8 @@ private slots:
     void startupHonoursMinimizedAndSingleInstance();
     void startupPolicyRequiresUsableTray();
     void unreadBadgesHonourAlertsSwitch();
+    void historyStoreCreatesSchema();
+    void historyStoreReportsOpenFailure();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -1669,6 +1675,52 @@ void TestClientCore::unreadBadgesHonourAlertsSwitch() {
         source, QStringLiteral("void MainWindow::refreshFriendListView("));
     QVERIFY2(refresh.contains(QStringLiteral("displayedUnread(notifications_enabled_")),
              "the conversation list must route unread counts through the policy");
+}
+
+// Opening a fresh directory must create the schema described in the design
+// spec, and repeating the call for the same account must be idempotent.
+void TestClientCore::historyStoreCreatesSchema() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    chatbox::client::HistoryStore store;
+    QString error;
+    QVERIFY2(store.open(dir.path(), 1101, &error), qPrintable(error));
+    QVERIFY(store.isOpen());
+    QCOMPARE(store.userId(), quint64(1101));
+    QCOMPARE(store.directory(), QDir(dir.path()).absolutePath());
+    QVERIFY(store.sizeBytes() > 0);
+
+    QSqlDatabase db = QSqlDatabase::database(QStringLiteral("history_1101"), false);
+    QVERIFY(db.isOpen());
+    QVERIFY(db.tables().contains(QStringLiteral("messages")));
+    QVERIFY(db.tables().contains(QStringLiteral("conversations")));
+    QSqlQuery version(db);
+    QVERIFY(version.exec(QStringLiteral("PRAGMA user_version")) && version.next());
+    QCOMPARE(version.value(0).toInt(), 1);
+    QSqlQuery indexes(db);
+    QVERIFY(indexes.exec(QStringLiteral("PRAGMA index_list(messages)")));
+    QStringList index_names;
+    while (indexes.next()) index_names << indexes.value(1).toString();
+    QVERIFY(index_names.contains(QStringLiteral("uk_msg_server")));
+    QVERIFY(index_names.contains(QStringLiteral("idx_msg_page")));
+
+    QVERIFY(store.open(dir.path(), 1101, &error));  // 幂等
+    store.close();
+    QVERIFY(!store.isOpen());
+}
+
+// A path that is a regular file can never host the database, so opening must
+// fail with a Chinese message instead of silently succeeding.
+void TestClientCore::historyStoreReportsOpenFailure() {
+    QTemporaryDir dir;
+    QFile blocker(dir.filePath(QStringLiteral("not-a-dir")));
+    QVERIFY(blocker.open(QIODevice::WriteOnly));
+    blocker.close();
+    chatbox::client::HistoryStore store;
+    QString error;
+    QVERIFY(!store.open(blocker.fileName(), 1102, &error));
+    QVERIFY(!error.isEmpty());
+    QVERIFY(!store.isOpen());
 }
 
 QTEST_MAIN(TestClientCore)

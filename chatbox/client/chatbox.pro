@@ -1,4 +1,4 @@
-QT += core gui widgets
+QT += core gui widgets sql
 
 CONFIG += c++17
 TEMPLATE = app
@@ -35,6 +35,7 @@ SOURCES += \
     core/contact_store.cpp \
     core/avatar_utils.cpp \
     core/avatar_cache.cpp \
+    core/history_store.cpp \
     ui/chat_view.cpp \
     ui/message_action_bar.cpp \
     ui/login_page.cpp \
@@ -64,6 +65,7 @@ HEADERS += \
     core/contact_store.h \
     core/avatar_utils.h \
     core/avatar_cache.h \
+    core/history_store.h \
     core/friend_view.h \
     core/user_profile.h \
     ui/chat_view.h \
