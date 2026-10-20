@@ -79,6 +79,10 @@ private slots:
     void onFriendContextMenu(const QPoint& position);
     void onMemberContextMenu(const QPoint& position);
     void onLoadMoreClicked();
+    // 离线模式下的「重试连接」：只有还留着 token 时才真的重连。
+    void retryConnection();
+    // 登录页的本地记录入口：以只读方式打开本机保存的聊天记录。
+    void openLocalHistory();
 
 private:
     enum class PendingAuth { None, Login, Register };
@@ -153,6 +157,15 @@ private:
     void closeHistoryStore();
     // 切换会话时先用本地历史首屏渲染，在线历史回来后覆盖。
     void loadInitialHistory(chatbox::client::ChatContext context, quint64 target_id);
+    // 离线模式：只读地显示本机保存的聊天记录。
+    bool enterOfflineMode(bool with_token);
+    void leaveOfflineMode();
+    // 离线侧栏：把本地存下来的所有会话都列出来（不做好友过滤）。
+    void populateOfflineSidebar();
+    // 离线翻页：从本地历史库取更早的一页。
+    void loadOlderFromLocal();
+    // 刷新登录页的本地记录入口（是否有记录、账号昵称）。
+    void updateLocalHistoryEntry();
     void resetContext();
     void renderCurrentConversation(ScrollMode mode);
     void addIncomingMessage(const chatbox::client::ChatMessage& message);
@@ -197,6 +210,9 @@ private:
     QMenu* more_menu_ = nullptr;
     QAction* load_more_action_ = nullptr;
     QLabel* connection_banner_ = nullptr;
+    QWidget* banner_row_ = nullptr;
+    QPushButton* reconnect_button_ = nullptr;
+    QPushButton* search_users_button_ = nullptr;
     QLabel* reply_label_ = nullptr;
     QPushButton* reply_cancel_button_ = nullptr;
     ChatView* chat_view_ = nullptr;
@@ -259,6 +275,10 @@ private:
     bool loading_older_history_ = false;
     bool connected_ = false;
     bool online_ = false;
+    // 离线模式：只读地显示本地记录，不发任何聊天/好友/资料请求。
+    bool offline_mode_ = false;
+    // 离线模式是否还带着 token（带 token 才能自动重连并显示「重试连接」）。
+    bool offline_session_ = false;
     bool notifications_enabled_ = true;
     bool system_popup_enabled_ = true;
     bool logged_in_ = false;

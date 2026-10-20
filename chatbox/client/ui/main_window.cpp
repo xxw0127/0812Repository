@@ -260,6 +260,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
         });
     }
     loadSession();
+    // 登录页的本地记录入口：本机存过记录时才显示。
+    updateLocalHistoryEntry();
     if (!logged_in_) {
         setStatus("请输入服务器和账号");
     }
@@ -314,6 +316,8 @@ void MainWindow::buildUi() {
         login_page_->setStatus("已取消登录");
         setStatus("已取消登录");
     });
+    connect(login_page_, &LoginPage::viewLocalHistoryRequested, this,
+            &MainWindow::openLocalHistory);
 }
 
 QWidget* MainWindow::buildChatPage() {
@@ -330,10 +334,10 @@ QWidget* MainWindow::buildChatPage() {
     left->setContentsMargins(12, 12, 12, 12);
     left->setSpacing(6);
 
-    auto* search_users_button = new QPushButton("搜索用户", left_panel);
-    search_users_button->setIcon(QIcon(":/icons/search.png"));
-    search_users_button->setIconSize(QSize(16, 16));
-    left->addWidget(search_users_button);
+    search_users_button_ = new QPushButton("搜索用户", left_panel);
+    search_users_button_->setIcon(QIcon(":/icons/search.png"));
+    search_users_button_->setIconSize(QSize(16, 16));
+    left->addWidget(search_users_button_);
 
     auto* rooms_label = new QLabel("大厅", left_panel);
     rooms_label->setObjectName("SectionLabel");
@@ -413,11 +417,24 @@ QWidget* MainWindow::buildChatPage() {
     auto* header_layout = new QVBoxLayout(header);
     header_layout->setContentsMargins(16, 10, 16, 8);
     header_layout->setSpacing(4);
-    connection_banner_ = new QLabel(header);
+    // 横幅行：左侧提示 + 右侧「重试连接」。
+    // 离线模式下整行都要显示，重试按钮只在还留着 token 时才出现。
+    banner_row_ = new QWidget(header);
+    banner_row_->setObjectName("ConnectionBannerRow");
+    auto* banner_layout = new QHBoxLayout(banner_row_);
+    banner_layout->setContentsMargins(0, 0, 0, 0);
+    banner_layout->setSpacing(8);
+    connection_banner_ = new QLabel(banner_row_);
     connection_banner_->setWordWrap(true);
-    connection_banner_->hide();
-    header_layout->addWidget(connection_banner_);
-    auto* header_row = new QHBoxLayout();
+    banner_layout->addWidget(connection_banner_, 1);
+    reconnect_button_ = new QPushButton("重试连接", banner_row_);
+    reconnect_button_->setObjectName("ReconnectButton");
+    reconnect_button_->setFixedHeight(28);
+    reconnect_button_->hide();
+    banner_layout->addWidget(reconnect_button_, 0, Qt::AlignVCenter);
+    banner_row_->hide();
+    header_layout->addWidget(banner_row_);
+    connect(reconnect_button_, &QPushButton::clicked, this, &MainWindow::retryConnection);    auto* header_row = new QHBoxLayout();
     context_avatar_ = new QLabel(header);
     context_avatar_->setFixedSize(36, 36);
     context_avatar_->setPixmap(avatarIcon("C", 0).pixmap(32, 32));
@@ -537,7 +554,7 @@ QWidget* MainWindow::buildChatPage() {
             &MainWindow::onMemberDoubleClicked);
     connect(member_list_, &QListWidget::customContextMenuRequested, this,
             &MainWindow::onMemberContextMenu);
-    connect(search_users_button, &QPushButton::clicked, this, &MainWindow::openUserSearch);
+    connect(search_users_button_, &QPushButton::clicked, this, &MainWindow::openUserSearch);
     connect(send_button_, &QPushButton::clicked, this, &MainWindow::onSendClicked);
     connect(input_edit_, &QLineEdit::returnPressed, this, &MainWindow::onSendClicked);
     connect(mention_button_, &QPushButton::clicked, this, &MainWindow::insertMention);
@@ -583,10 +600,14 @@ void MainWindow::saveSession() {
     settings.setValue("session/token", token_);
     settings.setValue("session/user_id", QVariant::fromValue<qulonglong>(user_id_));
     settings.setValue("session/nickname", nickname_);
+    // 本地记录入口：记住本机存过记录的是哪个账号，退出登录后还能找回。
+    settings.setValue("history/last_user_id", QVariant::fromValue<qulonglong>(user_id_));
+    settings.setValue("history/last_nickname", nickname_);
     settings.setValue("server/host", host_);
     settings.setValue("server/port", port_);
     settings.setValue("server/tls", use_tls_);
     settings.sync();
+    updateLocalHistoryEntry();
 }
 
 void MainWindow::loadSession() {
@@ -601,13 +622,27 @@ void MainWindow::loadSession() {
     token_ = token;
     user_id_ = settings.value("session/user_id").toULongLong();
     nickname_ = settings.value("session/nickname").toString();
+    // 升级路径：早期版本只存了 session/*，这里补齐本地记录入口用的两个键。
+    if (user_id_ != 0) {
+        settings.setValue("history/last_user_id",
+                          QVariant::fromValue<qulonglong>(user_id_));
+        settings.setValue("history/last_nickname", nickname_);
+        settings.sync();
+    }
     logged_in_ = true;
     login_page_->setBusy(true);
     login_page_->setStatus("正在恢复上次登录...");
+    // 先打开本地历史库：连不上服务端时才能直接进入离线模式。
+    openHistoryStore(user_id_);
     startConnection();
 }
 
 void MainWindow::logout() {
+    if (offline_mode_) {
+        // 离线模式没有服务端会话：直接回到登录页。
+        finishLogout();
+        return;
+    }
     if (!logged_in_) {
         clearSession();
         return;
@@ -693,6 +728,9 @@ void MainWindow::openSettings() {
 }
 
 void MainWindow::sendMarkRead(quint64 peer_id, quint64 message_id) {
+    if (offline_mode_) {
+        return;
+    }
     chatbox::Frame frame;
     frame.header.cmd = chatbox::kCmdPrivateMarkRead;
     frame.header.seq = next_seq_++;
@@ -878,7 +916,7 @@ void MainWindow::clearPendingAvatarRequest(quint64 user_id, quint32 seq) {
 }
 
 void MainWindow::requestProfile(quint64 user_id) {
-    if (user_id == 0) {
+    if (user_id == 0 || offline_mode_) {
         return;
     }
     if (!connected_ || !logged_in_) {
@@ -922,7 +960,7 @@ void MainWindow::requestProfile(quint64 user_id) {
 }
 
 void MainWindow::requestAvatar(quint64 user_id, quint32 version) {
-    if (user_id == 0 || !connected_ || !logged_in_) {
+    if (user_id == 0 || !connected_ || !logged_in_ || offline_mode_) {
         return;
     }
     if (pending_avatar_requests_.contains(user_id) ||
@@ -952,7 +990,7 @@ void MainWindow::requestAvatar(quint64 user_id, quint32 version) {
 }
 
 void MainWindow::requestPeerAvatar(quint64 peer_id) {
-    if (peer_id == 0 || peer_id == user_id_) {
+    if (peer_id == 0 || peer_id == user_id_ || offline_mode_) {
         return;
     }
     const auto it = friend_views_.constFind(peer_id);
@@ -1188,6 +1226,10 @@ void MainWindow::onProfileDataReceived(
 }
 
 void MainWindow::openOwnProfile() {
+    if (offline_mode_ || !online_) {
+        setStatus("当前离线，无法查看资料", true);
+        return;
+    }
     if (user_id_ == 0) {
         setStatus("请先登录", true);
         return;
@@ -1196,6 +1238,10 @@ void MainWindow::openOwnProfile() {
 }
 
 void MainWindow::openProfile(quint64 user_id, const QString& fallback_name) {
+    if (offline_mode_ || !online_) {
+        setStatus("当前离线，无法查看资料", true);
+        return;
+    }
     if (user_id == 0) {
         return;
     }
@@ -1645,6 +1691,10 @@ void MainWindow::updateRoomMemberNickname(quint64 user_id,
 }
 
 void MainWindow::setFriendRemark(quint64 peer_id) {
+    if (offline_mode_) {
+        setStatus("当前离线，无法设置备注", true);
+        return;
+    }
     if (peer_id == 0) {
         return;
     }
@@ -1784,13 +1834,15 @@ void MainWindow::onConnected() {
     qInfo("connected to %s:%u tls=%d", qPrintable(host_),
           static_cast<unsigned>(port_), use_tls_ ? 1 : 0);
     setOnline(false, "已连接，正在恢复会话...");
-    if (logged_in_ && !token_.isEmpty()) {
-        setStatus("已连接，正在恢复会话...");
-        sendResume();
-    } else if (pending_auth_ == PendingAuth::Login) {
+    // 待处理的登录/注册优先：恢复会话失败后用户可能带着旧 token 停在登录页，
+    // 这时手动登录必须发 LOGIN 而不是 RESUME。
+    if (pending_auth_ == PendingAuth::Login) {
         sendLogin();
     } else if (pending_auth_ == PendingAuth::Register) {
         sendRegister();
+    } else if (logged_in_ && !token_.isEmpty()) {
+        setStatus("已连接，正在恢复会话...");
+        sendResume();
     } else {
         setStatus("已连接");
     }
@@ -1839,8 +1891,25 @@ void MainWindow::onDisconnected(const QString& reason) {
         message_store_.markAllSendingFailed();
         pending_sequences_.clear();
         renderCurrentConversation(ScrollMode::kPreserve);
+        if (offline_mode_) {
+            // 已经在离线模式：重连失败不要弹回登录页，继续退避重连。
+            setOnline(false, "离线模式 · 仅显示本地记录");
+            setStatus("连接断开: " + reason + "，正在重连...", true);
+            scheduleReconnect();
+            return;
+        }
+        if (enterOfflineMode(true)) {
+            // 有本地记录：直接进离线模式（只读），重连继续在后台跑。
+            setStatus("连接断开: " + reason + "，已进入离线模式", true);
+            scheduleReconnect();
+            return;
+        }
+        // 本机没有这个账号的记录：留在登录页显示连接失败，但重连照旧。
         setOnline(false, "连接已断开，正在重连...");
         setStatus("连接断开: " + reason + "，正在重连...", true);
+        login_page_->setBusy(false);
+        login_page_->setStatus("连接断开: " + reason, true);
+        stack_->setCurrentWidget(login_page_);
         scheduleReconnect();
         return;
     }
@@ -1917,6 +1986,9 @@ void MainWindow::sendResume() {
 }
 
 void MainWindow::requestRoomList() {
+    if (offline_mode_) {
+        return;
+    }
     chatbox::Frame frame;
     frame.header.cmd = chatbox::kCmdRoomList;
     frame.header.seq = next_seq_++;
@@ -1924,6 +1996,9 @@ void MainWindow::requestRoomList() {
 }
 
 void MainWindow::requestConversations() {
+    if (offline_mode_) {
+        return;
+    }
     chatbox::Frame frame;
     frame.header.cmd = chatbox::kCmdPrivateConversations;
     frame.header.seq = next_seq_++;
@@ -1931,6 +2006,9 @@ void MainWindow::requestConversations() {
 }
 
 void MainWindow::requestFriendList() {
+    if (offline_mode_) {
+        return;
+    }
     chatbox::Frame frame;
     frame.header.cmd = chatbox::kCmdFriendList;
     frame.header.seq = next_seq_++;
@@ -1938,6 +2016,9 @@ void MainWindow::requestFriendList() {
 }
 
 void MainWindow::requestFriendRequests() {
+    if (offline_mode_) {
+        return;
+    }
     chatbox::Frame frame;
     frame.header.cmd = chatbox::kCmdFriendRequests;
     frame.header.seq = next_seq_++;
@@ -1945,6 +2026,10 @@ void MainWindow::requestFriendRequests() {
 }
 
 void MainWindow::sendFriendRequest(quint64 user_id) {
+    if (offline_mode_) {
+        setStatus("当前离线，无法发送好友申请", true);
+        return;
+    }
     if (user_id == 0 || user_id == user_id_) {
         return;
     }
@@ -1962,6 +2047,10 @@ void MainWindow::sendFriendRequest(quint64 user_id) {
 }
 
 void MainWindow::sendFriendResponse(quint64 requester_id, bool accept) {
+    if (offline_mode_) {
+        setStatus("当前离线，无法处理好友申请", true);
+        return;
+    }
     chatbox::Frame frame;
     frame.header.cmd = chatbox::kCmdFriendRespond;
     frame.header.seq = next_seq_++;
@@ -1973,6 +2062,10 @@ void MainWindow::sendFriendResponse(quint64 requester_id, bool accept) {
 }
 
 void MainWindow::sendFriendRemove(quint64 friend_id) {
+    if (offline_mode_) {
+        setStatus("当前离线，无法删除好友", true);
+        return;
+    }
     chatbox::Frame frame;
     frame.header.cmd = chatbox::kCmdFriendRemove;
     frame.header.seq = next_seq_++;
@@ -1983,6 +2076,10 @@ void MainWindow::sendFriendRemove(quint64 friend_id) {
 }
 
 void MainWindow::openFriendRequests() {
+    if (offline_mode_ || !online_) {
+        setStatus("当前离线，无法查看好友申请", true);
+        return;
+    }
     if (friend_requests_dialog_ == nullptr) {
         friend_requests_dialog_ = new FriendRequestDialog(this);
         connect(friend_requests_dialog_, &FriendRequestDialog::respondRequested, this,
@@ -2017,6 +2114,10 @@ void MainWindow::updateFriendRequestCount() {
 }
 
 void MainWindow::requestUserSearch(const QString& keyword) {
+    if (offline_mode_) {
+        setStatus("当前离线，无法搜索用户", true);
+        return;
+    }
     if (user_search_dialog_ == nullptr) {
         return;
     }
@@ -2048,6 +2149,10 @@ void MainWindow::requestUserSearch(const QString& keyword) {
 }
 
 void MainWindow::openUserSearch() {
+    if (offline_mode_ || !online_) {
+        setStatus("当前离线，无法搜索用户", true);
+        return;
+    }
     if (user_search_dialog_ == nullptr) {
         user_search_dialog_ = new UserSearchDialog(this);
         connect(user_search_dialog_, &UserSearchDialog::searchRequested, this,
@@ -2078,6 +2183,10 @@ void MainWindow::openUserSearch() {
 }
 
 void MainWindow::insertMention() {
+    if (offline_mode_ || !online_) {
+        setStatus("当前离线，无法提及成员", true);
+        return;
+    }
     if (context_type_ == ContextType::None) {
         setStatus("请先选择房间或私聊", true);
         return;
@@ -2140,6 +2249,10 @@ void MainWindow::clearReply() {
 }
 
 void MainWindow::sendRecall(quint64 message_id) {
+    if (!online_) {
+        setStatus("当前离线，无法撤回", true);
+        return;
+    }
     if (context_type_ == ContextType::None || message_id == 0) {
         return;
     }
@@ -2170,8 +2283,13 @@ void MainWindow::showMessageActions(quint64 message_id, const QRect& meta_rect) 
         hideMessageActionBar();
         return;
     }
-    const chatbox::client::MessageActions actions =
+    chatbox::client::MessageActions actions =
         chatbox::client::messageActions(*message, user_id_);
+    if (offline_mode_) {
+        // 离线是只读视图：撤回与重发都不提供。
+        actions.can_recall = false;
+        actions.can_retry = false;
+    }
     if (!actions.can_reply && !actions.can_recall) {
         hideMessageActionBar();
         return;
@@ -2262,8 +2380,13 @@ void MainWindow::showMessageMenu(quint64 message_id, const QString& client_msg_i
     if (message == nullptr) {
         return;
     }
-    const chatbox::client::MessageActions actions =
+    chatbox::client::MessageActions actions =
         chatbox::client::messageActions(*message, user_id_);
+    if (offline_mode_) {
+        // 离线是只读视图：撤回与重发都不提供（复制与回复仍可用）。
+        actions.can_recall = false;
+        actions.can_retry = false;
+    }
     hideMessageActionBar();
 
     QMenu menu(this);
@@ -2344,6 +2467,40 @@ void MainWindow::requestMessageSearch(const QString& keyword) {
         message_search_dialog_->setStatus("关键词不能超过 64 字节", true);
         return;
     }
+    if (offline_mode_) {
+        // 离线搜索只查本地库：不发任何帧，也不占用服务端序号。
+        chatbox::client::ChatContext context = chatbox::client::ChatContext::kRoom;
+        quint64 target_id = 0;
+        if (!currentChatContext(context, target_id) || !history_store_.isOpen()) {
+            message_search_dialog_->setBusy(false);
+            message_search_dialog_->setStatus("没有可搜索的本地记录", true);
+            return;
+        }
+        const QVector<chatbox::client::ChatMessage> hits =
+            history_store_.search(context, target_id, keyword, 50);
+        QVector<MessageSearchResult> results;
+        results.reserve(hits.size());
+        for (const chatbox::client::ChatMessage& message : hits) {
+            MessageSearchResult result;
+            result.message_id = message.message_id;
+            result.sender_id = message.sender_id;
+            result.nickname = message.sender_name;
+            result.content = message.recalled ? QString() : message.content;
+            result.created_at =
+                message.created_at_utc.toLocalTime().toString("yyyy-MM-dd HH:mm:ss");
+            result.recalled = message.recalled;
+            results.push_back(result);
+        }
+        message_search_dialog_->setResults(results);
+        message_search_dialog_->setBusy(false);
+        if (results.isEmpty()) {
+            message_search_dialog_->setStatus("本地记录中没有匹配消息");
+        } else {
+            message_search_dialog_->setStatus(
+                QString("本地记录 · %1 条").arg(results.size()));
+        }
+        return;
+    }
     const quint32 seq = next_seq_++;
     message_search_seq_ = seq;
     message_search_dialog_->setBusy(true);
@@ -2407,6 +2564,10 @@ void MainWindow::refreshContacts() {
 }
 
 void MainWindow::onFriendContextMenu(const QPoint& position) {
+    if (offline_mode_ || !online_) {
+        setStatus("当前离线，无法操作好友", true);
+        return;
+    }
     QListWidgetItem* item = conversation_list_->itemAt(position);
     if (item == nullptr) {
         return;
@@ -2439,6 +2600,10 @@ void MainWindow::onFriendContextMenu(const QPoint& position) {
 }
 
 void MainWindow::onMemberContextMenu(const QPoint& position) {
+    if (offline_mode_ || !online_) {
+        setStatus("当前离线，无法操作成员", true);
+        return;
+    }
     if (member_list_ == nullptr) {
         return;
     }
@@ -2458,6 +2623,10 @@ void MainWindow::onMemberContextMenu(const QPoint& position) {
 }
 
 void MainWindow::onContactActivated(QListWidgetItem* item) {
+    if (offline_mode_ || !online_) {
+        setStatus("当前离线，无法打开会话", true);
+        return;
+    }
     if (item == nullptr) {
         return;
     }
@@ -2470,6 +2639,10 @@ void MainWindow::onContactActivated(QListWidgetItem* item) {
 }
 
 void MainWindow::onContactContextMenu(const QPoint& position) {
+    if (offline_mode_ || !online_) {
+        setStatus("当前离线，无法操作联系人", true);
+        return;
+    }
     QListWidgetItem* item = contact_list_->itemAt(position);
     if (item == nullptr) {
         return;
@@ -2484,6 +2657,9 @@ void MainWindow::onContactContextMenu(const QPoint& position) {
 }
 
 void MainWindow::requestMembers(int room_id) {
+    if (offline_mode_) {
+        return;
+    }
     chatbox::Frame frame;
     frame.header.cmd = chatbox::kCmdRoomMembers;
     frame.header.seq = next_seq_++;
@@ -2494,6 +2670,9 @@ void MainWindow::requestMembers(int room_id) {
 }
 
 void MainWindow::requestHistory(int kind, quint64 target, quint64 before_id) {
+    if (offline_mode_) {
+        return;
+    }
     chatbox::Frame frame;
     frame.header.cmd = chatbox::kCmdHistory;
     frame.header.seq = next_seq_++;
@@ -2586,6 +2765,10 @@ void MainWindow::sendMessage(const chatbox::client::ChatMessage& message) {
 }
 
 void MainWindow::retryMessage(const QString& client_msg_id) {
+    if (offline_mode_ || !online_) {
+        setStatus("当前离线，无法重发", true);
+        return;
+    }
     const QVector<chatbox::client::ChatMessage> pending = outbox_.pending();
     for (const chatbox::client::ChatMessage& message : pending) {
         if (message.client_msg_id != client_msg_id) {
@@ -2626,8 +2809,29 @@ void MainWindow::onSendTimeout() {
 void MainWindow::onAuthTimeout() {
     if (resuming_) {
         resuming_ = false;
+        if (offline_mode_) {
+            // 离线模式下的恢复超时：留在离线视图，继续退避重连。
+            setOnline(false, "离线模式 · 仅显示本地记录");
+            setStatus("恢复会话超时，正在重连...", true);
+            if (network_ != nullptr) {
+                network_->requestStop();
+            }
+            scheduleReconnect();
+            return;
+        }
+        if (enterOfflineMode(true)) {
+            setStatus("恢复会话超时，已进入离线模式（仅显示本地记录）", true);
+            if (network_ != nullptr) {
+                network_->requestStop();
+            }
+            scheduleReconnect();
+            return;
+        }
         setOnline(false, "恢复会话超时，正在重连...");
         setStatus("恢复会话超时，正在重连...", true);
+        login_page_->setBusy(false);
+        login_page_->setStatus("恢复会话超时，请检查网络后重试", true);
+        stack_->setCurrentWidget(login_page_);
         if (network_ != nullptr) {
             network_->requestStop();
         }
@@ -2660,26 +2864,53 @@ void MainWindow::restorePendingForCurrentContext() {
 
 void MainWindow::setOnline(bool online, const QString& text) {
     online_ = online;
-    if (connection_banner_ != nullptr) {
+    if (banner_row_ != nullptr) {
         if (online) {
-            connection_banner_->hide();
+            banner_row_->hide();
         } else {
-            connection_banner_->setText(text.isEmpty() ? QString("连接已断开")
-                                                       : text);
-            connection_banner_->setStyleSheet(
-                "background-color: " + QString::fromLatin1(theme::kBannerErrorBg) +
-                "; color: " + QString::fromLatin1(theme::kSemanticDown) +
-                "; padding: 6px; border: 1px solid " +
-                QString::fromLatin1(theme::kBannerErrorLine) + ";");
-            connection_banner_->show();
+            // 离线模式的横幅文案固定，不被重连提示覆盖。
+            const QString banner_text =
+                offline_mode_ ? QString("离线模式 · 仅显示本地记录")
+                              : (text.isEmpty() ? QString("连接已断开") : text);
+            if (connection_banner_ != nullptr) {
+                connection_banner_->setText(banner_text);
+                connection_banner_->setStyleSheet(
+                    "background-color: " +
+                    QString::fromLatin1(theme::kBannerErrorBg) +
+                    "; color: " + QString::fromLatin1(theme::kSemanticDown) +
+                    "; padding: 6px; border: 1px solid " +
+                    QString::fromLatin1(theme::kBannerErrorLine) + ";");
+            }
+            banner_row_->show();
         }
     }
-    const bool can_send = online_ && context_type_ != ContextType::None;
+    if (reconnect_button_ != nullptr) {
+        // 只有离线模式且还留着 token 时才允许手动重连。
+        reconnect_button_->setVisible(offline_mode_ && offline_session_);
+    }
+    // 离线或未连接时输入区不可用：离线模式是只读视图。
+    const bool can_send =
+        online_ && !offline_mode_ && context_type_ != ContextType::None;
     if (input_edit_ != nullptr) {
         input_edit_->setEnabled(can_send);
     }
     if (send_button_ != nullptr) {
         send_button_->setEnabled(can_send);
+    }
+    if (mention_button_ != nullptr && (offline_mode_ || !online_)) {
+        mention_button_->hide();
+    }
+    if (friend_requests_button_ != nullptr) {
+        friend_requests_button_->setEnabled(online_ && !offline_mode_);
+    }
+    if (my_profile_button_ != nullptr) {
+        my_profile_button_->setEnabled(online_ && !offline_mode_);
+    }
+    if (search_users_button_ != nullptr) {
+        search_users_button_->setEnabled(online_ && !offline_mode_);
+    }
+    if (member_list_ != nullptr) {
+        member_list_->setEnabled(online_ && !offline_mode_);
     }
 }
 
@@ -2698,7 +2929,11 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
     current_peer_id_ = 0;
     current_peer_name_ = name;
     context_label_->setText("房间: " + name);
-    mention_button_->show();
+    if (offline_mode_) {
+        mention_button_->hide();
+    } else {
+        mention_button_->show();
+    }
     if (context_avatar_ != nullptr) {
         context_avatar_->setPixmap(
             QPixmap::fromImage(chatbox::client::roomAvatar(32)));
@@ -2718,15 +2953,26 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
     }
     message_store_.reset(chatbox::client::ChatContext::kRoom,
                          static_cast<quint64>(room_id));
+    // 分页状态先复位，再由本地首屏决定：
+    // 离线时「还有没有更早的消息」完全由本地库说了算。
+    load_more_action_->setEnabled(false);
+    has_more_ = false;
+    loading_older_history_ = false;
+    next_before_id_ = 0;
     loadInitialHistory(chatbox::client::ChatContext::kRoom,
                        static_cast<quint64>(room_id));
     restorePendingForCurrentContext();
     renderCurrentConversation(ScrollMode::kBottom);
     member_list_->clear();
-    load_more_action_->setEnabled(false);
-    has_more_ = false;
-    loading_older_history_ = false;
-    next_before_id_ = 0;
+
+    if (offline_mode_) {
+        // 离线只读：不发 JOIN、成员、头像、历史等任何请求帧。
+        input_edit_->setEnabled(false);
+        send_button_->setEnabled(false);
+        mention_button_->hide();
+        setStatus("离线模式 · 仅显示本地记录");
+        return;
+    }
 
     chatbox::Frame join;
     join.header.cmd = chatbox::kCmdJoinRoom;
@@ -2779,7 +3025,9 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
     mention_button_->hide();
     updatePrivateHeaderAvatar(peer_id, nickname);
     context_avatar_->setCursor(Qt::PointingHandCursor);
-    requestPeerAvatar(peer_id);
+    if (!offline_mode_) {
+        requestPeerAvatar(peer_id);
+    }
     chat_view_->clear();
     chat_view_->clearHoverState();
     hideMessageActionBar();
@@ -2793,14 +3041,15 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
                             nickname));
     }
     message_store_.reset(chatbox::client::ChatContext::kPrivate, peer_id);
-    loadInitialHistory(chatbox::client::ChatContext::kPrivate, peer_id);
-    restorePendingForCurrentContext();
-    renderCurrentConversation(ScrollMode::kBottom);
-    member_list_->clear();
+    // 分页状态先复位，再由本地首屏决定（见 selectRoom）。
     load_more_action_->setEnabled(false);
     has_more_ = false;
     loading_older_history_ = false;
     next_before_id_ = 0;
+    loadInitialHistory(chatbox::client::ChatContext::kPrivate, peer_id);
+    restorePendingForCurrentContext();
+    renderCurrentConversation(ScrollMode::kBottom);
+    member_list_->clear();
     if (QListWidgetItem* item = findConversationItem(peer_id)) {
         item->setData(Qt::UserRole + 2, 0);
         QString text = item->text();
@@ -2812,6 +3061,14 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
         }
         item->setText(text);
         refreshUnreadTitle();
+    }
+    if (offline_mode_) {
+        // 离线只读：不发头像、历史等任何请求帧。
+        input_edit_->setEnabled(false);
+        send_button_->setEnabled(false);
+        mention_button_->hide();
+        setStatus("离线模式 · 仅显示本地记录");
+        return;
     }
     requestHistory(2, peer_id, 0);
     input_edit_->setEnabled(online_);
@@ -2862,6 +3119,260 @@ void MainWindow::loadInitialHistory(chatbox::client::ChatContext context,
         return;
     }
     message_store_.replaceHistory(local);
+    // 分页游标由本地库决定：最旧一条的 id，再往前还有没有也查本地库。
+    next_before_id_ = local.first().message_id;
+    has_more_ = !history_store_.before(context, target_id, next_before_id_, 1)
+                     .isEmpty();
+    if (load_more_action_ != nullptr) {
+        load_more_action_->setEnabled(has_more_);
+    }
+}
+
+// 进入离线模式：只读地显示本机保存的聊天记录，全程不发任何请求帧。
+// with_token 为真表示还留着登录 token，自动重连继续工作；
+// 为假表示纯本地浏览（登录页的「查看本地记录」），没有 token 也不重连。
+bool MainWindow::enterOfflineMode(bool with_token) {
+    if (user_id_ == 0) {
+        return false;
+    }
+    if (!history_store_.isOpen() && !openHistoryStore(user_id_)) {
+        return false;
+    }
+    if (!history_store_.hasMessages()) {
+        // 本机没有这个账号的记录：不进入离线模式。
+        closeHistoryStore();
+        return false;
+    }
+    offline_mode_ = true;
+    offline_session_ = with_token && !token_.isEmpty();
+    if (!with_token) {
+        // 纯本地浏览：不算登录态，也不参与自动重连。
+        logged_in_ = false;
+    }
+    stack_->setCurrentWidget(chat_page_);
+    updateOwnProfileStrip();
+    setOnline(false, "离线模式 · 仅显示本地记录");
+
+    if (context_type_ == ContextType::None) {
+        populateOfflineSidebar();
+        bool selected = false;
+        if (room_list_ != nullptr && room_list_->count() > 0) {
+            QListWidgetItem* first = room_list_->item(0);
+            selectRoom(first->data(Qt::UserRole).toInt(),
+                       first->data(Qt::UserRole + 1).toString());
+            selected = true;
+        }
+        if (!selected && conversation_list_ != nullptr) {
+            // 好友列表第一行可能是分组标题，按 user_id 跳过。
+            for (int i = 0; i < conversation_list_->count(); ++i) {
+                QListWidgetItem* item = conversation_list_->item(i);
+                const quint64 peer_id = item->data(Qt::UserRole).toULongLong();
+                if (peer_id == 0) {
+                    continue;
+                }
+                selectPrivate(peer_id, item->data(Qt::UserRole + 1).toString());
+                selected = true;
+                break;
+            }
+        }
+        if (!selected) {
+            resetContext();
+            setStatus("本机没有该账号的聊天记录");
+            return true;
+        }
+    } else {
+        // 已经选过会话：只把好友标成离线，保留名字，不动当前会话。
+        for (auto it = friend_views_.begin(); it != friend_views_.end(); ++it) {
+            it->online = false;
+        }
+        refreshFriendListView();
+    }
+    setStatus("离线模式 · 仅显示本地记录");
+    return true;
+}
+
+// 退出离线模式：登录或恢复会话成功后调用。
+void MainWindow::leaveOfflineMode() {
+    offline_mode_ = false;
+    offline_session_ = false;
+    if (reconnect_button_ != nullptr) {
+        reconnect_button_->hide();
+    }
+}
+
+// 离线侧栏：本地存下来的会话全部列出，不做好友过滤
+// （离线时没有好友列表，过滤会把唯一的副本藏起来）。
+void MainWindow::populateOfflineSidebar() {
+    if (room_list_ == nullptr) {
+        return;
+    }
+    room_list_->clear();
+    friend_views_.clear();
+    friend_ids_.clear();
+    if (!history_store_.isOpen()) {
+        return;
+    }
+    const QVector<chatbox::client::ConversationRow> rows =
+        history_store_.conversations();
+    for (const chatbox::client::ConversationRow& row : rows) {
+        if (row.context == chatbox::client::ChatContext::kRoom) {
+            auto* item = new QListWidgetItem(row.title, room_list_);
+            item->setIcon(
+                QIcon(QPixmap::fromImage(chatbox::client::roomAvatar(36))));
+            item->setSizeHint(QSize(0, 48));
+            item->setData(Qt::UserRole, static_cast<uint>(row.target_id));
+            item->setData(Qt::UserRole + 1, row.title);
+            continue;
+        }
+        chatbox::client::FriendView view;
+        view.user_id = row.target_id;
+        view.nickname = row.title;
+        view.online = false;
+        view.unread = 0;
+        view.last_content = row.last_content;
+        view.last_time =
+            row.last_time_utc.isValid()
+                ? row.last_time_utc.toLocalTime().toString("yyyy-MM-dd HH:mm:ss")
+                : QString();
+        friend_views_.insert(row.target_id, view);
+        peer_names_.insert(row.target_id, row.title);
+    }
+    refreshFriendListView();
+}
+
+// 离线翻页：从本地历史库取更早的一页。
+void MainWindow::loadOlderFromLocal() {
+    if (context_type_ == ContextType::None || !history_store_.isOpen()) {
+        return;
+    }
+    chatbox::client::ChatContext context = chatbox::client::ChatContext::kRoom;
+    quint64 target_id = 0;
+    if (!currentChatContext(context, target_id)) {
+        return;
+    }
+    quint64 oldest = 0;
+    for (const chatbox::client::ChatMessage& message : message_store_.messages()) {
+        if (message.message_id != 0 &&
+            (oldest == 0 || message.message_id < oldest)) {
+            oldest = message.message_id;
+        }
+    }
+    if (oldest == 0) {
+        has_more_ = false;
+        if (load_more_action_ != nullptr) {
+            load_more_action_->setEnabled(false);
+        }
+        setStatus("没有更早的本地记录");
+        return;
+    }
+    const QVector<chatbox::client::ChatMessage> page =
+        history_store_.before(context, target_id, oldest, 50);
+    if (page.isEmpty()) {
+        has_more_ = false;
+        if (load_more_action_ != nullptr) {
+            load_more_action_->setEnabled(false);
+        }
+        setStatus("没有更早的本地记录");
+        return;
+    }
+    message_store_.prependHistory(page);
+    const quint64 page_oldest = page.first().message_id;
+    next_before_id_ = page_oldest;
+    has_more_ = !history_store_.before(context, target_id, page_oldest, 1)
+                     .isEmpty();
+    if (load_more_action_ != nullptr) {
+        load_more_action_->setEnabled(has_more_);
+    }
+    renderCurrentConversation(ScrollMode::kTop);
+    setStatus(QString("已加载 %1 条更早的本地记录").arg(page.size()));
+}
+
+// 登录页的本地记录入口：本机存过这个账号的记录时才显示。
+void MainWindow::updateLocalHistoryEntry() {
+    if (login_page_ == nullptr) {
+        return;
+    }
+    QSettings settings;
+    const quint64 last_user_id =
+        settings.value("history/last_user_id").toULongLong();
+    if (last_user_id == 0) {
+        login_page_->setLocalHistoryAvailable(false);
+        return;
+    }
+    QString nickname = settings.value("history/last_nickname").toString().trimmed();
+    if (nickname.isEmpty()) {
+        nickname = settings.value("session/nickname").toString().trimmed();
+    }
+    login_page_->setLocalHistoryAvailable(true, nickname);
+}
+
+// 登录页的「查看本地记录」：不连服务端，只读地看本机存下来的聊天。
+void MainWindow::openLocalHistory() {
+    QSettings settings;
+    const quint64 last_user_id =
+        settings.value("history/last_user_id").toULongLong();
+    if (last_user_id == 0) {
+        login_page_->setStatus("暂无可查看的本地记录", true);
+        setStatus("暂无可查看的本地记录", true);
+        return;
+    }
+    QString nickname = settings.value("history/last_nickname").toString().trimmed();
+    if (nickname.isEmpty()) {
+        nickname = settings.value("session/nickname").toString().trimmed();
+    }
+    if (nickname.isEmpty()) {
+        nickname = QString("本地用户");
+    }
+
+    // 纯本地浏览：不带 token、不算登录态，也不参与自动重连。
+    user_id_ = last_user_id;
+    nickname_ = nickname;
+    token_.clear();
+    password_.clear();
+    logged_in_ = false;
+    pending_auth_ = PendingAuth::None;
+    resuming_ = false;
+    logging_out_ = false;
+    logout_finishing_ = false;
+    connected_ = false;
+    // 彻底断开并作废当前连接代次：
+    // 否则旧连接线程迟到的 disconnected 信号会把界面弹回登录页。
+    ++connection_generation_;
+    if (network_ != nullptr) {
+        disconnect(network_, nullptr, this, nullptr);
+        network_->requestStop();
+        network_->wait();
+        delete network_;
+        network_ = nullptr;
+    }
+    if (reconnect_timer_ != nullptr) {
+        reconnect_timer_->stop();
+        reconnect_scheduled_ = false;
+    }
+
+    if (!openHistoryStore(user_id_) || !history_store_.hasMessages()) {
+        closeHistoryStore();
+        login_page_->setStatus("本机没有该账号的聊天记录", true);
+        setStatus("本机没有该账号的聊天记录", true);
+        return;
+    }
+    if (!enterOfflineMode(false)) {
+        closeHistoryStore();
+        login_page_->setStatus("本机没有该账号的聊天记录", true);
+        setStatus("本机没有该账号的聊天记录", true);
+        return;
+    }
+    login_page_->setStatus("正在查看本地记录（只读）");
+    setStatus("已打开本地记录（只读）");
+}
+
+// 离线模式下的「重试连接」：没有 token 就没什么可重试的。
+void MainWindow::retryConnection() {
+    if (!offline_session_ || token_.isEmpty()) {
+        return;
+    }
+    startConnection();
+    setStatus("正在重连...");
 }
 
 void MainWindow::onMemberDoubleClicked(QListWidgetItem* item) {
@@ -2873,6 +3384,12 @@ void MainWindow::onMemberDoubleClicked(QListWidgetItem* item) {
         return;
     }
     const QString nickname = item->text();
+    // 已知备注优先：成员列表里的昵称不能覆盖用户自己设的备注。
+    const auto view = friend_views_.constFind(peer_id);
+    if (view != friend_views_.constEnd() && !view->remark.trimmed().isEmpty()) {
+        selectPrivate(peer_id, view->remark.trimmed());
+        return;
+    }
     selectPrivate(peer_id, nickname);
 }
 
@@ -2896,6 +3413,11 @@ void MainWindow::addConversation(quint64 peer_id, const QString& nickname) {
 
 void MainWindow::onLoadMoreClicked() {
     if (!has_more_ || context_type_ == ContextType::None) {
+        return;
+    }
+    if (offline_mode_) {
+        // 离线翻页走本地库，不发历史请求。
+        loadOlderFromLocal();
         return;
     }
     if (context_type_ == ContextType::Room) {
@@ -2964,6 +3486,8 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                   static_cast<unsigned long long>(user_id_));
             // 登录成功后打开本地历史库：失败只记日志，不阻塞登录。
             openHistoryStore(user_id_);
+            // 回到在线状态：离线模式的横幅与只读限制全部撤掉。
+            leaveOfflineMode();
             saveSession();
             login_page_->setBusy(false);
             stack_->setCurrentWidget(chat_page_);
@@ -3054,6 +3578,8 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             // 恢复会话时同样打开本地历史库（幂等），
             // 保证下面恢复上一个会话时能先渲染本地首屏。
             openHistoryStore(user_id_);
+            // 恢复成功即退出离线模式。
+            leaveOfflineMode();
             saveSession();
             stack_->setCurrentWidget(chat_page_);
             updateOwnProfileStrip();
@@ -3316,11 +3842,18 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             message.status = chatbox::client::MessageStatus::kSent;
             // 后台私聊同样落本地库并记一条会话摘要：
             // 之后切到该好友时能立刻看到这一段。
+            // 标题优先用已知的备注，没有备注时用昵称。
+            QString title = nickname;
+            const auto known_view = friend_views_.constFind(from_id);
+            if (known_view != friend_views_.constEnd() &&
+                !known_view->remark.trimmed().isEmpty()) {
+                title = known_view->remark.trimmed();
+            }
             if (history_store_.isOpen()) {
                 history_store_.saveMessage(message);
                 history_store_.saveConversation(
                     conversationRow(chatbox::client::ChatContext::kPrivate,
-                                    from_id, nickname));
+                                    from_id, title));
             }
             if (from_id == user_id_) {
                 break;
@@ -3998,8 +4531,29 @@ void MainWindow::handleError(quint16 code, const QString& message, quint32 seq) 
     }
 
     if (was_resuming) {
+        if (offline_mode_) {
+            // 离线模式下的恢复失败：留在离线视图，继续退避重连。
+            setOnline(false, "离线模式 · 仅显示本地记录");
+            setStatus(QString("恢复会话失败: %1").arg(text), true);
+            if (network_ != nullptr) {
+                network_->requestStop();
+            }
+            scheduleReconnect();
+            return;
+        }
+        if (enterOfflineMode(true)) {
+            setStatus(QString("恢复会话失败: %1，已进入离线模式").arg(text), true);
+            if (network_ != nullptr) {
+                network_->requestStop();
+            }
+            scheduleReconnect();
+            return;
+        }
         setOnline(false, "恢复会话失败，正在重连...");
         setStatus(QString("恢复会话失败: %1").arg(text), true);
+        login_page_->setBusy(false);
+        login_page_->setStatus(QString("恢复会话失败: %1").arg(text), true);
+        stack_->setCurrentWidget(login_page_);
         if (network_ != nullptr) {
             network_->requestStop();
         }
@@ -4043,6 +4597,8 @@ void MainWindow::handleError(quint16 code, const QString& message, quint32 seq) 
 void MainWindow::clearSession() {
     logged_in_ = false;
     connected_ = false;
+    offline_mode_ = false;
+    offline_session_ = false;
     ++connection_generation_;
     if (network_ != nullptr) {
         network_->requestStop();
@@ -4105,6 +4661,8 @@ void MainWindow::clearSession() {
     }
     clearReply();
     QSettings settings;
+    // 只删会话信息：本地记录（history/*）要保留，
+    // 登录页的「查看本地记录」入口依赖它。
     settings.remove("session");
     settings.sync();
     if (conversation_list_ != nullptr) {
@@ -4121,6 +4679,8 @@ void MainWindow::clearSession() {
     login_page_->setBusy(false);
     login_page_->clearPassword();
     login_page_->setStatus("会话已失效，请重新登录", true);
+    // 退出登录后仍然保留本地记录入口。
+    updateLocalHistoryEntry();
 }
 
 void MainWindow::resetContext() {

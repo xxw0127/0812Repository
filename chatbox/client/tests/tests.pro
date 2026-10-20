@@ -21,7 +21,8 @@ SOURCES += \
     ../core/history_store.cpp \
     ../ui/chat_view.cpp \
     ../ui/message_action_bar.cpp \
-    ../ui/profile_dialog.cpp
+    ../ui/profile_dialog.cpp \
+    ../ui/login_page.cpp
 HEADERS += \
     ../core/app_settings.h \
     ../core/autostart.h \
@@ -39,4 +40,5 @@ HEADERS += \
     ../core/user_profile.h \
     ../ui/chat_view.h \
     ../ui/message_action_bar.h \
-    ../ui/profile_dialog.h
+    ../ui/profile_dialog.h \
+    ../ui/login_page.h

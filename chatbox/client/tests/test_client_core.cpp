@@ -41,6 +41,7 @@
 #include "core/ui_theme.h"
 #include "core/user_profile.h"
 #include "ui/chat_view.h"
+#include "ui/login_page.h"
 #include "ui/message_action_bar.h"
 #include "ui/profile_dialog.h"
 
@@ -169,6 +170,8 @@ private slots:
     void buildScriptShipsSqlDriver();
     void conversationOpensFromLocalHistoryFirst();
     void incomingPushesArePersistedForOtherConversations();
+    void loginPageOffersLocalHistory();
+    void offlineModeIsReadOnlyAndLocal();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -2050,6 +2053,47 @@ void TestClientCore::incomingPushesArePersistedForOtherConversations() {
     QVERIFY(room_push.contains(QStringLiteral("history_store_.saveMessage(")));
     QVERIFY(private_push.contains(QStringLiteral("history_store_.saveMessage(")));
     QVERIFY(private_push.contains(QStringLiteral("saveConversation(")));
+}
+
+// 登录页在没有网络时也要给出「查看本地记录」入口：
+// 按钮默认隐藏，只有本机确实存过该账号的聊天记录时才出现。
+void TestClientCore::loginPageOffersLocalHistory() {
+    LoginPage page;
+    auto* button = page.findChild<QPushButton*>(QStringLiteral("LocalHistoryButton"));
+    QVERIFY(button != nullptr);
+    QVERIFY(button->isHidden());  // isVisible() is false while the page is not shown
+    page.setLocalHistoryAvailable(true, QStringLiteral("alice"));
+    QVERIFY(!button->isHidden());
+    QVERIFY(button->text().contains(QStringLiteral("alice")));
+    QSignalSpy spy(&page, &LoginPage::viewLocalHistoryRequested);
+    button->click();
+    QCOMPARE(spy.count(), 1);
+    page.setLocalHistoryAvailable(false);
+    QVERIFY(button->isHidden());
+}
+
+// 离线模式必须是只读的本地视图：所有写操作都要被挡住，
+// 搜索与翻页改走本地历史库，退出登录时保留本地记录入口。
+void TestClientCore::offlineModeIsReadOnlyAndLocal() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY(source.contains(QStringLiteral("enterOfflineMode(")));
+    QVERIFY(source.contains(QStringLiteral("离线模式 · 仅显示本地记录")));
+    QVERIFY(source.contains(QStringLiteral("viewLocalHistoryRequested")));
+    const QString recall = functionSection(source, QStringLiteral("void MainWindow::sendRecall("));
+    QVERIFY(recall.contains(QStringLiteral("!online_")));
+    const QString search = functionSection(source,
+        QStringLiteral("void MainWindow::requestMessageSearch("));
+    QVERIFY(search.contains(QStringLiteral("offline_mode_")));
+    QVERIFY(search.contains(QStringLiteral("history_store_.search(")));
+    const QString room = functionSection(source, QStringLiteral("void MainWindow::selectRoom("));
+    QVERIFY(room.contains(QStringLiteral("offline_mode_")));
+    QVERIFY(room.contains(QStringLiteral("loadInitialHistory(")));
+    const QString leave = functionSection(source, QStringLiteral("void MainWindow::leaveOfflineMode("));
+    QVERIFY(leave.contains(QStringLiteral("offline_mode_ = false")));
+    const QString save = functionSection(source, QStringLiteral("void MainWindow::saveSession("));
+    QVERIFY(save.contains(QStringLiteral("history/last_user_id")));
+    const QString clear = functionSection(source, QStringLiteral("void MainWindow::clearSession("));
+    QVERIFY(!clear.contains(QStringLiteral("history/last_user_id")));
 }
 
 QTEST_MAIN(TestClientCore)

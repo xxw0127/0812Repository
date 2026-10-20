@@ -97,6 +97,14 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     buttons->addWidget(cancel_button_);
     card_layout->addLayout(buttons);
 
+    // 本地记录入口放在按钮行下面：默认隐藏，
+    // 只有本机确实存过该账号的聊天记录时才出现。
+    local_history_button_ = new QPushButton("查看本地记录", card);
+    local_history_button_->setObjectName("LocalHistoryButton");
+    local_history_button_->setMinimumHeight(32);
+    local_history_button_->hide();
+    card_layout->addWidget(local_history_button_);
+
     status_label_ = new QLabel(card);
     status_label_->setWordWrap(true);
     status_label_->setMinimumHeight(32);
@@ -109,6 +117,8 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     connect(login_button_, &QPushButton::clicked, this, &LoginPage::submitLogin);
     connect(register_button_, &QPushButton::clicked, this, &LoginPage::submitRegister);
     connect(cancel_button_, &QPushButton::clicked, this, &LoginPage::cancelRequested);
+    connect(local_history_button_, &QPushButton::clicked, this,
+            &LoginPage::viewLocalHistoryRequested);
     connect(password_edit_, &QLineEdit::returnPressed, this, &LoginPage::submitLogin);
     connect(tls_check_, &QCheckBox::toggled, this, [this](bool checked) {
         if (checked && port_spin_->value() == 9100) {
@@ -141,6 +151,22 @@ void LoginPage::setServerSettings(const QString& host, quint16 port, bool tls) {
     host_edit_->setText(host);
     port_spin_->setValue(port);
     tls_check_->setChecked(tls);
+}
+
+// 本地记录入口：可用时显示按钮并带上账号昵称，不可用时彻底隐藏。
+void LoginPage::setLocalHistoryAvailable(bool available, const QString& nickname) {
+    if (local_history_button_ == nullptr) {
+        return;
+    }
+    const QString name = nickname.trimmed();
+    local_history_button_->setText(name.isEmpty()
+                                       ? QString("查看本地记录")
+                                       : QString("查看本地记录（%1）").arg(name));
+    if (available) {
+        local_history_button_->show();
+    } else {
+        local_history_button_->hide();
+    }
 }
 
 void LoginPage::submitLogin() {
