@@ -34,7 +34,7 @@ try {
 }
 
 New-Item -ItemType Directory -Force -Path $release | Out-Null
-foreach ($name in @("Qt5Core.dll", "Qt5Gui.dll", "Qt5Widgets.dll")) {
+foreach ($name in @("Qt5Core.dll", "Qt5Gui.dll", "Qt5Widgets.dll", "Qt5Sql.dll")) {
     Copy-Item (Join-Path $QtDir "bin\$name") $release -Force
 }
 foreach ($name in @("libssl-4-x64.dll", "libcrypto-4-x64.dll")) {
@@ -82,6 +82,17 @@ New-Item -ItemType Directory -Force -Path $styles | Out-Null
 $style_plugin = Join-Path $QtDir "plugins\styles\qwindowsvistastyle.dll"
 if (Test-Path $style_plugin) {
     Copy-Item $style_plugin $styles -Force
+}
+
+# The local history store needs the Qt SQL module and its SQLite driver
+# plugin; without them the portable build cannot open history.sqlite.
+$sqlDrivers = Join-Path $release "sqldrivers"
+New-Item -ItemType Directory -Force -Path $sqlDrivers | Out-Null
+$sqlite_plugin = Join-Path $QtDir "plugins\sqldrivers\qsqlite.dll"
+if (Test-Path $sqlite_plugin) {
+    Copy-Item $sqlite_plugin $sqlDrivers -Force
+} else {
+    Write-Warning "qsqlite.dll not found; the local history store will not work in this build"
 }
 
 Write-Host "Build complete: $release\chatbox.exe"

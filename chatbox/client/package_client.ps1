@@ -19,13 +19,22 @@ New-Item -ItemType Directory -Force -Path $target | Out-Null
 
 Copy-Item (Join-Path $release "chatbox.exe") $target -Force
 Copy-Item (Join-Path $release "*.dll") $target -Force
-foreach ($directory in @("certs", "platforms", "styles")) {
+foreach ($directory in @("certs", "platforms", "styles", "imageformats", "sqldrivers")) {
     $source = Join-Path $release $directory
     if (Test-Path $source) {
         Copy-Item $source $target -Recurse -Force
     }
 }
 Copy-Item (Join-Path $root "README.md") $target -Force
+
+# A package missing the SQL module or the SQLite driver would start but fail
+# to open the local history database, so refuse to ship it.
+foreach ($required in @("chatbox.exe", "Qt5Sql.dll", "sqldrivers\qsqlite.dll", "imageformats\qjpeg.dll")) {
+    $path = Join-Path $target $required
+    if (-not (Test-Path $path)) {
+        throw "package is incomplete: $required is missing from $target"
+    }
+}
 
 $zip = Join-Path $distRoot "$name-win64.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }

@@ -166,6 +166,7 @@ private slots:
     void historyStoreClearAllAndOlderThan();
     void historyStorePathMoveCopiesData();
     void historyStoreRejectsExistingTarget();
+    void buildScriptShipsSqlDriver();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -2005,6 +2006,22 @@ void TestClientCore::historyStoreRejectsExistingTarget() {
         blocker.fileName() + QStringLiteral("/sub"), &error));
     QVERIFY(chatbox::client::HistoryStore::ensureWritableDirectory(
         source.filePath(QStringLiteral("writable")), &error));
+}
+
+// The portable package must ship the Qt SQL module and the SQLite driver
+// plugin, otherwise the local history store cannot open its database on a
+// machine without a Qt installation.
+void TestClientCore::buildScriptShipsSqlDriver() {
+    const QString build = readClientSource(QStringLiteral("build_client.ps1"));
+    QVERIFY2(!build.isEmpty(), "build_client.ps1 must be readable");
+    QVERIFY(build.contains(QStringLiteral("Qt5Sql.dll")));
+    QVERIFY(build.contains(QStringLiteral("sqldrivers")));
+    QVERIFY(build.contains(QStringLiteral("qsqlite.dll")));
+
+    const QString package = readClientSource(QStringLiteral("package_client.ps1"));
+    QVERIFY2(!package.isEmpty(), "package_client.ps1 must be readable");
+    QVERIFY(package.contains(QStringLiteral("\"imageformats\"")));
+    QVERIFY(package.contains(QStringLiteral("\"sqldrivers\"")));
 }
 
 QTEST_MAIN(TestClientCore)
