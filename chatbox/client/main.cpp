@@ -1,13 +1,17 @@
 #include "core/app_settings.h"
 #include "core/client_log.h"
+#include "core/client_policy.h"
 #include "core/socket_compat.h"
 
 #include <QApplication>
+#include <QDir>
 #include <QFile>
 #include <QFont>
 #include <QIcon>
+#include <QLockFile>
 #include <QMessageBox>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QStyleFactory>
 
 #include "ui/main_window.h"
@@ -19,6 +23,20 @@ int main(int argc, char** argv) {
     QCoreApplication::setOrganizationName("ChatBox");
     QCoreApplication::setApplicationName("ChatBox");
     QCoreApplication::setApplicationVersion("0.2.0");
+
+    // One instance only: two clients would race on the same settings store and
+    // (from the history batch on) the same local database. A crashed instance
+    // leaves a stale lock that expires instead of blocking forever.
+    const QString lock_directory =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(lock_directory);
+    QLockFile instance_lock(QDir(lock_directory).filePath(QStringLiteral("chatbox.lock")));
+    instance_lock.setStaleLockTime(30000);
+    if (!instance_lock.tryLock(200)) {
+        QMessageBox::information(nullptr, "ChatBox", "ChatBox 已在运行。");
+        return 0;
+    }
+
     application.setStyle(QStyleFactory::create("Fusion"));
     application.setWindowIcon(QIcon(":/app.ico"));
     QFile style_file(":/style.qss");
@@ -46,8 +64,13 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    const bool start_minimized =
+        QCoreApplication::arguments().contains(QStringLiteral("--minimized"));
     MainWindow window;
-    window.show();
+    if (!chatbox::client::shouldStartHidden(
+            start_minimized, chatbox::client::shellNotificationAreaAvailable())) {
+        window.show();
+    }
     const int result = application.exec();
     chatbox::cleanupSockets();
     return result;

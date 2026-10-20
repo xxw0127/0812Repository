@@ -289,3 +289,19 @@ QToolTip {
     border: none;
     padding: 6px 8px;
 }
+QToolButton#MoreButton {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #0A0B0D;
+    font-size: 18px;
+    padding: 2px;
+}
+
+QToolButton#MoreButton:hover {
+    background: #EEF0F3;
+}
+
+QToolButton#MoreButton:pressed {
+    background: #E6E8EC;
+}

@@ -9,6 +9,8 @@ RESOURCES += ../resources/resources.qrc
 SOURCES += \
     test_client_core.cpp \
     ../core/app_settings.cpp \
+    ../core/autostart.cpp \
+    ../core/client_policy.cpp \
     ../core/message_time.cpp \
     ../core/message_store.cpp \
     ../core/outbox.cpp \
@@ -21,6 +23,8 @@ SOURCES += \
     ../ui/profile_dialog.cpp
 HEADERS += \
     ../core/app_settings.h \
+    ../core/autostart.h \
+    ../core/client_policy.h \
     ../core/chat_message.h \
     ../core/message_time.h \
     ../core/message_store.h \

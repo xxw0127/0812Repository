@@ -21,6 +21,7 @@
 #include <QListWidgetItem>
 #include <QMenu>
 #include <QMessageBox>
+#include <QMouseEvent>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSettings>
@@ -34,6 +35,7 @@
 #include <QTextBrowser>
 #include <QTextDocument>
 #include <QTimer>
+#include <QToolButton>
 #include <QUuid>
 #include <QUrl>
 #include <QVariant>
@@ -41,6 +43,8 @@
 #include <QWidget>
 
 #include "core/network_thread.h"
+#include "core/autostart.h"
+#include "core/client_policy.h"
 #include "core/avatar_utils.h"
 #include "core/identity.h"
 #include "core/message_renderer.h"
@@ -125,6 +129,14 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     QSettings initial_settings;
     notifications_enabled_ =
         initial_settings.value("settings/notifications", true).toBool();
+    system_popup_enabled_ =
+        initial_settings.value("settings/system_popup", true).toBool();
+    if (initial_settings.value("settings/autostart", false).toBool()) {
+        if (!chatbox::client::setAutostartEnabled(
+                true, QCoreApplication::applicationFilePath())) {
+            qWarning("autostart refresh failed");
+        }
+    }
     send_timeout_timer_ = new QTimer(this);
     send_timeout_timer_->setInterval(1000);
     connect(send_timeout_timer_, &QTimer::timeout, this, &MainWindow::onSendTimeout);
@@ -393,18 +405,27 @@ QWidget* MainWindow::buildChatPage() {
     context_avatar_ = new QLabel(header);
     context_avatar_->setFixedSize(36, 36);
     context_avatar_->setPixmap(avatarIcon("C", 0).pixmap(32, 32));
+    context_avatar_->setCursor(Qt::ArrowCursor);
+    context_avatar_->setToolTip("查看资料");
+    context_avatar_->installEventFilter(this);
     header_row->addWidget(context_avatar_);
     context_label_ = new QLabel("请选择房间或私聊", header);
     context_label_->setObjectName("ContextTitle");
     header_row->addWidget(context_label_, 1);
-    context_profile_button_ = new QPushButton("资料", header);
-    context_profile_button_->setObjectName("ContextProfileButton");
-    context_profile_button_->setToolTip("查看当前私聊对象资料");
-    context_profile_button_->hide();
-    header_row->addWidget(context_profile_button_);
-    load_more_button_ = new QPushButton("加载更早消息", header);
-    load_more_button_->hide();
-    header_row->addWidget(load_more_button_);
+    more_button_ = new QToolButton(header);
+    more_button_->setObjectName("MoreButton");
+    more_button_->setText(QStringLiteral("⋮"));
+    more_button_->setToolTip("更多");
+    more_button_->setFixedSize(30, 30);
+    more_button_->setPopupMode(QToolButton::InstantPopup);
+    more_menu_ = new QMenu(this);
+    more_menu_->addAction(QIcon(":/icons/message.png"), "消息搜索", this,
+                          &MainWindow::openMessageSearch);
+    load_more_action_ = more_menu_->addAction("加载更早消息", this,
+                                              &MainWindow::onLoadMoreClicked);
+    load_more_action_->setEnabled(false);
+    more_button_->setMenu(more_menu_);
+    header_row->addWidget(more_button_);
     header_layout->addLayout(header_row);
     center->addWidget(header);
 
@@ -443,24 +464,17 @@ QWidget* MainWindow::buildChatPage() {
     input_edit_ = new QLineEdit(composer);
     input_edit_->setObjectName("MessageInput");
     input_edit_->setPlaceholderText("输入消息，回车发送");
-    auto* mention_button = new QPushButton("@", composer);
-    mention_button->setObjectName("IconButton");
-    mention_button->setFixedSize(38, 38);
-    mention_button->setToolTip("提及成员");
-    auto* search_messages_button = new QPushButton(composer);
-    search_messages_button->setObjectName("IconButton");
-    search_messages_button->setIcon(QIcon(":/icons/message.png"));
-    search_messages_button->setIconSize(QSize(18, 18));
-    search_messages_button->setFixedSize(38, 38);
-    search_messages_button->setToolTip("搜索消息");
+    mention_button_ = new QPushButton("@", composer);
+    mention_button_->setObjectName("IconButton");
+    mention_button_->setFixedSize(38, 38);
+    mention_button_->setToolTip("提及成员");
     send_button_ = new QPushButton(QIcon(":/icons/send.png"), "", composer);
     send_button_->setObjectName("SendButton");
     send_button_->setIconSize(QSize(18, 18));
     send_button_->setFixedSize(38, 38);
     send_button_->setToolTip("发送");
     input_layout->addWidget(input_edit_, 1);
-    input_layout->addWidget(mention_button);
-    input_layout->addWidget(search_messages_button);
+    input_layout->addWidget(mention_button_);
     input_layout->addWidget(send_button_);
     composer_layout->addLayout(input_layout);
     center->addWidget(composer);
@@ -507,19 +521,11 @@ QWidget* MainWindow::buildChatPage() {
             &MainWindow::onMemberDoubleClicked);
     connect(member_list_, &QListWidget::customContextMenuRequested, this,
             &MainWindow::onMemberContextMenu);
-    connect(context_profile_button_, &QPushButton::clicked, this, [this] {
-        if (context_type_ == ContextType::Private && current_peer_id_ != 0) {
-            openProfile(current_peer_id_, current_peer_name_);
-        }
-    });
     connect(search_users_button, &QPushButton::clicked, this, &MainWindow::openUserSearch);
     connect(send_button_, &QPushButton::clicked, this, &MainWindow::onSendClicked);
     connect(input_edit_, &QLineEdit::returnPressed, this, &MainWindow::onSendClicked);
-    connect(mention_button, &QPushButton::clicked, this, &MainWindow::insertMention);
-    connect(search_messages_button, &QPushButton::clicked, this,
-            &MainWindow::openMessageSearch);
+    connect(mention_button_, &QPushButton::clicked, this, &MainWindow::insertMention);
     connect(reply_cancel_button_, &QPushButton::clicked, this, &MainWindow::clearReply);
-    connect(load_more_button_, &QPushButton::clicked, this, &MainWindow::onLoadMoreClicked);
     connect(logout_button_, &QPushButton::clicked, this, &MainWindow::logout);
     connect(settings_button, &QPushButton::clicked, this, &MainWindow::openSettings);
 
@@ -527,6 +533,23 @@ QWidget* MainWindow::buildChatPage() {
         tray_ = new QSystemTrayIcon(this);
         tray_->setIcon(QIcon(QStringLiteral(":/app.ico")));
         tray_->setToolTip("ChatBox");
+        auto* tray_menu = new QMenu(this);
+        tray_menu->addAction("打开 ChatBox", this, [this] {
+            showNormal();
+            raise();
+            activateWindow();
+        });
+        tray_menu->addAction("退出", this, [this] { close(); });
+        tray_->setContextMenu(tray_menu);
+        connect(tray_, &QSystemTrayIcon::activated, this,
+                [this](QSystemTrayIcon::ActivationReason reason) {
+                    if (reason == QSystemTrayIcon::Trigger ||
+                        reason == QSystemTrayIcon::DoubleClick) {
+                        showNormal();
+                        raise();
+                        activateWindow();
+                    }
+                });
         tray_->show();
     }
 
@@ -602,12 +625,19 @@ void MainWindow::openSettings() {
     SettingsDialog dialog(chatbox::client::publicUserId(user_id_), this);
     connect(&dialog, &SettingsDialog::settingsSaved, this,
             [this](const QString& host, quint16 port, bool tls,
-                   bool notifications) {
+                   bool notifications, bool system_popup, bool autostart) {
                 QSettings settings;
                 settings.setValue("server/host", host);
                 settings.setValue("server/port", port);
                 settings.setValue("server/tls", tls);
                 settings.setValue("settings/notifications", notifications);
+                settings.setValue("settings/system_popup", system_popup);
+                const bool autostart_applied = chatbox::client::setAutostartEnabled(
+                    autostart, QCoreApplication::applicationFilePath());
+                // Persist the state the registry actually ended up in: a failed
+                // write must not leave the checkbox claiming the opposite.
+                settings.setValue("settings/autostart",
+                                  autostart_applied ? autostart : !autostart);
                 const bool server_changed =
                     host != host_ || port != port_ || tls != use_tls_;
                 if (server_changed) {
@@ -615,6 +645,9 @@ void MainWindow::openSettings() {
                 }
                 settings.sync();
                 notifications_enabled_ = notifications;
+                system_popup_enabled_ = system_popup;
+                // Badges and the title counter follow the master switch.
+                refreshFriendListView();
                 login_page_->setServerSettings(host, port, tls);
                 if (server_changed && logged_in_) {
                     logging_out_ = true;
@@ -630,9 +663,15 @@ void MainWindow::openSettings() {
                 } else {
                     setStatus("设置已保存");
                 }
-                qInfo("settings saved host=%s port=%u tls=%d notifications=%d",
+                if (!autostart_applied) {
+                    setStatus("开机自启动设置失败（其余设置已保存）", true);
+                    qWarning("autostart update failed requested=%d",
+                             autostart ? 1 : 0);
+                }
+                qInfo("settings saved host=%s port=%u tls=%d notifications=%d system_popup=%d autostart=%d applied=%d",
                       qPrintable(host), static_cast<unsigned>(port), tls ? 1 : 0,
-                      notifications ? 1 : 0);
+                      notifications ? 1 : 0, system_popup ? 1 : 0,
+                      autostart ? 1 : 0, autostart_applied ? 1 : 0);
             });
     dialog.exec();
 }
@@ -720,7 +759,9 @@ void MainWindow::refreshFriendListView() {
         auto* item = new QListWidgetItem(conversation_list_);
         item->setData(Qt::UserRole, QVariant::fromValue<qulonglong>(view.user_id));
         item->setData(Qt::UserRole + 1, view.nickname);
-        item->setData(Qt::UserRole + 2, view.unread);
+        item->setData(Qt::UserRole + 2,
+                      chatbox::client::displayedUnread(notifications_enabled_,
+                                                       view.unread));
         item->setData(Qt::UserRole + 3, view.online);
         item->setData(Qt::UserRole + 4, view.last_content);
         item->setData(Qt::UserRole + 5, view.last_time);
@@ -1632,7 +1673,7 @@ void MainWindow::showPrivateNotification(const QString& nickname,
         return;
     }
     QApplication::alert(this, 3000);
-    if (tray_ != nullptr) {
+    if (system_popup_enabled_ && tray_ != nullptr) {
         tray_->showMessage("私聊消息", nickname + ": " + content,
                            QSystemTrayIcon::Information, 3000);
     }
@@ -2323,7 +2364,7 @@ void MainWindow::showMentionNotification(const QString& nickname,
         return;
     }
     QApplication::alert(this, 3000);
-    if (tray_ != nullptr) {
+    if (system_popup_enabled_ && tray_ != nullptr) {
         tray_->showMessage("有人@你", nickname + ": " + content,
                            QSystemTrayIcon::Information, 3000);
     }
@@ -2447,7 +2488,7 @@ void MainWindow::requestHistory(int kind, quint64 target, quint64 before_id) {
     writer.putU16(50);
     frame.body = writer.data();
     loading_older_history_ = before_id != 0;
-    load_more_button_->setEnabled(false);
+    load_more_action_->setEnabled(false);
     sendFrame(frame);
 }
 
@@ -2641,12 +2682,11 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
     current_peer_id_ = 0;
     current_peer_name_ = name;
     context_label_->setText("房间: " + name);
-    if (context_profile_button_ != nullptr) {
-        context_profile_button_->hide();
-    }
+    mention_button_->show();
     if (context_avatar_ != nullptr) {
         context_avatar_->setPixmap(
             QPixmap::fromImage(chatbox::client::roomAvatar(32)));
+        context_avatar_->setCursor(Qt::ArrowCursor);
     }
     chat_view_->clear();
     chat_view_->clearHoverState();
@@ -2660,7 +2700,7 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
     restorePendingForCurrentContext();
     renderCurrentConversation(ScrollMode::kBottom);
     member_list_->clear();
-    load_more_button_->hide();
+    load_more_action_->setEnabled(false);
     has_more_ = false;
     loading_older_history_ = false;
     next_before_id_ = 0;
@@ -2713,10 +2753,9 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
     current_peer_name_ = nickname;
     peer_names_.insert(peer_id, nickname);
     context_label_->setText("私聊: " + nickname);
-    if (context_profile_button_ != nullptr) {
-        context_profile_button_->show();
-    }
+    mention_button_->hide();
     updatePrivateHeaderAvatar(peer_id, nickname);
+    context_avatar_->setCursor(Qt::PointingHandCursor);
     requestPeerAvatar(peer_id);
     chat_view_->clear();
     chat_view_->clearHoverState();
@@ -2729,7 +2768,7 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
     restorePendingForCurrentContext();
     renderCurrentConversation(ScrollMode::kBottom);
     member_list_->clear();
-    load_more_button_->hide();
+    load_more_action_->setEnabled(false);
     has_more_ = false;
     loading_older_history_ = false;
     next_before_id_ = 0;
@@ -3174,9 +3213,6 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             if (from_id == user_id_) {
                 break;
             }
-            if (!nickname_.isEmpty() && content.contains("@" + nickname_)) {
-                showMentionNotification(nickname, content);
-            }
             peer_names_.insert(from_id, nickname);
             QListWidgetItem* item = findConversationItem(from_id);
             const bool online = item == nullptr
@@ -3315,8 +3351,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             loading_older_history_ = false;
             has_more_ = has_more != 0;
             next_before_id_ = next_before;
-            load_more_button_->setEnabled(true);
-            load_more_button_->setVisible(has_more_);
+            load_more_action_->setEnabled(has_more_);
             if (kind == 2 && !was_older_page) {
                 requestConversations();
             }
@@ -3712,7 +3747,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             Q_UNUSED(username);
             requestFriendRequests();
-            if (notifications_enabled_ && tray_ != nullptr) {
+            if (notifications_enabled_ && system_popup_enabled_ && tray_ != nullptr) {
                 tray_->showMessage("好友申请", nickname + " 请求添加你为好友",
                                    QSystemTrayIcon::Information, 3000);
             }
@@ -3730,7 +3765,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             Q_UNUSED(username);
             friend_ids_.insert(friend_id);
             updateConversationItem(friend_id, 0, nickname, "", "", online != 0);
-            if (notifications_enabled_ && tray_ != nullptr) {
+            if (notifications_enabled_ && system_popup_enabled_ && tray_ != nullptr) {
                 tray_->showMessage("好友申请", nickname + " 已添加你为好友",
                                    QSystemTrayIcon::Information, 3000);
             }
@@ -3985,15 +4020,16 @@ void MainWindow::resetContext() {
     if (input_edit_ != nullptr) {
         input_edit_->clear();
     }
+    if (mention_button_ != nullptr) {
+        mention_button_->hide();
+    }
     clearReply();
     if (context_label_ != nullptr) {
         context_label_->setText("请选择房间或私聊");
     }
-    if (context_profile_button_ != nullptr) {
-        context_profile_button_->hide();
-    }
     if (context_avatar_ != nullptr) {
         context_avatar_->setPixmap(avatarIcon("C", 0).pixmap(32, 32));
+        context_avatar_->setCursor(Qt::ArrowCursor);
     }
     if (chat_view_ != nullptr) {
         chat_view_->clear();
@@ -4003,8 +4039,8 @@ void MainWindow::resetContext() {
     if (member_list_ != nullptr) {
         member_list_->clear();
     }
-    if (load_more_button_ != nullptr) {
-        load_more_button_->hide();
+    if (load_more_action_ != nullptr) {
+        load_more_action_->setEnabled(false);
     }
 }
 
@@ -4063,6 +4099,18 @@ void MainWindow::setStatus(const QString& text, bool error) {
     status_label_->setStyleSheet(error
                                      ? QString("color: %1;").arg(theme::kSemanticDown)
                                      : QString("color: %1;").arg(theme::kBody));
+}
+
+bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
+    if (watched == context_avatar_ && event->type() == QEvent::MouseButtonRelease) {
+        auto* mouse = static_cast<QMouseEvent*>(event);
+        if (mouse->button() == Qt::LeftButton &&
+            context_type_ == ContextType::Private && current_peer_id_ != 0) {
+            openProfile(current_peer_id_, current_peer_name_);
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {

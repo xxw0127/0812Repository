@@ -1,6 +1,7 @@
 #include <QtTest>
 #include <algorithm>
 #include <QApplication>
+#include <QDir>
 #include <QColor>
 #include <QCoreApplication>
 #include <QFile>
@@ -23,6 +24,8 @@
 #include <QVector>
 
 #include "core/app_settings.h"
+#include "core/autostart.h"
+#include "core/client_policy.h"
 #include "core/avatar_cache.h"
 #include "core/avatar_utils.h"
 #include "core/contact_store.h"
@@ -36,6 +39,41 @@
 #include "ui/chat_view.h"
 #include "ui/message_action_bar.h"
 #include "ui/profile_dialog.h"
+
+namespace {
+
+QString readClientSource(const QString& relative) {
+    QString path = QCoreApplication::applicationDirPath() +
+                   QStringLiteral("/../../") + relative;
+    if (!QFile::exists(path)) {
+        path = QStringLiteral("../") + relative;
+    }
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return QString();
+    }
+    return QString::fromUtf8(file.readAll());
+}
+
+QString sourceSection(const QString& source, const QString& marker,
+                      const QString& next_marker) {
+    const int start = source.indexOf(marker);
+    if (start < 0) {
+        return QString();
+    }
+    const int end = source.indexOf(next_marker, start + marker.size());
+    return end < 0 ? source.mid(start) : source.mid(start, end - start);
+}
+
+QString caseSection(const QString& source, const QString& label) {
+    return sourceSection(source, label, QStringLiteral("\n        case chatbox::"));
+}
+
+QString functionSection(const QString& source, const QString& signature) {
+    return sourceSection(source, signature, QStringLiteral("\nvoid MainWindow::"));
+}
+
+}  // namespace
 
 class TestClientCore : public QObject {
     Q_OBJECT
@@ -84,6 +122,15 @@ private slots:
     void settingsMigrationNeverOverwritesCurrent();
     void brandIdentifiersAreUnified();
     void installerTemplateTargetsChatboxExe();
+    void privateChatHasNoMentionEntry();
+    void privatePushSkipsMentionNotification();
+    void headerUsesAvatarAndMoreMenu();
+    void systemPopupNotificationIsOptional();
+    void autostartCommandCarriesMinimizedFlag();
+    void autostartSettingWritesAndRemovesRunValue();
+    void startupHonoursMinimizedAndSingleInstance();
+    void startupPolicyRequiresUsableTray();
+    void unreadBadgesHonourAlertsSwitch();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -1474,6 +1521,154 @@ void TestClientCore::installerTemplateTargetsChatboxExe() {
              "the installer must target the executable the build produces");
     QVERIFY2(!source.contains(QStringLiteral("_client.exe")),
              "the installer must not reference a never-built executable name");
+}
+
+// 私聊不提供 @ 功能：输入区的 @ 按钮只在房间出现，私聊消息不再触发“有人@你”。
+void TestClientCore::privateChatHasNoMentionEntry() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    const QString private_section = functionSection(
+        source, QStringLiteral("void MainWindow::selectPrivate("));
+    QVERIFY2(private_section.contains(QStringLiteral("mention_button_->hide()")),
+             "private chats must hide the mention button");
+    const QString room_section = functionSection(
+        source, QStringLiteral("void MainWindow::selectRoom("));
+    QVERIFY2(room_section.contains(QStringLiteral("mention_button_->show()")),
+             "rooms keep the mention button");
+}
+
+void TestClientCore::privatePushSkipsMentionNotification() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    const QString private_push = caseSection(
+        source, QStringLiteral("case chatbox::kCmdPrivatePush:"));
+    QVERIFY2(!private_push.isEmpty(), "kCmdPrivatePush handler must exist");
+    QVERIFY2(!private_push.contains(QStringLiteral("showMentionNotification")),
+             "private messages must not raise a mention notification");
+    const QString room_push =
+        caseSection(source, QStringLiteral("case chatbox::kCmdChatPush:"));
+    QVERIFY2(room_push.contains(QStringLiteral("showMentionNotification")),
+             "rooms keep mention notifications");
+}
+
+// 头部只留 头像 + 标题 + ⋮；资料入口是头像，消息搜索在 ⋮ 菜单里。
+void TestClientCore::headerUsesAvatarAndMoreMenu() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY2(!source.contains(QStringLiteral("context_profile_button_")),
+             "the header must not keep a separate profile button");
+    QVERIFY2(!source.contains(QStringLiteral("load_more_button_")),
+             "load-more moved into the more menu");
+    QVERIFY2(!source.contains(QStringLiteral("search_messages_button")),
+             "message search moved out of the composer");
+    QVERIFY2(source.contains(QStringLiteral("more_button_->setPopupMode(QToolButton::InstantPopup)")),
+             "the header owns an instant-popup menu button");
+    QVERIFY2(source.contains(QStringLiteral("消息搜索")) &&
+                 source.contains(QStringLiteral("加载更早消息")),
+             "the more menu carries search and load-more");
+    const QString avatar_click =
+        functionSection(source, QStringLiteral("bool MainWindow::eventFilter("));
+    QVERIFY2(avatar_click.contains(QStringLiteral("context_avatar_")) &&
+                 avatar_click.contains(QStringLiteral("ContextType::Private")) &&
+                 avatar_click.contains(QStringLiteral("openProfile(current_peer_id_")),
+             "only a private-chat avatar opens the peer profile");
+    const QString room_section =
+        functionSection(source, QStringLiteral("void MainWindow::selectRoom("));
+    const QString private_section =
+        functionSection(source, QStringLiteral("void MainWindow::selectPrivate("));
+    const QString reset_section =
+        functionSection(source, QStringLiteral("void MainWindow::resetContext("));
+    QVERIFY2(room_section.contains(QStringLiteral("load_more_action_->setEnabled(false)")) &&
+                 private_section.contains(
+                     QStringLiteral("load_more_action_->setEnabled(false)")) &&
+                 reset_section.contains(
+                     QStringLiteral("load_more_action_->setEnabled(false)")),
+             "every context switch must disable load-more until history says otherwise");
+    const QString search_section =
+        functionSection(source, QStringLiteral("void MainWindow::openMessageSearch("));
+    QVERIFY2(search_section.contains(QStringLiteral("ContextType::None")),
+             "search must refuse to open without a selected conversation");
+}
+
+// 系统弹窗是独立开关：关掉后仍保留任务栏闪烁，但不再调用托盘气泡。
+void TestClientCore::systemPopupNotificationIsOptional() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY2(source.contains(QStringLiteral("settings/system_popup")),
+             "the system-popup preference must be persisted");
+    const QString private_notify = functionSection(
+        source, QStringLiteral("void MainWindow::showPrivateNotification("));
+    QVERIFY2(private_notify.contains(QStringLiteral("system_popup_enabled_")),
+             "private popups must honour the system-popup switch");
+    const QString mention_notify = functionSection(
+        source, QStringLiteral("void MainWindow::showMentionNotification("));
+    QVERIFY2(mention_notify.contains(QStringLiteral("system_popup_enabled_")),
+             "mention popups must honour the system-popup switch");
+    QVERIFY2(source.contains(
+                 QStringLiteral("notifications_enabled_ && system_popup_enabled_ && tray_ != nullptr")),
+             "friend-request popups must honour both switches");
+    const QString dialog = readClientSource(QStringLiteral("ui/settings_dialog.cpp"));
+    QVERIFY2(dialog.contains(QStringLiteral("系统弹窗通知")),
+             "the settings dialog exposes the system-popup switch");
+}
+
+// 路径可能含空格，命令行必须整体加引号；--minimized 让开机启动静默驻留托盘。
+void TestClientCore::autostartCommandCarriesMinimizedFlag() {
+    const QString exe = QStringLiteral("C:/Program Files/ChatBox/chatbox.exe");
+    const QString expected =
+        QStringLiteral("\"%1\" --minimized").arg(QDir::toNativeSeparators(exe));
+    QCOMPARE(chatbox::client::autostartCommand(exe), expected);
+}
+
+void TestClientCore::autostartSettingWritesAndRemovesRunValue() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QSettings run_key(dir.filePath(QStringLiteral("run.ini")), QSettings::IniFormat);
+    const QString exe = QStringLiteral("C:/Apps/ChatBox/chatbox.exe");
+    chatbox::client::applyAutostartSetting(run_key, true, exe);
+    QCOMPARE(run_key.value(QStringLiteral("ChatBox")).toString(),
+             chatbox::client::autostartCommand(exe));
+    chatbox::client::applyAutostartSetting(run_key, false, exe);
+    QVERIFY(!run_key.contains(QStringLiteral("ChatBox")));
+}
+
+// 开机启动静默进托盘；没有托盘时必须正常显示窗口，不能变成不可见进程。
+// 第二实例直接退出；崩溃遗留的锁允许过期。
+void TestClientCore::startupHonoursMinimizedAndSingleInstance() {
+    const QString source = readClientSource(QStringLiteral("main.cpp"));
+    QVERIFY2(!source.isEmpty(), "main.cpp must be readable");
+    QVERIFY2(source.contains(QStringLiteral("--minimized")),
+             "startup must understand the autostart flag");
+    QVERIFY2(source.contains(QStringLiteral("shouldStartHidden(")),
+             "startup must use the testable visibility policy");
+    QVERIFY2(!source.contains(QStringLiteral("QSystemTrayIcon::isSystemTrayAvailable()")),
+             "Qt's Windows tray probe is a constant; the shell must be checked instead");
+    QVERIFY2(source.contains(QStringLiteral("QLockFile")),
+             "a second instance must not run concurrently");
+    QVERIFY2(source.contains(QStringLiteral("setStaleLockTime")),
+             "a crashed instance must not block startup forever");
+}
+
+// Qt's Windows platform plugin reports a system tray unconditionally, so the
+// shell check is separate and the visibility decision is a pure policy.
+void TestClientCore::startupPolicyRequiresUsableTray() {
+    QVERIFY(chatbox::client::shouldStartHidden(true, true));
+    QVERIFY(!chatbox::client::shouldStartHidden(true, false));
+    QVERIFY(!chatbox::client::shouldStartHidden(false, true));
+    QVERIFY(!chatbox::client::shouldStartHidden(false, false));
+}
+
+// Turning the alert master switch off must also hide unread badges and the
+// window-title counter, not only the taskbar flash and popups.
+void TestClientCore::unreadBadgesHonourAlertsSwitch() {
+    QCOMPARE(chatbox::client::displayedUnread(true, 5), 5);
+    QCOMPARE(chatbox::client::displayedUnread(false, 5), 0);
+    QCOMPARE(chatbox::client::displayedUnread(true, -1), 0);
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString refresh = functionSection(
+        source, QStringLiteral("void MainWindow::refreshFriendListView("));
+    QVERIFY2(refresh.contains(QStringLiteral("displayedUnread(notifications_enabled_")),
+             "the conversation list must route unread counts through the policy");
 }
 
 QTEST_MAIN(TestClientCore)
