@@ -53,6 +53,22 @@ public:
     bool saveMessage(const ChatMessage& message);
     // 标记某条消息已撤回：清空正文并置 recalled；没有匹配行时返回 false。
     bool markRecalled(quint64 message_id);
+    // 写入一条会话摘要：保证会话行存在，title 非空才更新标题；
+    // last_* 按本地已存消息重算（本地没有消息时保持 0，不凭空造摘要）。
+    bool saveConversation(const ConversationRow& row);
+    // 读取当前账号的会话摘要：只返回有消息的会话（last_message_id > 0），
+    // 按 last_message_id 倒序（新→旧）；标题为空时回退为「房间 <id>」/「用户 <id>」。
+    QVector<ConversationRow> conversations() const;
+    // 清理本地副本：只影响当前 user_id，绝不触碰其它账号的数据。
+    bool clearAll();               // 清空当前账号的全部消息与会话摘要
+    bool clearOlderThan(int days); // 删除当前账号 days 天前的消息（days 夹到 1..365）
+    // 切换存储目录：migrate 为真时把现有记录复制到新目录并校验行数，
+    // 为假时在新目录建空库（旧目录保留）。目标目录已存在 history.sqlite 时
+    // 直接失败并保持当前连接在旧目录上打开；失败时删除本次生成的副本、
+    // 重新打开旧目录并返回 false。
+    bool moveTo(const QString& new_directory, bool migrate, QString* error);
+    // 校验目录可写：不存在则创建，并实际写入临时文件验证；失败时写入中文错误文本。
+    static bool ensureWritableDirectory(const QString& directory, QString* error);
     // 读取当前会话最近 limit 条消息，升序（旧→新）返回。
     QVector<ChatMessage> recent(ChatContext context, quint64 target_id,
                                 int limit) const;
@@ -68,6 +84,16 @@ public:
 
 private:
     static QString connectionNameFor(quint64 user_id);
+
+    // 保证 (user_id, context, target_id) 的会话行存在。
+    bool ensureConversationRow(ChatContext context, quint64 target_id);
+    // 按 messages 表里最新一条消息重算某个会话的 last_*；没有消息时置 0。
+    bool refreshConversationRow(ChatContext context, quint64 target_id);
+    // 写入消息后推进会话摘要：只有新的 message_id 不小于当前 last_message_id
+    // 时才更新，更旧的一页历史不得把摘要往回改。
+    bool advanceConversationSummary(ChatContext context, quint64 target_id,
+                                    quint64 message_id, const QString& content,
+                                    const QString& time_text);
 
     // 读取一页消息（recent / before 共用）：按 message_id 倒序取 limit 条，
     // 再反转为升序返回。has_before 为真时附加 message_id < before_id 条件。

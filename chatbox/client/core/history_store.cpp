@@ -4,8 +4,10 @@
 
 #include <QDir>
 #include <QDebug>
+#include <QFile>
 #include <QFileInfo>
 #include <QHash>
+#include <QPair>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
@@ -33,7 +35,7 @@ const char* const kCreateMessagesTable =
     sender_id         INTEGER NOT NULL,
     sender_name       TEXT    NOT NULL DEFAULT '',
     content           TEXT    NOT NULL,
-    created_at_utc    TEXT    NOT NULL,          -- ISO8601 UTC
+    created_at_utc    TEXT    NOT NULL,          -- yyyy-MM-dd HH:mm:ss UTC
     reply_to_id       INTEGER NOT NULL DEFAULT 0,
     reply_sender_name TEXT    NOT NULL DEFAULT '',
     reply_content     TEXT    NOT NULL DEFAULT '',
@@ -87,6 +89,23 @@ int clampLimit(int limit) {
     }
     return limit;
 }
+
+// 「清理 N 天前」的天数范围：1..365，调用方传错也不会误删全部历史。
+const int kMinClearDays = 1;
+const int kMaxClearDays = 365;
+
+int clampClearDays(int days) {
+    if (days < kMinClearDays) {
+        return kMinClearDays;
+    }
+    if (days > kMaxClearDays) {
+        return kMaxClearDays;
+    }
+    return days;
+}
+
+// 本地库文件（含 WAL 附属文件），迁移时按这个清单复制。
+const char* const kDatabaseSuffixes[] = {"", "-wal", "-shm"};
 
 // 时间列统一存 yyyy-MM-dd HH:mm:ss（UTC），与服务端字符串格式一致，可直接比较。
 QString formatUtcColumn(const QDateTime& utc) {
@@ -451,8 +470,16 @@ bool HistoryStore::saveMessage(const ChatMessage& message) {
     if (!ok) {
         qWarning() << QStringLiteral("本地历史库写入失败：%1")
                           .arg(query.lastError().text());
+        return false;
     }
-    return ok;
+    query.finish();
+    // 推进会话摘要：更旧的一页历史不得把 last_* 往回改。
+    if (!advanceConversationSummary(message.context, message.target_id,
+                                    message.message_id, content,
+                                    formatUtcColumn(created))) {
+        qWarning() << QStringLiteral("本地历史库会话摘要更新失败");
+    }
+    return true;
 }
 
 bool HistoryStore::markRecalled(quint64 message_id) {
@@ -475,6 +502,440 @@ bool HistoryStore::markRecalled(quint64 message_id) {
         return false;
     }
     return query.numRowsAffected() > 0;
+}
+
+bool HistoryStore::ensureConversationRow(ChatContext context, quint64 target_id) {
+    if (!isOpen()) {
+        return false;
+    }
+    QSqlDatabase db = QSqlDatabase::database(connection_name_, false);
+    if (!db.isOpen()) {
+        return false;
+    }
+    QSqlQuery query(db);
+    if (!query.prepare(QStringLiteral(
+            "INSERT OR IGNORE INTO conversations (user_id, context, target_id,"
+            " title, last_message_id, last_content, last_time_utc)"
+            " VALUES (?, ?, ?, '', 0, '', '')"))) {
+        return false;
+    }
+    query.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    query.addBindValue(static_cast<int>(context));
+    query.addBindValue(QVariant::fromValue<qulonglong>(target_id));
+    return query.exec();
+}
+
+bool HistoryStore::refreshConversationRow(ChatContext context, quint64 target_id) {
+    if (!isOpen()) {
+        return false;
+    }
+    QSqlDatabase db = QSqlDatabase::database(connection_name_, false);
+    if (!db.isOpen()) {
+        return false;
+    }
+    if (!ensureConversationRow(context, target_id)) {
+        return false;
+    }
+    // 摘要取该会话里 message_id 最大的一条消息。
+    QSqlQuery query(db);
+    if (!query.prepare(QStringLiteral(
+            "SELECT message_id, content, created_at_utc FROM messages"
+            " WHERE user_id = ? AND context = ? AND target_id = ?"
+            " ORDER BY message_id DESC LIMIT 1"))) {
+        return false;
+    }
+    query.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    query.addBindValue(static_cast<int>(context));
+    query.addBindValue(QVariant::fromValue<qulonglong>(target_id));
+    if (!query.exec()) {
+        return false;
+    }
+    quint64 last_id = 0;
+    QString last_content;
+    QString last_time;
+    if (query.next()) {
+        last_id = query.value(0).toULongLong();
+        last_content = textOrEmpty(query.value(1).toString());
+        last_time = textOrEmpty(query.value(2).toString());
+    }
+    query.finish();
+
+    QSqlQuery update(db);
+    if (!update.prepare(QStringLiteral(
+            "UPDATE conversations SET last_message_id = ?, last_content = ?,"
+            " last_time_utc = ?"
+            " WHERE user_id = ? AND context = ? AND target_id = ?"))) {
+        return false;
+    }
+    update.addBindValue(QVariant::fromValue<qulonglong>(last_id));
+    update.addBindValue(textOrEmpty(last_content));
+    update.addBindValue(textOrEmpty(last_time));
+    update.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    update.addBindValue(static_cast<int>(context));
+    update.addBindValue(QVariant::fromValue<qulonglong>(target_id));
+    return update.exec();
+}
+
+bool HistoryStore::advanceConversationSummary(ChatContext context, quint64 target_id,
+                                              quint64 message_id, const QString& content,
+                                              const QString& time_text) {
+    if (!isOpen()) {
+        return false;
+    }
+    QSqlDatabase db = QSqlDatabase::database(connection_name_, false);
+    if (!db.isOpen()) {
+        return false;
+    }
+    if (!ensureConversationRow(context, target_id)) {
+        return false;
+    }
+    QSqlQuery select(db);
+    if (!select.prepare(QStringLiteral(
+            "SELECT last_message_id FROM conversations"
+            " WHERE user_id = ? AND context = ? AND target_id = ?"))) {
+        return false;
+    }
+    select.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    select.addBindValue(static_cast<int>(context));
+    select.addBindValue(QVariant::fromValue<qulonglong>(target_id));
+    if (!select.exec() || !select.next()) {
+        return false;
+    }
+    const quint64 current = select.value(0).toULongLong();
+    select.finish();
+    // 更旧的消息只改正文，摘要必须始终指向最新一条，不得往回改。
+    if (message_id < current) {
+        return true;
+    }
+    QSqlQuery update(db);
+    if (!update.prepare(QStringLiteral(
+            "UPDATE conversations SET last_message_id = ?, last_content = ?,"
+            " last_time_utc = ?"
+            " WHERE user_id = ? AND context = ? AND target_id = ?"))) {
+        return false;
+    }
+    update.addBindValue(QVariant::fromValue<qulonglong>(message_id));
+    update.addBindValue(textOrEmpty(content));
+    update.addBindValue(textOrEmpty(time_text));
+    update.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    update.addBindValue(static_cast<int>(context));
+    update.addBindValue(QVariant::fromValue<qulonglong>(target_id));
+    return update.exec();
+}
+
+bool HistoryStore::saveConversation(const ConversationRow& row) {
+    if (!isOpen()) {
+        return false;
+    }
+    QSqlDatabase db = QSqlDatabase::database(connection_name_, false);
+    if (!db.isOpen()) {
+        return false;
+    }
+    // 先保证会话行存在（已存在时保持原样）。
+    QSqlQuery insert(db);
+    if (!insert.prepare(QStringLiteral(
+            "INSERT OR IGNORE INTO conversations (user_id, context, target_id,"
+            " title, last_message_id, last_content, last_time_utc)"
+            " VALUES (?, ?, ?, ?, 0, '', '')"))) {
+        return false;
+    }
+    insert.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    insert.addBindValue(static_cast<int>(row.context));
+    insert.addBindValue(QVariant::fromValue<qulonglong>(row.target_id));
+    insert.addBindValue(textOrEmpty(row.title));
+    if (!insert.exec()) {
+        return false;
+    }
+    // 标题非空才更新，空标题不覆盖已有标题。
+    if (!row.title.trimmed().isEmpty()) {
+        QSqlQuery update(db);
+        if (!update.prepare(QStringLiteral(
+                "UPDATE conversations SET title = ?"
+                " WHERE user_id = ? AND context = ? AND target_id = ?"))) {
+            return false;
+        }
+        update.addBindValue(row.title);
+        update.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+        update.addBindValue(static_cast<int>(row.context));
+        update.addBindValue(QVariant::fromValue<qulonglong>(row.target_id));
+        if (!update.exec()) {
+            return false;
+        }
+    }
+    // last_* 按本地已存消息重算，没有消息时保持 0。
+    return refreshConversationRow(row.context, row.target_id);
+}
+
+QVector<ConversationRow> HistoryStore::conversations() const {
+    QVector<ConversationRow> rows;
+    if (!isOpen()) {
+        return rows;
+    }
+    QSqlDatabase db = QSqlDatabase::database(connection_name_, false);
+    if (!db.isOpen()) {
+        return rows;
+    }
+    QSqlQuery query(db);
+    if (!query.prepare(QStringLiteral(
+            "SELECT context, target_id, title, last_message_id, last_content,"
+            " last_time_utc FROM conversations"
+            " WHERE user_id = ? AND last_message_id > 0"
+            " ORDER BY last_message_id DESC"))) {
+        return rows;
+    }
+    query.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    if (!query.exec()) {
+        return rows;
+    }
+    while (query.next()) {
+        ConversationRow row;
+        row.context = static_cast<ChatContext>(query.value(0).toInt());
+        row.target_id = query.value(1).toULongLong();
+        row.title = textOrEmpty(query.value(2).toString());
+        row.last_message_id = query.value(3).toULongLong();
+        row.last_content = textOrEmpty(query.value(4).toString());
+        row.last_time_utc = parseUtcColumn(query.value(5).toString());
+        if (row.title.trimmed().isEmpty()) {
+            // 没有标题时用类型 + 目标 id 兜底，侧栏不至于显示空白。
+            row.title = (row.context == ChatContext::kPrivate)
+                            ? QStringLiteral("用户 %1").arg(row.target_id)
+                            : QStringLiteral("房间 %1").arg(row.target_id);
+        }
+        rows.append(row);
+    }
+    return rows;
+}
+
+bool HistoryStore::clearAll() {
+    if (!isOpen()) {
+        return false;
+    }
+    QSqlDatabase db = QSqlDatabase::database(connection_name_, false);
+    if (!db.isOpen()) {
+        return false;
+    }
+    // 只清当前账号，其它账号的记录不受影响。
+    QSqlQuery messages(db);
+    if (!messages.prepare(QStringLiteral(
+            "DELETE FROM messages WHERE user_id = ?"))) {
+        return false;
+    }
+    messages.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    if (!messages.exec()) {
+        return false;
+    }
+    QSqlQuery conversations(db);
+    if (!conversations.prepare(QStringLiteral(
+            "DELETE FROM conversations WHERE user_id = ?"))) {
+        return false;
+    }
+    conversations.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    return conversations.exec();
+}
+
+bool HistoryStore::clearOlderThan(int days) {
+    if (!isOpen()) {
+        return false;
+    }
+    QSqlDatabase db = QSqlDatabase::database(connection_name_, false);
+    if (!db.isOpen()) {
+        return false;
+    }
+    const int clamped = clampClearDays(days);
+    // 截止串与落库格式一致（yyyy-MM-dd HH:mm:ss UTC），可直接按字符串比较。
+    const QString cutoff =
+        formatUtcColumn(QDateTime::currentDateTimeUtc().addDays(-clamped));
+
+    QSqlQuery del(db);
+    if (!del.prepare(QStringLiteral(
+            "DELETE FROM messages WHERE user_id = ? AND created_at_utc < ?"))) {
+        return false;
+    }
+    del.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    del.addBindValue(cutoff);
+    if (!del.exec()) {
+        return false;
+    }
+
+    // 收集当前账号的全部会话：(context, target_id)。
+    QVector<QPair<int, quint64> > pairs;
+    const char* const pair_queries[] = {
+        "SELECT context, target_id FROM conversations WHERE user_id = ?",
+        "SELECT DISTINCT context, target_id FROM messages WHERE user_id = ?",
+    };
+    for (const char* sql : pair_queries) {
+        QSqlQuery query(db);
+        if (!query.prepare(QString::fromLatin1(sql))) {
+            return false;
+        }
+        query.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+        if (!query.exec()) {
+            return false;
+        }
+        while (query.next()) {
+            pairs.append(qMakePair(query.value(0).toInt(),
+                                   query.value(1).toULongLong()));
+        }
+    }
+    // 逐个重算摘要：消息被删光的会话 last_message_id 归零。
+    for (const auto& pair : pairs) {
+        if (!refreshConversationRow(static_cast<ChatContext>(pair.first),
+                                     pair.second)) {
+            return false;
+        }
+    }
+    // 没有消息的会话行直接删掉。
+    QSqlQuery cleanup(db);
+    if (!cleanup.prepare(QStringLiteral(
+            "DELETE FROM conversations WHERE user_id = ? AND last_message_id = 0"))) {
+        return false;
+    }
+    cleanup.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    return cleanup.exec();
+}
+
+bool HistoryStore::moveTo(const QString& new_directory, bool migrate, QString* error) {
+    auto fail = [error](const QString& message) {
+        if (error) {
+            *error = message;
+        }
+        return false;
+    };
+
+    if (!isOpen()) {
+        return fail(QStringLiteral("本地历史库未打开，无法切换目录"));
+    }
+    if (new_directory.trimmed().isEmpty()) {
+        return fail(QStringLiteral("本地历史库目标目录为空"));
+    }
+
+    const QString target = QDir(new_directory).absolutePath();
+    // 目标目录已有本地库时一律拒绝（迁移与不迁移都一样），避免覆盖别的账号的
+    // 数据；此时当前连接仍保持在旧目录上打开。
+    if (QFile::exists(databasePath(target))) {
+        return fail(QStringLiteral("目标目录已存在本地历史库：%1").arg(target));
+    }
+    QString writable_error;
+    if (!ensureWritableDirectory(target, &writable_error)) {
+        return fail(writable_error);
+    }
+
+    const QString source_directory = directory_;
+    const quint64 user_id = user_id_;
+    const qint64 expected_count = messageCount();
+    const QString source_base = databasePath(source_directory);
+    const QString target_base = databasePath(target);
+
+    // 目标目录里本次可能生成的文件：失败回滚时按这个清单清理。
+    QStringList generated;
+    for (const char* suffix : kDatabaseSuffixes) {
+        generated << target_base + QString::fromLatin1(suffix);
+    }
+    const auto cleanup_target = [&generated]() {
+        for (const QString& path : generated) {
+            QFile::remove(path);
+        }
+    };
+    // 回滚：重新打开旧目录，让调用方的连接继续可用。
+    const auto reopen_source = [this, &source_directory, &user_id]() {
+        QString reopen_error;
+        if (!open(source_directory, user_id, &reopen_error)) {
+            qWarning() << QStringLiteral("本地历史库回滚失败：原目录无法重新打开：%1")
+                              .arg(reopen_error);
+            return false;
+        }
+        return true;
+    };
+
+    // 先关旧连接：WAL 的 checkpoint 在最后一个连接关闭时完成，
+    // 复制出来的主库才是完整的。
+    close();
+
+    if (migrate) {
+        bool copied = true;
+        for (const char* suffix : kDatabaseSuffixes) {
+            const QString from = source_base + QString::fromLatin1(suffix);
+            if (!QFile::exists(from)) {
+                continue;
+            }
+            const QString to = target_base + QString::fromLatin1(suffix);
+            if (QFile::exists(to)) {
+                // 没有主库时残留的 wal/shm 没有意义，直接覆盖。
+                QFile::remove(to);
+            }
+            if (!QFile::copy(from, to)) {
+                copied = false;
+                break;
+            }
+        }
+        if (!copied) {
+            cleanup_target();
+            reopen_source();
+            return fail(QStringLiteral("本地历史库迁移失败：复制到 %1 出错").arg(target));
+        }
+    }
+
+    QString open_error;
+    if (!open(target, user_id, &open_error)) {
+        cleanup_target();
+        reopen_source();
+        return fail(open_error.isEmpty()
+                        ? QStringLiteral("本地历史库迁移失败：无法打开目标目录 %1")
+                              .arg(target)
+                        : open_error);
+    }
+
+    // 校验：迁移时目标库的消息数必须与迁移前一致；
+    // 不迁移时新目录本来就是空库，不需要校验。
+    if (migrate && messageCount() != expected_count) {
+        close();
+        cleanup_target();
+        reopen_source();
+        return fail(QStringLiteral("本地历史库迁移失败：目标库消息数校验不一致"));
+    }
+
+    if (error) {
+        error->clear();
+    }
+    return true;
+}
+
+bool HistoryStore::ensureWritableDirectory(const QString& directory, QString* error) {
+    auto fail = [error](const QString& message) {
+        if (error) {
+            *error = message;
+        }
+        return false;
+    };
+
+    if (directory.trimmed().isEmpty()) {
+        return fail(QStringLiteral("本地历史库目录为空"));
+    }
+    const QString path = QDir(directory).absolutePath();
+    const QFileInfo info(path);
+    if (info.exists() && !info.isDir()) {
+        return fail(QStringLiteral("本地历史库目录不是文件夹：%1").arg(path));
+    }
+    if (!QDir().mkpath(path)) {
+        return fail(QStringLiteral("本地历史库目录创建失败：%1").arg(path));
+    }
+    if (!QFileInfo(path).isDir()) {
+        return fail(QStringLiteral("本地历史库目录不可用：%1").arg(path));
+    }
+    // 实际写一个临时文件确认可写：只看权限位在 Windows 上不可靠。
+    const QString probe =
+        QDir(path).filePath(QStringLiteral(".chatbox-write-test.tmp"));
+    QFile file(probe);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        return fail(QStringLiteral("本地历史库目录不可写：%1").arg(path));
+    }
+    file.write("ok", 2);
+    file.close();
+    QFile::remove(probe);
+    if (error) {
+        error->clear();
+    }
+    return true;
 }
 
 QVector<ChatMessage> HistoryStore::recent(ChatContext context, quint64 target_id,

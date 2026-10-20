@@ -161,6 +161,10 @@ private slots:
     void historyStoreIsolatesUsers();
     void historyStoreIsolatesConversations();
     void historyStoreSearchFindsInConversation();
+    void historyStoreConversationSummaries();
+    void historyStoreClearAllAndOlderThan();
+    void historyStorePathMoveCopiesData();
+    void historyStoreRejectsExistingTarget();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -1867,6 +1871,98 @@ void TestClientCore::historyStoreSearchFindsInConversation() {
     QCOMPARE(store.search(chatbox::client::ChatContext::kRoom, 7, "%", 50).size(), 1);  // 只中 100%
     QCOMPARE(store.search(chatbox::client::ChatContext::kRoom, 7, "_", 50).size(), 0);  // 下划线被转义
     QCOMPARE(store.search(chatbox::client::ChatContext::kRoom, 7, "hello", 1).size(), 1);
+}
+
+// 会话摘要：saveConversation 只保证会话行存在并写标题，last_* 由消息写入推进；
+// 更旧的一页历史不得把 last_* 往回改。
+void TestClientCore::historyStoreConversationSummaries() {
+    QTemporaryDir dir; chatbox::client::HistoryStore store; QString error;
+    QVERIFY(store.open(dir.path(), 1301, &error));
+    chatbox::client::ConversationRow row;
+    row.context = chatbox::client::ChatContext::kRoom;
+    row.target_id = 7;
+    row.title = QStringLiteral("大厅");
+    QVERIFY(store.saveConversation(row));
+    QVERIFY(store.saveMessage(confirmedMessage(1, 7, "one", "2026-10-20 10:00:00")));
+    QVERIFY(store.saveMessage(confirmedMessage(2, 7, "two", "2026-10-20 10:01:00")));
+    // 更旧的消息不得把 last_* 往回改
+    QVERIFY(store.saveMessage(confirmedMessage(1, 7, "one edited", "2026-10-20 09:00:00")));
+    auto rows = store.conversations();
+    QCOMPARE(rows.size(), 1);
+    QCOMPARE(rows.at(0).title, QStringLiteral("大厅"));
+    QCOMPARE(rows.at(0).last_message_id, quint64(2));
+    QCOMPARE(rows.at(0).last_content, QString("two"));
+}
+
+// 清理：clearOlderThan 只删当前账号的过期消息并重算会话摘要（空会话删除），
+// clearAll 清空当前账号的全部本地记录。
+void TestClientCore::historyStoreClearAllAndOlderThan() {
+    QTemporaryDir dir; chatbox::client::HistoryStore store; QString error;
+    QVERIFY(store.open(dir.path(), 1302, &error));
+    const QString old_time = QDateTime::currentDateTimeUtc().addDays(-40)
+                                 .toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+    QVERIFY(store.saveMessage(confirmedMessage(1, 7, "old room", old_time)));
+    QVERIFY(store.saveMessage(confirmedMessage(2, 7, "new room",
+                                              QDateTime::currentDateTimeUtc()
+                                                  .toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")))));
+    auto priv = confirmedMessage(3, 8, "old private", old_time);
+    priv.context = chatbox::client::ChatContext::kPrivate;
+    QVERIFY(store.saveMessage(priv));
+
+    QVERIFY(store.clearOlderThan(30));
+    auto rows = store.conversations();
+    QCOMPARE(rows.size(), 1);
+    QCOMPARE(rows.at(0).context, chatbox::client::ChatContext::kRoom);
+    QCOMPARE(rows.at(0).last_message_id, quint64(2));
+
+    QVERIFY(store.clearAll());
+    QCOMPARE(store.messageCount(), qint64(0));
+    QVERIFY(store.conversations().isEmpty());
+}
+
+// 迁移目录：migrate=true 把现有记录复制到新目录，migrate=false 在新目录建空库。
+void TestClientCore::historyStorePathMoveCopiesData() {
+    QTemporaryDir first; QTemporaryDir second; QTemporaryDir third;
+    chatbox::client::HistoryStore store; QString error;
+    QVERIFY(store.open(first.path(), 1303, &error));
+    QVERIFY(store.saveMessage(confirmedMessage(1, 7, "keep me")));
+    QCOMPARE(store.messageCount(), qint64(1));
+
+    QVERIFY2(store.moveTo(second.path(), true, &error), qPrintable(error));
+    QVERIFY(store.isOpen());
+    QCOMPARE(store.directory(), QDir(second.path()).absolutePath());
+    QCOMPARE(store.messageCount(), qint64(1));
+    QVERIFY(QFile::exists(QDir(first.path()).filePath(QStringLiteral("history.sqlite"))));
+
+    QVERIFY2(store.moveTo(third.path(), false, &error), qPrintable(error));
+    QCOMPARE(store.messageCount(), qint64(0));
+    QVERIFY(store.recent(chatbox::client::ChatContext::kRoom, 7, 10).isEmpty());
+}
+
+// 目标目录已有本地库时必须拒绝迁移，并保持当前连接在旧目录上打开。
+void TestClientCore::historyStoreRejectsExistingTarget() {
+    QTemporaryDir source; QTemporaryDir target;
+    QString error;
+    {
+        chatbox::client::HistoryStore other;
+        QVERIFY(other.open(target.path(), 1304, &error));
+    }
+    chatbox::client::HistoryStore store;
+    QVERIFY(store.open(source.path(), 1305, &error));
+    QVERIFY(store.saveMessage(confirmedMessage(1, 7, "keep")));
+    QVERIFY(!store.moveTo(target.path(), true, &error));
+    QVERIFY(!error.isEmpty());
+    QVERIFY(store.isOpen());
+    QCOMPARE(store.directory(), QDir(source.path()).absolutePath());
+    QCOMPARE(store.messageCount(), qint64(1));
+
+    QFile blocker(source.filePath(QStringLiteral("blocker")));
+    QVERIFY(blocker.open(QIODevice::WriteOnly));
+    blocker.close();
+    QVERIFY(!chatbox::client::HistoryStore::ensureWritableDirectory(
+        blocker.fileName() + QStringLiteral("/sub"), &error));
+    QVERIFY(chatbox::client::HistoryStore::ensureWritableDirectory(
+        source.filePath(QStringLiteral("writable")), &error));
 }
 
 QTEST_MAIN(TestClientCore)
