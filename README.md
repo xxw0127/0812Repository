@@ -2,7 +2,7 @@
 
 C++ 聊天室：Windows 端 Qt 5.15 桌面客户端 + Linux C++17 高并发服务端（epoll ET + MySQL + nginx TLS 终结）。
 
-- 客户端：Qt Widgets、原生 Winsock + 独立网络线程、浅色三栏聊天界面、原生 TCP + TLS。
+- 客户端：Qt Widgets、原生 Winsock + 独立网络线程、浅色三栏聊天界面、原生 TCP + TLS、本地历史 + 离线只读（SQLite 本机副本，只落服务端已确认消息；离线可浏览、可在当前会话内搜索，保留 token 时自动重连）。
 - 服务端：IO 线程池 + 业务工作线程池、MySQL 连接池（每线程独立连接 / 预处理语句）、心跳与断线重连、限流与连接上限。
 - 协议：自定义二进制帧（14 字节大端帧头 + TLV 消息体），登录/注册、房间与大厅广播、私聊、历史分页、引用回复、撤回、消息搜索、好友与备注、个人资料与头像。
 
@@ -47,8 +47,8 @@ cd chatbox\client
 ```
 
 - 默认服务器：`192.168.2.240:9443`（TLS，校验 `client\certs\ca.crt`）。
-- 回归测试：`cd chatbox\client\tests; .\run_client_tests.ps1`（当前 54 passed / 0 failed）。
-- 便携分发包：`.\package_client.ps1` → `dist\chatbox-0.2.0-win64.zip`。
+- 回归测试：`cd chatbox\client\tests; .\run_client_tests.ps1`（当前 76 passed / 0 failed）。
+- 便携分发包：`.\package_client.ps1` → `dist\chatbox-0.2.0-win64.zip`（含 `Qt5Sql.dll`、`sqldrivers\qsqlite.dll`、`imageformats\qjpeg.dll`，打包后逐项校验）。
 - 详细说明见 [`chatbox/client/README.md`](chatbox/client/README.md)。
 
 ## 部署拓扑
