@@ -673,7 +673,10 @@ void MainWindow::finishLogout() {
 }
 
 void MainWindow::openSettings() {
-    SettingsDialog dialog(chatbox::client::publicUserId(user_id_), this);
+    SettingsDialog dialog(chatbox::client::publicUserId(user_id_),
+                          history_store_.directory(),
+                          history_store_.sizeBytes(),
+                          history_store_.isOpen(), this);
     connect(&dialog, &SettingsDialog::settingsSaved, this,
             [this](const QString& host, quint16 port, bool tls,
                    bool notifications, bool system_popup, bool autostart) {
@@ -723,6 +726,70 @@ void MainWindow::openSettings() {
                       qPrintable(host), static_cast<unsigned>(port), tls ? 1 : 0,
                       notifications ? 1 : 0, system_popup ? 1 : 0,
                       autostart ? 1 : 0, autostart_applied ? 1 : 0);
+            });
+    // 换目录：先确认目标目录可写，再让历史库搬过去；
+    // 任何一步失败都只提示错误，不写 settings/history/path。
+    connect(&dialog, &SettingsDialog::historyPathChangeRequested, this,
+            [this, &dialog](const QString& directory, bool migrate) {
+                QString error;
+                if (!chatbox::client::HistoryStore::ensureWritableDirectory(directory,
+                                                                            &error)) {
+                    QMessageBox::warning(&dialog, "本地聊天记录", error);
+                    return;
+                }
+                if (!history_store_.moveTo(directory, migrate, &error)) {
+                    QMessageBox::warning(&dialog, "本地聊天记录", error);
+                    return;
+                }
+                QSettings settings;
+                settings.setValue("settings/history/path", history_store_.directory());
+                settings.sync();
+                dialog.setHistoryInfo(history_store_.directory(),
+                                      history_store_.sizeBytes(),
+                                      history_store_.isOpen());
+                setStatus(migrate ? "本地聊天记录已迁移到新目录"
+                                  : "本地聊天记录已切换到新目录");
+                // 日志只记动作与目录，不记任何消息正文。
+                qInfo("history directory changed migrate=%d dir=%s",
+                      migrate ? 1 : 0, qPrintable(history_store_.directory()));
+                if (offline_mode_) {
+                    // 换了库：离线视图要按新库重建。
+                    refreshOfflineAfterClear();
+                }
+            });
+    // 清空本地副本：只删本机数据，服务器历史不受影响。
+    connect(&dialog, &SettingsDialog::historyClearAllRequested, this,
+            [this, &dialog]() {
+                if (!history_store_.clearAll()) {
+                    QMessageBox::warning(&dialog, "本地聊天记录",
+                                         "清空本地聊天记录失败，请稍后重试");
+                    return;
+                }
+                dialog.setHistoryInfo(history_store_.directory(),
+                                      history_store_.sizeBytes(),
+                                      history_store_.isOpen());
+                setStatus("本地聊天记录已清空");
+                qInfo("local history cleared");
+                if (offline_mode_) {
+                    refreshOfflineAfterClear();
+                }
+            });
+    // 清理 N 天前的本地副本：同样只影响本机数据。
+    connect(&dialog, &SettingsDialog::historyClearOlderRequested, this,
+            [this, &dialog](int days) {
+                if (!history_store_.clearOlderThan(days)) {
+                    QMessageBox::warning(&dialog, "本地聊天记录",
+                                         "清理本地聊天记录失败，请稍后重试");
+                    return;
+                }
+                dialog.setHistoryInfo(history_store_.directory(),
+                                      history_store_.sizeBytes(),
+                                      history_store_.isOpen());
+                setStatus(QString("已清理 %1 天前的本地聊天记录").arg(days));
+                qInfo("local history pruned days=%d", days);
+                if (offline_mode_) {
+                    refreshOfflineAfterClear();
+                }
             });
     dialog.exec();
 }
@@ -3238,6 +3305,40 @@ void MainWindow::populateOfflineSidebar() {
         peer_names_.insert(row.target_id, row.title);
     }
     refreshFriendListView();
+}
+
+// 清理或切换本地记录后重建离线视图：
+// 重置当前会话，按本地库重载侧栏，再选中第一个可显示的会话。
+// 会话被清空时保持重置状态，并提示本地记录已清空。
+void MainWindow::refreshOfflineAfterClear() {
+    resetContext();
+    populateOfflineSidebar();
+    bool selected = false;
+    if (room_list_ != nullptr && room_list_->count() > 0) {
+        QListWidgetItem* first = room_list_->item(0);
+        selectRoom(first->data(Qt::UserRole).toInt(),
+                   first->data(Qt::UserRole + 1).toString());
+        selected = true;
+    }
+    if (!selected && conversation_list_ != nullptr) {
+        // 好友列表第一行可能是分组标题，按 user_id 跳过。
+        for (int i = 0; i < conversation_list_->count(); ++i) {
+            QListWidgetItem* item = conversation_list_->item(i);
+            const quint64 peer_id = item->data(Qt::UserRole).toULongLong();
+            if (peer_id == 0) {
+                continue;
+            }
+            selectPrivate(peer_id, item->data(Qt::UserRole + 1).toString());
+            selected = true;
+            break;
+        }
+    }
+    if (!selected) {
+        resetContext();
+        setStatus("本地聊天记录已清空");
+        return;
+    }
+    setStatus("离线模式 · 仅显示本地记录");
 }
 
 // 离线翻页：从本地历史库取更早的一页。

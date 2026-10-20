@@ -11,6 +11,7 @@ SOURCES += \
     ../core/app_settings.cpp \
     ../core/autostart.cpp \
     ../core/client_policy.cpp \
+    ../core/client_log.cpp \
     ../core/message_time.cpp \
     ../core/message_store.cpp \
     ../core/outbox.cpp \
@@ -22,11 +23,13 @@ SOURCES += \
     ../ui/chat_view.cpp \
     ../ui/message_action_bar.cpp \
     ../ui/profile_dialog.cpp \
-    ../ui/login_page.cpp
+    ../ui/login_page.cpp \
+    ../ui/settings_dialog.cpp
 HEADERS += \
     ../core/app_settings.h \
     ../core/autostart.h \
     ../core/client_policy.h \
+    ../core/client_log.h \
     ../core/chat_message.h \
     ../core/message_time.h \
     ../core/message_store.h \
@@ -41,4 +44,5 @@ HEADERS += \
     ../ui/chat_view.h \
     ../ui/message_action_bar.h \
     ../ui/profile_dialog.h \
-    ../ui/login_page.h
+    ../ui/login_page.h \
+    ../ui/settings_dialog.h

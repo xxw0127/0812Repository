@@ -162,6 +162,8 @@ private:
     void leaveOfflineMode();
     // 离线侧栏：把本地存下来的所有会话都列出来（不做好友过滤）。
     void populateOfflineSidebar();
+    // 清理/切换本地记录后重建离线视图：重置当前会话并按本地库重载侧栏。
+    void refreshOfflineAfterClear();
     // 离线翻页：从本地历史库取更早的一页。
     void loadOlderFromLocal();
     // 刷新登录页的本地记录入口（是否有记录、账号昵称）。

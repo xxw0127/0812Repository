@@ -2,25 +2,46 @@
 #define CHATBOX_CLIENT_UI_SETTINGS_DIALOG_H
 
 #include <QDialog>
+#include <QtGlobal>
 
 class QCheckBox;
 class QLabel;
 class QLineEdit;
+class QPushButton;
 class QSpinBox;
 
+// 设置对话框：除了服务器/通知/自启动外，还负责展示并管理本机的
+// 聊天记录副本（存放目录、占用大小、清理）。
+// 本对话框只负责收集用户意图，不直接碰数据库：
+// 改目录与清理都通过信号交给 MainWindow 去执行。
 class SettingsDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit SettingsDialog(const QString& public_id, QWidget* parent = nullptr);
+    // history_available 为假时（缺少 SQLite 驱动等）三个历史按钮全部禁用。
+    SettingsDialog(const QString& public_id, const QString& history_directory,
+                   qint64 history_size_bytes, bool history_available,
+                   QWidget* parent = nullptr);
+
+    // 刷新本地聊天记录信息：目录、大小与可用状态。
+    void setHistoryInfo(const QString& directory, qint64 size_bytes, bool available);
 
 signals:
     void settingsSaved(const QString& host, quint16 port, bool tls, bool notifications,
                        bool system_popup, bool autostart);
+    // 请求把本地聊天记录换到新目录；migrate 为真表示复制现有记录。
+    void historyPathChangeRequested(const QString& directory, bool migrate);
+    // 请求清空本机的聊天记录副本。
+    void historyClearAllRequested();
+    // 请求清理本机 days 天前的聊天记录副本。
+    void historyClearOlderRequested(int days);
 
 private slots:
     void saveSettings();
     void openLogDirectory();
+    void changeHistoryDirectory();
+    void openHistoryDirectory();
+    void openClearHistoryDialog();
 
 private:
     QLineEdit* host_edit_ = nullptr;
@@ -31,6 +52,13 @@ private:
     QCheckBox* autostart_check_ = nullptr;
     QLabel* log_label_ = nullptr;
     QLabel* id_label_ = nullptr;
+    QLabel* history_path_label_ = nullptr;
+    QLabel* history_size_label_ = nullptr;
+    QPushButton* change_history_dir_button_ = nullptr;
+    QPushButton* open_history_dir_button_ = nullptr;
+    QPushButton* clear_history_button_ = nullptr;
+    QString history_directory_;
+    bool history_available_ = false;
 };
 
 #endif  // CHATBOX_CLIENT_UI_SETTINGS_DIALOG_H

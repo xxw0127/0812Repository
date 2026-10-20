@@ -44,6 +44,7 @@
 #include "ui/login_page.h"
 #include "ui/message_action_bar.h"
 #include "ui/profile_dialog.h"
+#include "ui/settings_dialog.h"
 
 namespace {
 
@@ -172,6 +173,8 @@ private slots:
     void incomingPushesArePersistedForOtherConversations();
     void loginPageOffersLocalHistory();
     void offlineModeIsReadOnlyAndLocal();
+    void settingsDialogShowsHistoryInfo();
+    void settingsDialogExposesHistoryActions();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -2094,6 +2097,41 @@ void TestClientCore::offlineModeIsReadOnlyAndLocal() {
     QVERIFY(save.contains(QStringLiteral("history/last_user_id")));
     const QString clear = functionSection(source, QStringLiteral("void MainWindow::clearSession("));
     QVERIFY(!clear.contains(QStringLiteral("history/last_user_id")));
+}
+
+// 设置页要能显示本地聊天记录的存放位置、占用大小，并提供三个操作入口。
+// 库不可用（缺少 SQLite 驱动）时按钮必须禁用，避免用户点了才发现没库。
+void TestClientCore::settingsDialogShowsHistoryInfo() {
+    QTemporaryDir dir;
+    SettingsDialog dialog(QStringLiteral("U00001001"), dir.path(), 4096, true);
+    auto* path = dialog.findChild<QLabel*>(QStringLiteral("HistoryPathLabel"));
+    auto* size = dialog.findChild<QLabel*>(QStringLiteral("HistorySizeLabel"));
+    QVERIFY(path != nullptr);
+    QVERIFY(size != nullptr);
+    QCOMPARE(QDir(path->text()), QDir(dir.path()));
+    QCOMPARE(size->text(), QStringLiteral("4.0 KB"));
+    QVERIFY(dialog.findChild<QPushButton*>(QStringLiteral("ChangeHistoryDirButton")) != nullptr);
+    QVERIFY(dialog.findChild<QPushButton*>(QStringLiteral("OpenHistoryDirButton")) != nullptr);
+    QVERIFY(dialog.findChild<QPushButton*>(QStringLiteral("ClearHistoryButton")) != nullptr);
+    dialog.setHistoryInfo(dir.path(), 3 * 1024 * 1024, false);
+    QCOMPARE(size->text(), QStringLiteral("3.0 MB"));
+    QVERIFY(!dialog.findChild<QPushButton*>(QStringLiteral("ClearHistoryButton"))->isEnabled());
+}
+
+// 设置页的三个历史操作都要有中文文案，并落到 MainWindow 的落盘逻辑上。
+void TestClientCore::settingsDialogExposesHistoryActions() {
+    const QString dialog = readClientSource(QStringLiteral("ui/settings_dialog.cpp"));
+    QVERIFY(!dialog.isEmpty());
+    QVERIFY(dialog.contains(QStringLiteral("更改目录")));
+    QVERIFY(dialog.contains(QStringLiteral("打开目录")));
+    QVERIFY(dialog.contains(QStringLiteral("清理")));
+    QVERIFY(dialog.contains(QStringLiteral("historyPathChangeRequested")));
+    QVERIFY(dialog.contains(QStringLiteral("historyClearAllRequested")));
+    QVERIFY(dialog.contains(QStringLiteral("historyClearOlderRequested")));
+    QVERIFY(dialog.contains(QStringLiteral("不影响服务器历史")));
+    const QString window = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY(window.contains(QStringLiteral("settings/history/path")));
+    QVERIFY(window.contains(QStringLiteral("moveTo(")));
 }
 
 QTEST_MAIN(TestClientCore)
