@@ -443,10 +443,10 @@ QWidget* MainWindow::buildChatPage() {
     input_edit_ = new QLineEdit(composer);
     input_edit_->setObjectName("MessageInput");
     input_edit_->setPlaceholderText("输入消息，回车发送");
-    auto* mention_button = new QPushButton("@", composer);
-    mention_button->setObjectName("IconButton");
-    mention_button->setFixedSize(38, 38);
-    mention_button->setToolTip("提及成员");
+    mention_button_ = new QPushButton("@", composer);
+    mention_button_->setObjectName("IconButton");
+    mention_button_->setFixedSize(38, 38);
+    mention_button_->setToolTip("提及成员");
     auto* search_messages_button = new QPushButton(composer);
     search_messages_button->setObjectName("IconButton");
     search_messages_button->setIcon(QIcon(":/icons/message.png"));
@@ -459,7 +459,7 @@ QWidget* MainWindow::buildChatPage() {
     send_button_->setFixedSize(38, 38);
     send_button_->setToolTip("发送");
     input_layout->addWidget(input_edit_, 1);
-    input_layout->addWidget(mention_button);
+    input_layout->addWidget(mention_button_);
     input_layout->addWidget(search_messages_button);
     input_layout->addWidget(send_button_);
     composer_layout->addLayout(input_layout);
@@ -515,7 +515,7 @@ QWidget* MainWindow::buildChatPage() {
     connect(search_users_button, &QPushButton::clicked, this, &MainWindow::openUserSearch);
     connect(send_button_, &QPushButton::clicked, this, &MainWindow::onSendClicked);
     connect(input_edit_, &QLineEdit::returnPressed, this, &MainWindow::onSendClicked);
-    connect(mention_button, &QPushButton::clicked, this, &MainWindow::insertMention);
+    connect(mention_button_, &QPushButton::clicked, this, &MainWindow::insertMention);
     connect(search_messages_button, &QPushButton::clicked, this,
             &MainWindow::openMessageSearch);
     connect(reply_cancel_button_, &QPushButton::clicked, this, &MainWindow::clearReply);
@@ -2641,6 +2641,7 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
     current_peer_id_ = 0;
     current_peer_name_ = name;
     context_label_->setText("房间: " + name);
+    mention_button_->show();
     if (context_profile_button_ != nullptr) {
         context_profile_button_->hide();
     }
@@ -2713,6 +2714,7 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
     current_peer_name_ = nickname;
     peer_names_.insert(peer_id, nickname);
     context_label_->setText("私聊: " + nickname);
+    mention_button_->hide();
     if (context_profile_button_ != nullptr) {
         context_profile_button_->show();
     }
@@ -3173,9 +3175,6 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             if (from_id == user_id_) {
                 break;
-            }
-            if (!nickname_.isEmpty() && content.contains("@" + nickname_)) {
-                showMentionNotification(nickname, content);
             }
             peer_names_.insert(from_id, nickname);
             QListWidgetItem* item = findConversationItem(from_id);
@@ -3984,6 +3983,9 @@ void MainWindow::resetContext() {
     next_before_id_ = 0;
     if (input_edit_ != nullptr) {
         input_edit_->clear();
+    }
+    if (mention_button_ != nullptr) {
+        mention_button_->hide();
     }
     clearReply();
     if (context_label_ != nullptr) {

@@ -190,6 +190,7 @@ private:
     quint64 action_bar_message_id_ = 0;
     QPushButton* load_more_button_ = nullptr;
     QLineEdit* input_edit_ = nullptr;
+    QPushButton* mention_button_ = nullptr;
     QPushButton* send_button_ = nullptr;
     QPushButton* logout_button_ = nullptr;
     QLabel* status_label_ = nullptr;

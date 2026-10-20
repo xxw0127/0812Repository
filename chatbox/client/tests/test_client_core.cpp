@@ -37,6 +37,41 @@
 #include "ui/message_action_bar.h"
 #include "ui/profile_dialog.h"
 
+namespace {
+
+QString readClientSource(const QString& relative) {
+    QString path = QCoreApplication::applicationDirPath() +
+                   QStringLiteral("/../../") + relative;
+    if (!QFile::exists(path)) {
+        path = QStringLiteral("../") + relative;
+    }
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return QString();
+    }
+    return QString::fromUtf8(file.readAll());
+}
+
+QString sourceSection(const QString& source, const QString& marker,
+                      const QString& next_marker) {
+    const int start = source.indexOf(marker);
+    if (start < 0) {
+        return QString();
+    }
+    const int end = source.indexOf(next_marker, start + marker.size());
+    return end < 0 ? source.mid(start) : source.mid(start, end - start);
+}
+
+QString caseSection(const QString& source, const QString& label) {
+    return sourceSection(source, label, QStringLiteral("\n        case chatbox::"));
+}
+
+QString functionSection(const QString& source, const QString& signature) {
+    return sourceSection(source, signature, QStringLiteral("\nvoid MainWindow::"));
+}
+
+}  // namespace
+
 class TestClientCore : public QObject {
     Q_OBJECT
 
@@ -84,6 +119,8 @@ private slots:
     void settingsMigrationNeverOverwritesCurrent();
     void brandIdentifiersAreUnified();
     void installerTemplateTargetsChatboxExe();
+    void privateChatHasNoMentionEntry();
+    void privatePushSkipsMentionNotification();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -1474,6 +1511,34 @@ void TestClientCore::installerTemplateTargetsChatboxExe() {
              "the installer must target the executable the build produces");
     QVERIFY2(!source.contains(QStringLiteral("_client.exe")),
              "the installer must not reference a never-built executable name");
+}
+
+// 私聊不提供 @ 功能：输入区的 @ 按钮只在房间出现，私聊消息不再触发“有人@你”。
+void TestClientCore::privateChatHasNoMentionEntry() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    const QString private_section = functionSection(
+        source, QStringLiteral("void MainWindow::selectPrivate("));
+    QVERIFY2(private_section.contains(QStringLiteral("mention_button_->hide()")),
+             "private chats must hide the mention button");
+    const QString room_section = functionSection(
+        source, QStringLiteral("void MainWindow::selectRoom("));
+    QVERIFY2(room_section.contains(QStringLiteral("mention_button_->show()")),
+             "rooms keep the mention button");
+}
+
+void TestClientCore::privatePushSkipsMentionNotification() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    const QString private_push = caseSection(
+        source, QStringLiteral("case chatbox::kCmdPrivatePush:"));
+    QVERIFY2(!private_push.isEmpty(), "kCmdPrivatePush handler must exist");
+    QVERIFY2(!private_push.contains(QStringLiteral("showMentionNotification")),
+             "private messages must not raise a mention notification");
+    const QString room_push =
+        caseSection(source, QStringLiteral("case chatbox::kCmdChatPush:"));
+    QVERIFY2(room_push.contains(QStringLiteral("showMentionNotification")),
+             "rooms keep mention notifications");
 }
 
 QTEST_MAIN(TestClientCore)
