@@ -52,6 +52,8 @@ public:
     // 时间为空时用当前 UTC 落库；recalled 为真时正文写空。
     bool saveMessage(const ChatMessage& message);
     // 标记某条消息已撤回：清空正文并置 recalled；没有匹配行时返回 false。
+    // 撤回成功后同步重算该会话的摘要（last_content 跟着清空），
+    // 离线侧栏不会继续显示已撤回的正文。
     bool markRecalled(quint64 message_id);
     // 写入一条会话摘要：保证会话行存在，title 非空才更新标题；
     // last_* 按本地已存消息重算（本地没有消息时保持 0，不凭空造摘要）。

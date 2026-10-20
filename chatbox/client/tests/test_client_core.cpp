@@ -1824,6 +1824,11 @@ void TestClientCore::historyStoreMarksRecalled() {
     QVERIFY(rows.at(0).recalled);
     QVERIFY(rows.at(0).content.isEmpty());
     QVERIFY(!store.markRecalled(999));
+
+    // 撤回后会话摘要必须跟着清空：侧栏不能再显示已撤回的正文。
+    const auto summaries = store.conversations();
+    QCOMPARE(summaries.size(), 1);
+    QVERIFY(summaries.at(0).last_content.isEmpty());
 }
 
 // Two accounts share one database file but must never see each other's rows.
