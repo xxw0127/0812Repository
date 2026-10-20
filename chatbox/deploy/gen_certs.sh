@@ -17,9 +17,9 @@ sudo openssl req -newkey rsa:2048 -sha256 -nodes \
     -keyout "${CERT_DIR}/chat.key" -out "${CERT_DIR}/chat.csr" \
     -subj "/CN=chatbox.local"
 
-# 服务器 LAN 地址会随 DHCP 变化：重签前用 SAN_IP=... 覆盖默认值。
+# 服务器 LAN 地址固定为 192.168.2.240；换网段时用 SAN_IP=... 覆盖默认值。
 # 只轮换服务器证书不会影响客户端已信任的 ca.crt。
-SAN_IP=${SAN_IP:-192.168.2.115}
+SAN_IP=${SAN_IP:-192.168.2.240}
 SAN_DNS=${SAN_DNS:-chatbox.local}
 
 sudo tee "${CERT_DIR}/ext.cnf" >/dev/null <<EOF

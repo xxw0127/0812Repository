@@ -46,8 +46,8 @@ cd chatbox\client
 .\build\release\chatbox.exe
 ```
 
-- 默认服务器：`192.168.2.113:9443`（TLS，校验 `client\certs\ca.crt`）。
-- 回归测试：`cd chatbox\client\tests; .\run_client_tests.ps1`（当前 45 passed / 0 failed）。
+- 默认服务器：`192.168.2.240:9443`（TLS，校验 `client\certs\ca.crt`）。
+- 回归测试：`cd chatbox\client\tests; .\run_client_tests.ps1`（当前 54 passed / 0 failed）。
 - 便携分发包：`.\package_client.ps1` → `dist\chatbox-0.2.0-win64.zip`。
 - 详细说明见 [`chatbox/client/README.md`](chatbox/client/README.md)。
 

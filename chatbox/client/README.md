@@ -12,7 +12,7 @@ MinGW:   D:\Qt\Tools\mingw810_64
 OpenSSL: C:\Program Files\OpenSSL-Win64
 ```
 
-客户端默认连接 `192.168.2.113:9443`，开启 TLS 并校验 `certs\ca.crt`。
+客户端默认连接 `192.168.2.240:9443`，开启 TLS 并校验 `certs\ca.crt`。
 
 ## 构建
 
@@ -63,7 +63,7 @@ Windows 10/11 自带 UCRT；更旧的系统需要安装 VC++ 2015-2022 Redistrib
 .\build\release\chatbox.exe
 ```
 
-默认服务器地址：`192.168.2.113:9443`，TLS 已勾选。
+默认服务器地址：`192.168.2.240:9443`，TLS 已勾选。
 
 ## TLS 证书
 
@@ -73,7 +73,7 @@ Windows 10/11 自带 UCRT；更旧的系统需要安装 VC++ 2015-2022 Redistrib
 D:\OpenCode_WorkSpace\chatbox\client\certs\ca.crt
 ```
 
-服务端证书 SAN 为 `IP:192.168.2.113, DNS:chatbox.local`。如果服务器 IP 或域名变化，需要重新生成证书并把新的 `ca.crt` 放到客户端 `certs` 目录，否则客户端会拒绝连接。
+服务端证书 SAN 为 `IP:192.168.2.240, DNS:chatbox.local`。服务器 LAN 地址固定为 `192.168.2.240/24`；如果 IP 或域名变化，需要重签服务器证书（复用原 CA 时客户端 `ca.crt` 无需更换），否则客户端会拒绝连接。
 
 ## 个人资料
 
@@ -85,7 +85,7 @@ D:\OpenCode_WorkSpace\chatbox\client\certs\ca.crt
 - 在线好友收到 `PROFILE_UPDATE_PUSH` 后更新好友列表昵称/头像；有备注时列表和聊天顶部仍优先显示备注。
 - 修改昵称后自己的资料栏、资料页、会话 `QSettings` 和后续发送消息立即使用新昵称，不覆盖当前私聊/房间标题。
 - JPEG 头像依赖 Qt `imageformats\qjpeg.dll`；`build_client.ps1` 会把它复制到 `build\release\imageformats`。
-- 生产环境 `192.168.2.113:9443` 已部署包含资料命令的新服务端，当前客户端可自动恢复会话并在服务重启后重连。
+- 生产环境 `192.168.2.240:9443` 已部署包含资料命令的新服务端，当前客户端可自动恢复会话并在服务重启后重连。
 
 ## 消息操作
 

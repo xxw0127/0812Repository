@@ -38,7 +38,7 @@ SettingsDialog::SettingsDialog(const QString& public_id, QWidget* parent)
 
     QSettings settings;
     host_edit_ = new QLineEdit(
-        settings.value("server/host", "192.168.2.113").toString(), this);
+        settings.value("server/host", "192.168.2.240").toString(), this);
     port_spin_ = new QSpinBox(this);
     port_spin_->setRange(1, 65535);
     port_spin_->setValue(settings.value("server/port", 9443).toInt());
