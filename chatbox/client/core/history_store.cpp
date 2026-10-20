@@ -2,6 +2,7 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QHash>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
@@ -116,7 +117,7 @@ bool applySchema(QSqlDatabase& db, QString* error) {
     return true;
 }
 
-// 移除同名残留连接（进程内另一个实例或上一次失败留下的）。
+// 移除同名残留连接（没有任何存活实例持有的历史残留）。
 void dropConnection(const QString& connection_name) {
     if (!QSqlDatabase::contains(connection_name)) {
         return;
@@ -130,6 +131,13 @@ void dropConnection(const QString& connection_name) {
     QSqlDatabase::removeDatabase(connection_name);
 }
 
+// 进程内每个连接名的归属表：连接名 -> 持有它的 HistoryStore 实例。
+// 只在 UI 线程访问（与设计一致），因此不需要额外加锁。
+QHash<QString, HistoryStore*>& connectionOwners() {
+    static QHash<QString, HistoryStore*> owners;
+    return owners;
+}
+
 }  // namespace
 
 HistoryStore::HistoryStore() = default;
@@ -140,6 +148,22 @@ HistoryStore::~HistoryStore() {
 
 QString HistoryStore::connectionNameFor(quint64 user_id) {
     return QStringLiteral("history_") + QString::number(user_id);
+}
+
+HistoryStore* HistoryStore::connectionOwner(const QString& connection_name) {
+    return connectionOwners().value(connection_name, nullptr);
+}
+
+void HistoryStore::claimConnection(const QString& connection_name,
+                                   HistoryStore* owner) {
+    connectionOwners().insert(connection_name, owner);
+}
+
+void HistoryStore::releaseConnection(const QString& connection_name,
+                                     HistoryStore* owner) {
+    if (connectionOwners().value(connection_name, nullptr) == owner) {
+        connectionOwners().remove(connection_name);
+    }
 }
 
 bool HistoryStore::open(const QString& directory, quint64 user_id, QString* error) {
@@ -180,6 +204,15 @@ bool HistoryStore::open(const QString& directory, quint64 user_id, QString* erro
     close();
 
     const QString connection_name = connectionNameFor(user_id);
+    // 同一个连接名同时只能被一个存活实例持有：若已被别的实例占用，
+    // 必须直接失败，既不能 addDatabase 也不能 removeDatabase，
+    // 否则会把对方的连接拆掉，让对方读到/写到这个库文件上。
+    HistoryStore* owner = connectionOwner(connection_name);
+    if (owner != nullptr && owner != this) {
+        return fail(QStringLiteral("本地历史库已被其它实例占用：%1")
+                        .arg(connection_name));
+    }
+    // 清理没有存活实例持有的残留连接。
     dropConnection(connection_name);
 
     QString failure;
@@ -206,6 +239,7 @@ bool HistoryStore::open(const QString& directory, quint64 user_id, QString* erro
     directory_ = target;
     user_id_ = user_id;
     connection_name_ = connection_name;
+    claimConnection(connection_name, this);
     if (error) {
         error->clear();
     }
@@ -214,7 +248,11 @@ bool HistoryStore::open(const QString& directory, quint64 user_id, QString* erro
 
 void HistoryStore::close() {
     if (!connection_name_.isEmpty()) {
-        dropConnection(connection_name_);
+        // 只释放自己登记的连接，别人的连接一律不碰。
+        if (connectionOwner(connection_name_) == this) {
+            releaseConnection(connection_name_, this);
+            dropConnection(connection_name_);
+        }
     }
     connection_name_.clear();
     directory_.clear();

@@ -137,6 +137,7 @@ private slots:
     void unreadBadgesHonourAlertsSwitch();
     void historyStoreCreatesSchema();
     void historyStoreReportsOpenFailure();
+    void historyStoreRejectsSecondInstance();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -1690,19 +1691,21 @@ void TestClientCore::historyStoreCreatesSchema() {
     QCOMPARE(store.directory(), QDir(dir.path()).absolutePath());
     QVERIFY(store.sizeBytes() > 0);
 
-    QSqlDatabase db = QSqlDatabase::database(QStringLiteral("history_1101"), false);
-    QVERIFY(db.isOpen());
-    QVERIFY(db.tables().contains(QStringLiteral("messages")));
-    QVERIFY(db.tables().contains(QStringLiteral("conversations")));
-    QSqlQuery version(db);
-    QVERIFY(version.exec(QStringLiteral("PRAGMA user_version")) && version.next());
-    QCOMPARE(version.value(0).toInt(), 1);
-    QSqlQuery indexes(db);
-    QVERIFY(indexes.exec(QStringLiteral("PRAGMA index_list(messages)")));
-    QStringList index_names;
-    while (indexes.next()) index_names << indexes.value(1).toString();
-    QVERIFY(index_names.contains(QStringLiteral("uk_msg_server")));
-    QVERIFY(index_names.contains(QStringLiteral("idx_msg_page")));
+    {
+        QSqlDatabase db = QSqlDatabase::database(QStringLiteral("history_1101"), false);
+        QVERIFY(db.isOpen());
+        QVERIFY(db.tables().contains(QStringLiteral("messages")));
+        QVERIFY(db.tables().contains(QStringLiteral("conversations")));
+        QSqlQuery version(db);
+        QVERIFY(version.exec(QStringLiteral("PRAGMA user_version")) && version.next());
+        QCOMPARE(version.value(0).toInt(), 1);
+        QSqlQuery indexes(db);
+        QVERIFY(indexes.exec(QStringLiteral("PRAGMA index_list(messages)")));
+        QStringList index_names;
+        while (indexes.next()) index_names << indexes.value(1).toString();
+        QVERIFY(index_names.contains(QStringLiteral("uk_msg_server")));
+        QVERIFY(index_names.contains(QStringLiteral("idx_msg_page")));
+    }
 
     QVERIFY(store.open(dir.path(), 1101, &error));  // 幂等
     store.close();
@@ -1721,6 +1724,23 @@ void TestClientCore::historyStoreReportsOpenFailure() {
     QVERIFY(!store.open(blocker.fileName(), 1102, &error));
     QVERIFY(!error.isEmpty());
     QVERIFY(!store.isOpen());
+}
+
+// Two live stores must not share one connection name: the second open has to
+// fail instead of stealing the first store's connection.
+void TestClientCore::historyStoreRejectsSecondInstance() {
+    QTemporaryDir dir;
+    QString error;
+    chatbox::client::HistoryStore first;
+    QVERIFY(first.open(dir.path(), 1103, &error));
+    chatbox::client::HistoryStore second;
+    QVERIFY(!second.open(dir.path(), 1103, &error));
+    QVERIFY(!error.isEmpty());
+    QVERIFY(first.isOpen());
+    QCOMPARE(first.directory(), QDir(dir.path()).absolutePath());
+    first.close();
+    QVERIFY2(second.open(dir.path(), 1103, &error), qPrintable(error));
+    second.close();
 }
 
 QTEST_MAIN(TestClientCore)

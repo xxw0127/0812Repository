@@ -50,6 +50,13 @@ public:
 private:
     static QString connectionNameFor(quint64 user_id);
 
+    // 连接名归属登记：同一个 history_<user_id> 同时只能被一个存活实例持有，
+    // 否则第二个实例会顺手 removeDatabase 掉第一个实例的连接。
+    // 只在 UI 线程使用（与设计一致），因此不需要额外加锁。
+    static HistoryStore* connectionOwner(const QString& connection_name);
+    static void claimConnection(const QString& connection_name, HistoryStore* owner);
+    static void releaseConnection(const QString& connection_name, HistoryStore* owner);
+
     QString directory_;
     quint64 user_id_ = 0;
     QString connection_name_;
