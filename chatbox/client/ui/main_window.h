@@ -24,11 +24,14 @@ class NetworkThread;
 class ProfileDialog;
 class ChatView;
 class MessageActionBar;
+class QAction;
 class QCloseEvent;
+class QEvent;
 class QLabel;
 class QLineEdit;
 class QListWidget;
 class QListWidgetItem;
+class QMenu;
 class QPoint;
 class QPushButton;
 class QRect;
@@ -36,6 +39,7 @@ class QStackedWidget;
 class QSystemTrayIcon;
 class QTextBrowser;
 class QTimer;
+class QToolButton;
 class FriendRequestDialog;
 class MessageSearchDialog;
 class SettingsDialog;
@@ -50,6 +54,7 @@ public:
 
 protected:
     void closeEvent(QCloseEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private slots:
     void onLoginRequested(const QString& host, quint16 port, const QString& username,
@@ -181,14 +186,15 @@ private:
     QListWidget* contact_list_ = nullptr;
     QListWidget* member_list_ = nullptr;    QLabel* context_label_ = nullptr;
     QLabel* context_avatar_ = nullptr;
-    QPushButton* context_profile_button_ = nullptr;
+    QToolButton* more_button_ = nullptr;
+    QMenu* more_menu_ = nullptr;
+    QAction* load_more_action_ = nullptr;
     QLabel* connection_banner_ = nullptr;
     QLabel* reply_label_ = nullptr;
     QPushButton* reply_cancel_button_ = nullptr;
     ChatView* chat_view_ = nullptr;
     MessageActionBar* message_action_bar_ = nullptr;
     quint64 action_bar_message_id_ = 0;
-    QPushButton* load_more_button_ = nullptr;
     QLineEdit* input_edit_ = nullptr;
     QPushButton* mention_button_ = nullptr;
     QPushButton* send_button_ = nullptr;

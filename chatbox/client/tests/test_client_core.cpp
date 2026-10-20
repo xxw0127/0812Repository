@@ -121,6 +121,7 @@ private slots:
     void installerTemplateTargetsChatboxExe();
     void privateChatHasNoMentionEntry();
     void privatePushSkipsMentionNotification();
+    void headerUsesAvatarAndMoreMenu();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -1539,6 +1540,29 @@ void TestClientCore::privatePushSkipsMentionNotification() {
         caseSection(source, QStringLiteral("case chatbox::kCmdChatPush:"));
     QVERIFY2(room_push.contains(QStringLiteral("showMentionNotification")),
              "rooms keep mention notifications");
+}
+
+// 头部只留 头像 + 标题 + ⋮；资料入口是头像，消息搜索在 ⋮ 菜单里。
+void TestClientCore::headerUsesAvatarAndMoreMenu() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY2(!source.contains(QStringLiteral("context_profile_button_")),
+             "the header must not keep a separate profile button");
+    QVERIFY2(!source.contains(QStringLiteral("load_more_button_")),
+             "load-more moved into the more menu");
+    QVERIFY2(!source.contains(QStringLiteral("search_messages_button")),
+             "message search moved out of the composer");
+    QVERIFY2(source.contains(QStringLiteral("more_button_->setPopupMode(QToolButton::InstantPopup)")),
+             "the header owns an instant-popup menu button");
+    QVERIFY2(source.contains(QStringLiteral("消息搜索")) &&
+                 source.contains(QStringLiteral("加载更早消息")),
+             "the more menu carries search and load-more");
+    const QString avatar_click =
+        functionSection(source, QStringLiteral("bool MainWindow::eventFilter("));
+    QVERIFY2(avatar_click.contains(QStringLiteral("context_avatar_")) &&
+                 avatar_click.contains(QStringLiteral("ContextType::Private")) &&
+                 avatar_click.contains(QStringLiteral("openProfile(current_peer_id_")),
+             "only a private-chat avatar opens the peer profile");
 }
 
 QTEST_MAIN(TestClientCore)

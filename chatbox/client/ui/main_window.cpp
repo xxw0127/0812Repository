@@ -21,6 +21,7 @@
 #include <QListWidgetItem>
 #include <QMenu>
 #include <QMessageBox>
+#include <QMouseEvent>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSettings>
@@ -34,6 +35,7 @@
 #include <QTextBrowser>
 #include <QTextDocument>
 #include <QTimer>
+#include <QToolButton>
 #include <QUuid>
 #include <QUrl>
 #include <QVariant>
@@ -393,18 +395,27 @@ QWidget* MainWindow::buildChatPage() {
     context_avatar_ = new QLabel(header);
     context_avatar_->setFixedSize(36, 36);
     context_avatar_->setPixmap(avatarIcon("C", 0).pixmap(32, 32));
+    context_avatar_->setCursor(Qt::ArrowCursor);
+    context_avatar_->setToolTip("查看资料");
+    context_avatar_->installEventFilter(this);
     header_row->addWidget(context_avatar_);
     context_label_ = new QLabel("请选择房间或私聊", header);
     context_label_->setObjectName("ContextTitle");
     header_row->addWidget(context_label_, 1);
-    context_profile_button_ = new QPushButton("资料", header);
-    context_profile_button_->setObjectName("ContextProfileButton");
-    context_profile_button_->setToolTip("查看当前私聊对象资料");
-    context_profile_button_->hide();
-    header_row->addWidget(context_profile_button_);
-    load_more_button_ = new QPushButton("加载更早消息", header);
-    load_more_button_->hide();
-    header_row->addWidget(load_more_button_);
+    more_button_ = new QToolButton(header);
+    more_button_->setObjectName("MoreButton");
+    more_button_->setText(QStringLiteral("⋮"));
+    more_button_->setToolTip("更多");
+    more_button_->setFixedSize(30, 30);
+    more_button_->setPopupMode(QToolButton::InstantPopup);
+    more_menu_ = new QMenu(this);
+    more_menu_->addAction(QIcon(":/icons/message.png"), "消息搜索", this,
+                          &MainWindow::openMessageSearch);
+    load_more_action_ = more_menu_->addAction("加载更早消息", this,
+                                              &MainWindow::onLoadMoreClicked);
+    load_more_action_->setEnabled(false);
+    more_button_->setMenu(more_menu_);
+    header_row->addWidget(more_button_);
     header_layout->addLayout(header_row);
     center->addWidget(header);
 
@@ -447,12 +458,6 @@ QWidget* MainWindow::buildChatPage() {
     mention_button_->setObjectName("IconButton");
     mention_button_->setFixedSize(38, 38);
     mention_button_->setToolTip("提及成员");
-    auto* search_messages_button = new QPushButton(composer);
-    search_messages_button->setObjectName("IconButton");
-    search_messages_button->setIcon(QIcon(":/icons/message.png"));
-    search_messages_button->setIconSize(QSize(18, 18));
-    search_messages_button->setFixedSize(38, 38);
-    search_messages_button->setToolTip("搜索消息");
     send_button_ = new QPushButton(QIcon(":/icons/send.png"), "", composer);
     send_button_->setObjectName("SendButton");
     send_button_->setIconSize(QSize(18, 18));
@@ -460,7 +465,6 @@ QWidget* MainWindow::buildChatPage() {
     send_button_->setToolTip("发送");
     input_layout->addWidget(input_edit_, 1);
     input_layout->addWidget(mention_button_);
-    input_layout->addWidget(search_messages_button);
     input_layout->addWidget(send_button_);
     composer_layout->addLayout(input_layout);
     center->addWidget(composer);
@@ -507,19 +511,11 @@ QWidget* MainWindow::buildChatPage() {
             &MainWindow::onMemberDoubleClicked);
     connect(member_list_, &QListWidget::customContextMenuRequested, this,
             &MainWindow::onMemberContextMenu);
-    connect(context_profile_button_, &QPushButton::clicked, this, [this] {
-        if (context_type_ == ContextType::Private && current_peer_id_ != 0) {
-            openProfile(current_peer_id_, current_peer_name_);
-        }
-    });
     connect(search_users_button, &QPushButton::clicked, this, &MainWindow::openUserSearch);
     connect(send_button_, &QPushButton::clicked, this, &MainWindow::onSendClicked);
     connect(input_edit_, &QLineEdit::returnPressed, this, &MainWindow::onSendClicked);
     connect(mention_button_, &QPushButton::clicked, this, &MainWindow::insertMention);
-    connect(search_messages_button, &QPushButton::clicked, this,
-            &MainWindow::openMessageSearch);
     connect(reply_cancel_button_, &QPushButton::clicked, this, &MainWindow::clearReply);
-    connect(load_more_button_, &QPushButton::clicked, this, &MainWindow::onLoadMoreClicked);
     connect(logout_button_, &QPushButton::clicked, this, &MainWindow::logout);
     connect(settings_button, &QPushButton::clicked, this, &MainWindow::openSettings);
 
@@ -2447,7 +2443,7 @@ void MainWindow::requestHistory(int kind, quint64 target, quint64 before_id) {
     writer.putU16(50);
     frame.body = writer.data();
     loading_older_history_ = before_id != 0;
-    load_more_button_->setEnabled(false);
+    load_more_action_->setEnabled(false);
     sendFrame(frame);
 }
 
@@ -2642,12 +2638,10 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
     current_peer_name_ = name;
     context_label_->setText("房间: " + name);
     mention_button_->show();
-    if (context_profile_button_ != nullptr) {
-        context_profile_button_->hide();
-    }
     if (context_avatar_ != nullptr) {
         context_avatar_->setPixmap(
             QPixmap::fromImage(chatbox::client::roomAvatar(32)));
+        context_avatar_->setCursor(Qt::ArrowCursor);
     }
     chat_view_->clear();
     chat_view_->clearHoverState();
@@ -2661,7 +2655,7 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
     restorePendingForCurrentContext();
     renderCurrentConversation(ScrollMode::kBottom);
     member_list_->clear();
-    load_more_button_->hide();
+    load_more_action_->setEnabled(false);
     has_more_ = false;
     loading_older_history_ = false;
     next_before_id_ = 0;
@@ -2715,10 +2709,8 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
     peer_names_.insert(peer_id, nickname);
     context_label_->setText("私聊: " + nickname);
     mention_button_->hide();
-    if (context_profile_button_ != nullptr) {
-        context_profile_button_->show();
-    }
     updatePrivateHeaderAvatar(peer_id, nickname);
+    context_avatar_->setCursor(Qt::PointingHandCursor);
     requestPeerAvatar(peer_id);
     chat_view_->clear();
     chat_view_->clearHoverState();
@@ -2731,7 +2723,7 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
     restorePendingForCurrentContext();
     renderCurrentConversation(ScrollMode::kBottom);
     member_list_->clear();
-    load_more_button_->hide();
+    load_more_action_->setEnabled(false);
     has_more_ = false;
     loading_older_history_ = false;
     next_before_id_ = 0;
@@ -3314,8 +3306,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             loading_older_history_ = false;
             has_more_ = has_more != 0;
             next_before_id_ = next_before;
-            load_more_button_->setEnabled(true);
-            load_more_button_->setVisible(has_more_);
+            load_more_action_->setEnabled(has_more_);
             if (kind == 2 && !was_older_page) {
                 requestConversations();
             }
@@ -3991,11 +3982,9 @@ void MainWindow::resetContext() {
     if (context_label_ != nullptr) {
         context_label_->setText("请选择房间或私聊");
     }
-    if (context_profile_button_ != nullptr) {
-        context_profile_button_->hide();
-    }
     if (context_avatar_ != nullptr) {
         context_avatar_->setPixmap(avatarIcon("C", 0).pixmap(32, 32));
+        context_avatar_->setCursor(Qt::ArrowCursor);
     }
     if (chat_view_ != nullptr) {
         chat_view_->clear();
@@ -4005,8 +3994,8 @@ void MainWindow::resetContext() {
     if (member_list_ != nullptr) {
         member_list_->clear();
     }
-    if (load_more_button_ != nullptr) {
-        load_more_button_->hide();
+    if (load_more_action_ != nullptr) {
+        load_more_action_->setEnabled(false);
     }
 }
 
@@ -4065,6 +4054,18 @@ void MainWindow::setStatus(const QString& text, bool error) {
     status_label_->setStyleSheet(error
                                      ? QString("color: %1;").arg(theme::kSemanticDown)
                                      : QString("color: %1;").arg(theme::kBody));
+}
+
+bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
+    if (watched == context_avatar_ && event->type() == QEvent::MouseButtonRelease) {
+        auto* mouse = static_cast<QMouseEvent*>(event);
+        if (mouse->button() == Qt::LeftButton &&
+            context_type_ == ContextType::Private && current_peer_id_ != 0) {
+            openProfile(current_peer_id_, current_peer_name_);
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
