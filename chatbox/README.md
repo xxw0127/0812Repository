@@ -157,12 +157,29 @@ sudo cp deploy/nginx-chat-stream.conf /etc/nginx/stream.d/chat.conf
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-- 服务端证书 SAN：`IP:192.168.2.113`、`DNS:chatbox.local`
+- 服务端证书 SAN：`IP:192.168.2.240`、`DNS:chatbox.local`
+- 服务器 LAN 地址固定为 `192.168.2.240/24`（NetworkManager 静态配置），不再依赖 DHCP 租约
 - CA：`/etc/chatbox/certs/ca.crt`，客户端副本在 `client/certs/ca.crt`
 - `deploy/gen_certs.sh` 会重新生成 CA 与服务器证书；**重新生成 CA 会让所有现有客户端拒绝连接**，必须同步把新的 `ca.crt` 分发到各客户端 `certs` 目录。只换服务器证书时应复用原 CA（保留 `ca.crt`/`ca.key`）
 - nginx 开启 `proxy_protocol on`
 - 服务端必须使用 `--proxy-protocol`，否则无法读取真实 IP
 - 客户端默认 `9443 + TLS`，并校验 CA 与 IP SAN
+
+### 固定服务器地址
+
+服务器通过 NetworkManager 使用静态地址（连接名以现场为准）：
+
+```bash
+sudo nmcli connection modify <连接名> \
+    ipv4.method manual \
+    ipv4.addresses 192.168.2.240/24 \
+    ipv4.gateway 192.168.2.1 \
+    ipv4.dns "192.168.2.1 192.168.1.1" \
+    ipv4.dad-timeout 2000
+sudo nmcli connection up <连接名>
+```
+
+改地址后必须重签服务器证书（复用原 CA），并同步客户端的 `server/host`、`session/host` 和 SSH 别名。
 
 ## 协议
 
@@ -253,7 +270,7 @@ python3 tools/message_features_client.py --host 127.0.0.1 --port 9102
 python3 tools/friend_client.py --host 127.0.0.1 --port 9102
 python3 tools/profile_client.py --host 127.0.0.1 --port 9102
 python3 tools/db_reconnect_probe.py --host 127.0.0.1 --port 9102
-python3 tools/tls_smoke.py --host 192.168.2.113 --port 9443 --ca client/certs/ca.crt
+python3 tools/tls_smoke.py --host 192.168.2.240 --port 9443 --ca client/certs/ca.crt
 ```
 
 > 200 客户端 / 1 万连接测试会触发默认单 IP 20 限制，需要启动一个

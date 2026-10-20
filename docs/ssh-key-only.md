@@ -2,6 +2,7 @@
 
 > 目标主机：`xxw@192.168.2.113`（Ubuntu 26.04）
 > 实施日期：2026-10-18
+> 地址更新（2026-10-20）：服务器已固定为 `192.168.2.240`，SSH 别名 `chatroom-dev` 指向新地址。
 > 结果：密码登录已关闭，仅允许 ed25519 公钥登录。
 
 ## 1. 本机密钥
@@ -79,7 +80,7 @@ sudo systemctl reload ssh          # 再 reload
 
 ```text
 Host chatroom-dev
-  HostName 192.168.2.113
+  HostName 192.168.2.240
   User xxw
   IdentityFile ~/.ssh/id_ed25519
   IdentitiesOnly yes
@@ -111,7 +112,7 @@ ssh -o BatchMode=yes chatroom-dev "echo key-ok"
 
 ```powershell
 ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no `
-    -o BatchMode=yes xxw@192.168.2.113 "echo should-fail"
+    -o BatchMode=yes xxw@192.168.2.240 "echo should-fail"
 ```
 
 预期：
