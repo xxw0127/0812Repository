@@ -110,6 +110,7 @@ private slots:
     void messageStorePrependHistory();
     void messageStoreReconcilesLapsedAck();
     void messageStoreMarkRecalled();
+    void messageStoreMergesLocalAndServerPagesInOrder();
     void messageStoreWritesThroughWhenHistoryAttached();
     void outboxExpiresAndMarksFailed();
     void outboxMarksSentAndAllFailed();
@@ -161,6 +162,7 @@ private slots:
     void historyStoreDedupesByMessageId();
     void historyStoreSkipsUnconfirmedMessages();
     void historyStoreMarksRecalled();
+    void historyStoreRecallIsConversationScoped();
     void historyStoreIsolatesUsers();
     void historyStoreIsolatesConversations();
     void historyStoreSearchFindsInConversation();
@@ -171,6 +173,7 @@ private slots:
     void buildScriptShipsSqlDriver();
     void conversationOpensFromLocalHistoryFirst();
     void incomingPushesArePersistedForOtherConversations();
+    void recallPushUpdatesBackgroundHistory();
     void loginPageOffersLocalHistory();
     void offlineModeIsReadOnlyAndLocal();
     void settingsDialogShowsHistoryInfo();
@@ -334,12 +337,41 @@ void TestClientCore::messageStoreMarkRecalled() {
     QVERIFY(!store.markRecalled(100));
 }
 
+// 本地首屏与服务端返回的那一页必须合并成一条按时间递增的序列：
+// 服务端页里有更新的消息时，本地更旧的行不能被留在最底下。
+void TestClientCore::messageStoreMergesLocalAndServerPagesInOrder() {
+    chatbox::client::MessageStore store;
+    store.reset(chatbox::client::ChatContext::kRoom, 7);
+    QVector<chatbox::client::ChatMessage> local;
+    for (quint64 id = 1; id <= 10; ++id) {
+        local.push_back(confirmedMessage(id, 7, "local"));
+    }
+    store.replaceHistory(local);
+    QVector<chatbox::client::ChatMessage> server;
+    for (quint64 id = 6; id <= 12; ++id) {
+        server.push_back(confirmedMessage(id, 7, "server"));
+    }
+    store.replaceHistory(server);
+    const auto& merged = store.messages();
+    QCOMPARE(merged.size(), 12);
+    for (int i = 0; i < merged.size(); ++i) {
+        QCOMPARE(merged.at(i).message_id, quint64(i + 1));
+    }
+    chatbox::client::ChatMessage pending;
+    pending.client_msg_id = QStringLiteral("pending-order");
+    pending.status = chatbox::client::MessageStatus::kSending;
+    store.addPending(pending);
+    QCOMPARE(store.messages().last().message_id, quint64(0));
+}
+
 void TestClientCore::messageStoreWritesThroughWhenHistoryAttached() {
     QTemporaryDir dir; chatbox::client::HistoryStore history; QString error;
     QVERIFY(history.open(dir.path(), 1401, &error));
 
     chatbox::client::MessageStore store;
     store.setHistoryStore(&history);
+    // 撤回是按会话定位的：store 必须先知道自己管的是哪个会话。
+    store.reset(chatbox::client::ChatContext::kRoom, 7);
     QVector<chatbox::client::ChatMessage> page;
     page << confirmedMessage(1, 7, "first") << confirmedMessage(2, 7, "second");
     store.replaceHistory(page);
@@ -1864,17 +1896,39 @@ void TestClientCore::historyStoreMarksRecalled() {
     QTemporaryDir dir; chatbox::client::HistoryStore store; QString error;
     QVERIFY(store.open(dir.path(), 1204, &error));
     QVERIFY(store.saveMessage(confirmedMessage(7, 7, "to be recalled")));
-    QVERIFY(store.markRecalled(7));
+    QVERIFY(store.markRecalled(chatbox::client::ChatContext::kRoom, 7, 7));
     const auto rows = store.recent(chatbox::client::ChatContext::kRoom, 7, 10);
     QCOMPARE(rows.size(), 1);
     QVERIFY(rows.at(0).recalled);
     QVERIFY(rows.at(0).content.isEmpty());
-    QVERIFY(!store.markRecalled(999));
+    QVERIFY(!store.markRecalled(chatbox::client::ChatContext::kRoom, 7, 999));
 
     // 撤回后会话摘要必须跟着清空：侧栏不能再显示已撤回的正文。
     const auto summaries = store.conversations();
     QCOMPARE(summaries.size(), 1);
     QVERIFY(summaries.at(0).last_content.isEmpty());
+}
+
+// 撤回必须按会话定位：房间与私聊各自独立编号，
+// 私聊里撤回 message_id=7 不能把房间里同号的消息一起清空。
+void TestClientCore::historyStoreRecallIsConversationScoped() {
+    QTemporaryDir dir;
+    chatbox::client::HistoryStore store;
+    QString error;
+    QVERIFY(store.open(dir.path(), 1208, &error));
+    QVERIFY(store.saveMessage(confirmedMessage(7, 7, "room text")));
+    chatbox::client::ChatMessage private_message = confirmedMessage(7, 8, "private text");
+    private_message.context = chatbox::client::ChatContext::kPrivate;
+    QVERIFY(store.saveMessage(private_message));
+    QVERIFY(store.markRecalled(chatbox::client::ChatContext::kPrivate, 8, 7));
+    const auto room = store.recent(chatbox::client::ChatContext::kRoom, 7, 10);
+    const auto priv = store.recent(chatbox::client::ChatContext::kPrivate, 8, 10);
+    QCOMPARE(room.size(), 1);
+    QCOMPARE(priv.size(), 1);
+    QVERIFY(!room.at(0).recalled);
+    QCOMPARE(room.at(0).content, QStringLiteral("room text"));
+    QVERIFY(priv.at(0).recalled);
+    QVERIFY(priv.at(0).content.isEmpty());
 }
 
 // Two accounts share one database file but must never see each other's rows.
@@ -2056,6 +2110,17 @@ void TestClientCore::incomingPushesArePersistedForOtherConversations() {
     QVERIFY(room_push.contains(QStringLiteral("history_store_.saveMessage(")));
     QVERIFY(private_push.contains(QStringLiteral("history_store_.saveMessage(")));
     QVERIFY(private_push.contains(QStringLiteral("saveConversation(")));
+}
+
+// 后台会话的撤回推送同样要落到本地历史库：
+// 否则本地副本里还留着用户已经撤回的正文。
+void TestClientCore::recallPushUpdatesBackgroundHistory() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString recall = caseSection(source, QStringLiteral("case chatbox::kCmdMessageRecall:"));
+    QVERIFY(!recall.isEmpty());
+    QVERIFY(recall.contains(QStringLiteral("history_store_.markRecalled(")));
+    QVERIFY(recall.contains(QStringLiteral("ChatContext::kRoom")));
+    QVERIFY(recall.contains(QStringLiteral("ChatContext::kPrivate")));
 }
 
 // 登录页在没有网络时也要给出「查看本地记录」入口：

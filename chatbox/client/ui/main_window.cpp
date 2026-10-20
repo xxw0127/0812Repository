@@ -4158,13 +4158,34 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                 setStatus("撤回响应格式错误", true);
                 return;
             }
+            // kind: 1 = 房间，2 = 私聊。其它取值一律忽略，
+            // 免得把无法定位会话的撤回套到本地记录上。
+            if (kind != 1 && kind != 2) {
+                break;
+            }
+            const chatbox::client::ChatContext context =
+                (kind == 1) ? chatbox::client::ChatContext::kRoom
+                            : chatbox::client::ChatContext::kPrivate;
+            const quint64 target = static_cast<quint64>(target_id);
             const bool matches =
                 (kind == 1 && context_type_ == ContextType::Room &&
                  target_id == static_cast<uint64_t>(current_room_id_)) ||
                 (kind == 2 && context_type_ == ContextType::Private &&
                  target_id == current_peer_id_);
-            if (matches && message_store_.markRecalled(message_id)) {
-                renderCurrentConversation(ScrollMode::kPreserve);
+            if (matches) {
+                // 当前会话：先在内存里撤回并重绘；内存里没有这条消息
+                // （还没加载进来）时退回到本地历史库。
+                if (message_store_.markRecalled(message_id)) {
+                    renderCurrentConversation(ScrollMode::kPreserve);
+                } else if (history_store_.isOpen()) {
+                    history_store_.markRecalled(context, target, message_id);
+                }
+                break;
+            }
+            // 后台会话的撤回：只更新本地历史库里的副本，
+            // 不重绘当前视图，也不改未读数与提醒状态。
+            if (history_store_.isOpen()) {
+                history_store_.markRecalled(context, target, message_id);
             }
             break;
         }

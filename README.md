@@ -47,7 +47,7 @@ cd chatbox\client
 ```
 
 - 默认服务器：`192.168.2.240:9443`（TLS，校验 `client\certs\ca.crt`）。
-- 回归测试：`cd chatbox\client\tests; .\run_client_tests.ps1`（当前 76 passed / 0 failed）。
+- 回归测试：`cd chatbox\client\tests; .\run_client_tests.ps1`（当前 79 passed / 0 failed）。
 - 便携分发包：`.\package_client.ps1` → `dist\chatbox-0.2.0-win64.zip`（含 `Qt5Sql.dll`、`sqldrivers\qsqlite.dll`、`imageformats\qjpeg.dll`，打包后逐项校验）。
 - 详细说明见 [`chatbox/client/README.md`](chatbox/client/README.md)。
 

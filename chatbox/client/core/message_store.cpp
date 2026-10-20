@@ -1,5 +1,7 @@
 #include "core/message_store.h"
 
+#include <algorithm>
+
 #include <QSet>
 
 #include "core/history_store.h"
@@ -79,6 +81,10 @@ void MessageStore::replaceHistory(const QVector<ChatMessage>& history) {
     for (const ChatMessage& message : adopted) {
         persistMessage(message);
     }
+
+    // 合并后按 message_id 重排：服务端这一页可能比本地存量更新，
+    // 不重排的话本地更旧的行会被留在列表底部，视图底部看到的不是最新消息。
+    sortMessagesChronologically();
 }
 
 void MessageStore::prependHistory(const QVector<ChatMessage>& history) {
@@ -97,6 +103,9 @@ void MessageStore::prependHistory(const QVector<ChatMessage>& history) {
 
     page += messages_;
     messages_ = page;
+
+    // 合并后同样按 message_id 重排，保证「更早一页」接在存量前面时顺序正确。
+    sortMessagesChronologically();
 }
 
 void MessageStore::appendIncoming(const ChatMessage& message) {
@@ -189,7 +198,8 @@ bool MessageStore::markRecalled(quint64 message_id) {
             message.content.clear();
             // 内存先置位，再同步本地历史库：本地副本同样清空正文。
             // 同步失败只记日志，不影响内存状态与界面。
-            if (history_ != nullptr && !history_->markRecalled(message_id)) {
+            if (history_ != nullptr &&
+                !history_->markRecalled(context_, target_id_, message_id)) {
                 qWarning("history recall sync failed message_id=%llu",
                          static_cast<unsigned long long>(message_id));
             }
@@ -249,6 +259,26 @@ bool MessageStore::hasMessageId(quint64 message_id) const {
         }
     }
     return false;
+}
+
+void MessageStore::sortMessagesChronologically() {
+    // 稳定排序：已确认的消息（message_id > 0）按 id 升序（旧→新），
+    // 未确认的待发/失败消息（message_id == 0）统一排在最后，
+    // 且它们之间的相对顺序保持不变（stable_sort 不打乱等价元素）。
+    std::stable_sort(messages_.begin(), messages_.end(),
+                     [](const ChatMessage& lhs, const ChatMessage& rhs) {
+                         const bool lhs_pending = (lhs.message_id == 0);
+                         const bool rhs_pending = (rhs.message_id == 0);
+                         if (lhs_pending != rhs_pending) {
+                             // 已确认的排在待发之前。
+                             return !lhs_pending;
+                         }
+                         if (lhs_pending) {
+                             // 都是待发消息：视为等价，交给 stable_sort 保持原顺序。
+                             return false;
+                         }
+                         return lhs.message_id < rhs.message_id;
+                     });
 }
 
 void MessageStore::persistMessage(const ChatMessage& message) const {

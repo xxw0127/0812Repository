@@ -39,6 +39,10 @@ public:
 private:
     int indexOfClientId(const QString& client_msg_id) const;
     bool hasMessageId(quint64 message_id) const;
+    // 把内存里的消息按 message_id 升序重排：已确认的消息（message_id > 0）
+    // 从旧到新排列，未确认的待发/失败消息（message_id == 0）统一排在最后，
+    // 并保持它们之间的相对顺序不变。
+    void sortMessagesChronologically();
     // 写穿透：把一条服务端已确认的消息写进本地历史库。
     // 未挂接历史库、消息未确认（message_id == 0）或状态不是 kSent 时直接跳过。
     // 写库失败只记日志，不影响内存状态与界面。

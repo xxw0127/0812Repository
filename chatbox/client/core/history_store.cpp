@@ -482,7 +482,8 @@ bool HistoryStore::saveMessage(const ChatMessage& message) {
     return true;
 }
 
-bool HistoryStore::markRecalled(quint64 message_id) {
+bool HistoryStore::markRecalled(ChatContext context, quint64 target_id,
+                                quint64 message_id) {
     if (message_id == 0 || !isOpen()) {
         return false;
     }
@@ -491,12 +492,17 @@ bool HistoryStore::markRecalled(quint64 message_id) {
         return false;
     }
     QSqlQuery query(db);
+    // 撤回必须按会话定位：房间与私聊的 message_id 各自独立编号，
+    // 只按 message_id 匹配会把别的会话里同号的消息一起清空。
     if (!query.prepare(QStringLiteral(
             "UPDATE messages SET recalled = 1, content = ''"
-            " WHERE user_id = ? AND message_id = ?"))) {
+            " WHERE user_id = ? AND context = ? AND target_id = ?"
+            " AND message_id = ?"))) {
         return false;
     }
     query.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    query.addBindValue(static_cast<int>(context));
+    query.addBindValue(QVariant::fromValue<qulonglong>(target_id));
     query.addBindValue(QVariant::fromValue<qulonglong>(message_id));
     if (!query.exec()) {
         return false;
@@ -510,32 +516,8 @@ bool HistoryStore::markRecalled(quint64 message_id) {
     // 撤回后正文被清空，会话摘要里的 last_content 必须同步重算，
     // 否则离线侧栏还会显示用户已经撤回的正文。
     // 摘要重算失败只记日志：消息本身已经撤回成功，不应因此报错给上层。
-    QVector<QPair<int, quint64> > targets;
-    QSqlQuery lookup(db);
-    if (!lookup.prepare(QStringLiteral(
-            "SELECT context, target_id FROM messages"
-            " WHERE user_id = ? AND message_id = ?"))) {
-        qWarning() << QStringLiteral("本地历史库撤回后会话定位失败：%1")
-                          .arg(lookup.lastError().text());
-        return true;
-    }
-    lookup.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
-    lookup.addBindValue(QVariant::fromValue<qulonglong>(message_id));
-    if (!lookup.exec()) {
-        qWarning() << QStringLiteral("本地历史库撤回后会话定位失败：%1")
-                          .arg(lookup.lastError().text());
-        return true;
-    }
-    while (lookup.next()) {
-        targets.append(qMakePair(lookup.value(0).toInt(),
-                                  lookup.value(1).toULongLong()));
-    }
-    lookup.finish();
-    for (const auto& target : targets) {
-        if (!refreshConversationRow(static_cast<ChatContext>(target.first),
-                                     target.second)) {
-            qWarning() << QStringLiteral("本地历史库撤回后会话摘要重算失败");
-        }
+    if (!refreshConversationRow(context, target_id)) {
+        qWarning() << QStringLiteral("本地历史库撤回后会话摘要重算失败");
     }
     return true;
 }
