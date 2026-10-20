@@ -1,6 +1,7 @@
 #include <QtTest>
 #include <algorithm>
 #include <QApplication>
+#include <QDir>
 #include <QColor>
 #include <QCoreApplication>
 #include <QFile>
@@ -23,6 +24,7 @@
 #include <QVector>
 
 #include "core/app_settings.h"
+#include "core/autostart.h"
 #include "core/avatar_cache.h"
 #include "core/avatar_utils.h"
 #include "core/contact_store.h"
@@ -123,6 +125,9 @@ private slots:
     void privatePushSkipsMentionNotification();
     void headerUsesAvatarAndMoreMenu();
     void systemPopupNotificationIsOptional();
+    void autostartCommandCarriesMinimizedFlag();
+    void autostartSettingWritesAndRemovesRunValue();
+    void startupHonoursMinimizedAndSingleInstance();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -1586,6 +1591,41 @@ void TestClientCore::systemPopupNotificationIsOptional() {
     const QString dialog = readClientSource(QStringLiteral("ui/settings_dialog.cpp"));
     QVERIFY2(dialog.contains(QStringLiteral("系统弹窗通知")),
              "the settings dialog exposes the system-popup switch");
+}
+
+// 路径可能含空格，命令行必须整体加引号；--minimized 让开机启动静默驻留托盘。
+void TestClientCore::autostartCommandCarriesMinimizedFlag() {
+    const QString exe = QStringLiteral("C:/Program Files/ChatBox/chatbox.exe");
+    const QString expected =
+        QStringLiteral("\"%1\" --minimized").arg(QDir::toNativeSeparators(exe));
+    QCOMPARE(chatbox::client::autostartCommand(exe), expected);
+}
+
+void TestClientCore::autostartSettingWritesAndRemovesRunValue() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QSettings run_key(dir.filePath(QStringLiteral("run.ini")), QSettings::IniFormat);
+    const QString exe = QStringLiteral("C:/Apps/ChatBox/chatbox.exe");
+    chatbox::client::applyAutostartSetting(run_key, true, exe);
+    QCOMPARE(run_key.value(QStringLiteral("ChatBox")).toString(),
+             chatbox::client::autostartCommand(exe));
+    chatbox::client::applyAutostartSetting(run_key, false, exe);
+    QVERIFY(!run_key.contains(QStringLiteral("ChatBox")));
+}
+
+// 开机启动静默进托盘；没有托盘时必须正常显示窗口，不能变成不可见进程。
+// 第二实例直接退出；崩溃遗留的锁允许过期。
+void TestClientCore::startupHonoursMinimizedAndSingleInstance() {
+    const QString source = readClientSource(QStringLiteral("main.cpp"));
+    QVERIFY2(!source.isEmpty(), "main.cpp must be readable");
+    QVERIFY2(source.contains(QStringLiteral("--minimized")),
+             "startup must understand the autostart flag");
+    QVERIFY2(source.contains(QStringLiteral("QSystemTrayIcon::isSystemTrayAvailable()")),
+             "minimized startup must fall back to a visible window without a tray");
+    QVERIFY2(source.contains(QStringLiteral("QLockFile")),
+             "a second instance must not run concurrently");
+    QVERIFY2(source.contains(QStringLiteral("setStaleLockTime")),
+             "a crashed instance must not block startup forever");
 }
 
 QTEST_MAIN(TestClientCore)

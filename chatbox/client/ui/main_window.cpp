@@ -43,6 +43,7 @@
 #include <QWidget>
 
 #include "core/network_thread.h"
+#include "core/autostart.h"
 #include "core/avatar_utils.h"
 #include "core/identity.h"
 #include "core/message_renderer.h"
@@ -129,6 +130,12 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
         initial_settings.value("settings/notifications", true).toBool();
     system_popup_enabled_ =
         initial_settings.value("settings/system_popup", true).toBool();
+    if (initial_settings.value("settings/autostart", false).toBool()) {
+        if (!chatbox::client::setAutostartEnabled(
+                true, QCoreApplication::applicationFilePath())) {
+            qWarning("autostart refresh failed");
+        }
+    }
     send_timeout_timer_ = new QTimer(this);
     send_timeout_timer_->setInterval(1000);
     connect(send_timeout_timer_, &QTimer::timeout, this, &MainWindow::onSendTimeout);
@@ -525,6 +532,23 @@ QWidget* MainWindow::buildChatPage() {
         tray_ = new QSystemTrayIcon(this);
         tray_->setIcon(QIcon(QStringLiteral(":/app.ico")));
         tray_->setToolTip("ChatBox");
+        auto* tray_menu = new QMenu(this);
+        tray_menu->addAction("打开 ChatBox", this, [this] {
+            showNormal();
+            raise();
+            activateWindow();
+        });
+        tray_menu->addAction("退出", this, [this] { close(); });
+        tray_->setContextMenu(tray_menu);
+        connect(tray_, &QSystemTrayIcon::activated, this,
+                [this](QSystemTrayIcon::ActivationReason reason) {
+                    if (reason == QSystemTrayIcon::Trigger ||
+                        reason == QSystemTrayIcon::DoubleClick) {
+                        showNormal();
+                        raise();
+                        activateWindow();
+                    }
+                });
         tray_->show();
     }
 
@@ -600,13 +624,14 @@ void MainWindow::openSettings() {
     SettingsDialog dialog(chatbox::client::publicUserId(user_id_), this);
     connect(&dialog, &SettingsDialog::settingsSaved, this,
             [this](const QString& host, quint16 port, bool tls,
-                   bool notifications, bool system_popup) {
+                   bool notifications, bool system_popup, bool autostart) {
                 QSettings settings;
                 settings.setValue("server/host", host);
                 settings.setValue("server/port", port);
                 settings.setValue("server/tls", tls);
                 settings.setValue("settings/notifications", notifications);
                 settings.setValue("settings/system_popup", system_popup);
+                settings.setValue("settings/autostart", autostart);
                 const bool server_changed =
                     host != host_ || port != port_ || tls != use_tls_;
                 if (server_changed) {
@@ -615,6 +640,14 @@ void MainWindow::openSettings() {
                 settings.sync();
                 notifications_enabled_ = notifications;
                 system_popup_enabled_ = system_popup;
+                if (autostart && !chatbox::client::setAutostartEnabled(
+                                      true, QCoreApplication::applicationFilePath())) {
+                    setStatus("开机自启动写入注册表失败", true);
+                    qWarning("autostart enable failed");
+                } else if (!autostart) {
+                    chatbox::client::setAutostartEnabled(
+                        false, QCoreApplication::applicationFilePath());
+                }
                 login_page_->setServerSettings(host, port, tls);
                 if (server_changed && logged_in_) {
                     logging_out_ = true;
@@ -630,9 +663,10 @@ void MainWindow::openSettings() {
                 } else {
                     setStatus("设置已保存");
                 }
-                qInfo("settings saved host=%s port=%u tls=%d notifications=%d system_popup=%d",
+                qInfo("settings saved host=%s port=%u tls=%d notifications=%d system_popup=%d autostart=%d",
                       qPrintable(host), static_cast<unsigned>(port), tls ? 1 : 0,
-                      notifications ? 1 : 0, system_popup ? 1 : 0);
+                      notifications ? 1 : 0, system_popup ? 1 : 0,
+                      autostart ? 1 : 0);
             });
     dialog.exec();
 }

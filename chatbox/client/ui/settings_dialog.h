@@ -16,7 +16,7 @@ public:
 
 signals:
     void settingsSaved(const QString& host, quint16 port, bool tls, bool notifications,
-                       bool system_popup);
+                       bool system_popup, bool autostart);
 
 private slots:
     void saveSettings();
@@ -28,6 +28,7 @@ private:
     QCheckBox* tls_check_ = nullptr;
     QCheckBox* notifications_check_ = nullptr;
     QCheckBox* system_popup_check_ = nullptr;
+    QCheckBox* autostart_check_ = nullptr;
     QLabel* log_label_ = nullptr;
     QLabel* id_label_ = nullptr;
 };
