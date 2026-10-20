@@ -109,7 +109,7 @@ D:\OpenCode_WorkSpace\chatbox\client\certs\ca.crt
 - 默认目录：`%APPDATA%\ChatBox\ChatBox\history\history.sqlite`（`AppDataLocation` + `history` 子目录，目录不存在会自动创建）。
 - 可在「设置 → 本地聊天记录 → 更改目录」换成任意可写目录，「打开目录」直接打开该文件夹；设置页同时显示当前占用空间。
 - 同一个 `history.sqlite` 文件按 `user_id` 分区：连接名按账号隔离（`history_<user_id>`），所有读写 SQL 都带 `user_id` 过滤；切换账号只看得到自己的记录，清理也只清当前账号。
-- 换目录时可选择「迁移」或「不迁移」：迁移会复制现有记录并校验行数；目标目录已存在 `history.sqlite` 时直接失败并继续使用旧目录。
+- 换目录时可选择「迁移」或「不迁移」：迁移会复制现有记录并校验行数，「不迁移」会在新目录创建一个空的记录库；目标目录已存在 `history.sqlite` 时直接失败并继续使用旧目录。
 
 ### 写入规则
 

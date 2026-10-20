@@ -85,7 +85,7 @@ Qt 客户端 --TLS 9443--> nginx stream（证书 /etc/chatbox/certs）--PROXY-->
 
 ## 说明
 
-- 客户端不直连服务端 MySQL；所有数据操作经服务端命令字。本地仅保留一份 SQLite 只读副本（`history.sqlite`，按 `user_id` 分区），用于离线浏览。
+- 客户端不直连服务端 MySQL；所有数据操作经服务端命令字。本地仅保留一份 SQLite 本机副本（`history.sqlite`，按 `user_id` 分区；在线写穿透、离线只读浏览）。
 - 网络传输一律大端序列化，禁止直接发送内存结构体。
 - Token 只存哈希（`SHA-256`），密码使用 Argon2id；日志不打印口令与 Token。
 - 本仓库为个人学习/演示项目，未附开源许可证。
