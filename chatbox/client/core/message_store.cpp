@@ -2,8 +2,14 @@
 
 #include <QSet>
 
+#include "core/history_store.h"
+
 namespace chatbox {
 namespace client {
+
+void MessageStore::setHistoryStore(HistoryStore* store) {
+    history_ = store;
+}
 
 void MessageStore::reset(ChatContext context, quint64 target_id) {
     context_ = context;
@@ -67,6 +73,11 @@ void MessageStore::replaceHistory(const QVector<ChatMessage>& history) {
         }
         messages_.push_back(message);
     }
+
+    // 以合并后的最终状态为准写穿透：待发/失败消息不会落库。
+    for (const ChatMessage& message : messages_) {
+        persistMessage(message);
+    }
 }
 
 void MessageStore::prependHistory(const QVector<ChatMessage>& history) {
@@ -79,6 +90,11 @@ void MessageStore::prependHistory(const QVector<ChatMessage>& history) {
     }
     page += messages_;
     messages_ = page;
+
+    // 以合并后的最终状态为准写穿透：待发/失败消息不会落库。
+    for (const ChatMessage& message : messages_) {
+        persistMessage(message);
+    }
 }
 
 void MessageStore::appendIncoming(const ChatMessage& message) {
@@ -90,6 +106,7 @@ void MessageStore::appendIncoming(const ChatMessage& message) {
         return;
     }
     messages_.push_back(message);
+    persistMessage(message);
 }
 
 void MessageStore::addPending(const ChatMessage& message) {
@@ -130,6 +147,13 @@ bool MessageStore::markSent(const QString& client_msg_id, quint64 message_id,
             }
         }
     }
+
+    // 去重会改变下标，重新按 client_msg_id 定位后再写穿透，
+    // 此时消息已带上服务端 message_id 且状态为 kSent。
+    const int final_index = indexOfClientId(client_msg_id);
+    if (final_index >= 0) {
+        persistMessage(messages_.at(final_index));
+    }
     return true;
 }
 
@@ -161,6 +185,12 @@ bool MessageStore::markRecalled(quint64 message_id) {
         if (message.message_id == message_id) {
             message.recalled = true;
             message.content.clear();
+            // 内存先置位，再同步本地历史库：本地副本同样清空正文。
+            // 同步失败只记日志，不影响内存状态与界面。
+            if (history_ != nullptr && !history_->markRecalled(message_id)) {
+                qWarning("history recall sync failed message_id=%llu",
+                         static_cast<unsigned long long>(message_id));
+            }
             return true;
         }
     }
@@ -217,6 +247,17 @@ bool MessageStore::hasMessageId(quint64 message_id) const {
         }
     }
     return false;
+}
+
+void MessageStore::persistMessage(const ChatMessage& message) const {
+    if (history_ == nullptr || message.message_id == 0 ||
+        message.status != MessageStatus::kSent) {
+        return;
+    }
+    if (!history_->saveMessage(message)) {
+        qWarning("history write failed message_id=%llu",
+                 static_cast<unsigned long long>(message.message_id));
+    }
 }
 
 }  // namespace client

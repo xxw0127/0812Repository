@@ -10,8 +10,14 @@
 namespace chatbox {
 namespace client {
 
+class HistoryStore;
+
 class MessageStore {
 public:
+    // 挂接本地历史库：只做写穿透（把已确认消息落库），指针不归本对象所有，
+    // 也不负责关闭；传 nullptr 表示纯内存模式，行为与未挂接时完全一致。
+    void setHistoryStore(HistoryStore* store);
+
     void reset(ChatContext context, quint64 target_id);
     void replaceHistory(const QVector<ChatMessage>& history);
     void prependHistory(const QVector<ChatMessage>& history);
@@ -33,10 +39,15 @@ public:
 private:
     int indexOfClientId(const QString& client_msg_id) const;
     bool hasMessageId(quint64 message_id) const;
+    // 写穿透：把一条服务端已确认的消息写进本地历史库。
+    // 未挂接历史库、消息未确认（message_id == 0）或状态不是 kSent 时直接跳过。
+    // 写库失败只记日志，不影响内存状态与界面。
+    void persistMessage(const ChatMessage& message) const;
 
     ChatContext context_ = ChatContext::kRoom;
     quint64 target_id_ = 0;
     QVector<ChatMessage> messages_;
+    HistoryStore* history_ = nullptr;
 };
 
 }  // namespace client

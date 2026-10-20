@@ -108,6 +108,7 @@ private slots:
     void messageStorePrependHistory();
     void messageStoreReconcilesLapsedAck();
     void messageStoreMarkRecalled();
+    void messageStoreWritesThroughWhenHistoryAttached();
     void outboxExpiresAndMarksFailed();
     void outboxMarksSentAndAllFailed();
     void rendererEscapesHtml();
@@ -322,6 +323,42 @@ void TestClientCore::messageStoreMarkRecalled() {
     QCOMPARE(store.messages().at(0).recalled, true);
     QVERIFY(store.messages().at(0).content.isEmpty());
     QVERIFY(!store.markRecalled(100));
+}
+
+void TestClientCore::messageStoreWritesThroughWhenHistoryAttached() {
+    QTemporaryDir dir; chatbox::client::HistoryStore history; QString error;
+    QVERIFY(history.open(dir.path(), 1401, &error));
+
+    chatbox::client::MessageStore store;
+    store.setHistoryStore(&history);
+    QVector<chatbox::client::ChatMessage> page;
+    page << confirmedMessage(1, 7, "first") << confirmedMessage(2, 7, "second");
+    store.replaceHistory(page);
+    store.appendIncoming(confirmedMessage(3, 7, "push"));
+    QCOMPARE(history.messageCount(), qint64(3));
+
+    chatbox::client::ChatMessage pending = confirmedMessage(0, 7, "local");
+    pending.client_msg_id = QStringLiteral("client-1");
+    pending.status = chatbox::client::MessageStatus::kSending;
+    store.addPending(pending);
+    store.markFailed(pending.client_msg_id);
+    QCOMPARE(history.messageCount(), qint64(3));  // 未确认消息不落盘
+
+    chatbox::client::ChatMessage outgoing = confirmedMessage(0, 7, "sent");
+    outgoing.client_msg_id = QStringLiteral("client-2");
+    outgoing.status = chatbox::client::MessageStatus::kSending;
+    store.addPending(outgoing);
+    QVERIFY(store.markSent(outgoing.client_msg_id, 4, QDateTime::currentDateTimeUtc()));
+    QCOMPARE(history.messageCount(), qint64(4));
+
+    QVERIFY(store.markRecalled(4));
+    const auto rows = history.recent(chatbox::client::ChatContext::kRoom, 7, 10);
+    QVERIFY(rows.last().recalled);
+    QVERIFY(rows.last().content.isEmpty());
+
+    store.setHistoryStore(nullptr);
+    store.appendIncoming(confirmedMessage(5, 7, "detached"));
+    QCOMPARE(history.messageCount(), qint64(4));
 }
 
 void TestClientCore::outboxExpiresAndMarksFailed() {
