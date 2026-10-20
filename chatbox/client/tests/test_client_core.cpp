@@ -167,6 +167,8 @@ private slots:
     void historyStorePathMoveCopiesData();
     void historyStoreRejectsExistingTarget();
     void buildScriptShipsSqlDriver();
+    void conversationOpensFromLocalHistoryFirst();
+    void incomingPushesArePersistedForOtherConversations();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -2022,6 +2024,32 @@ void TestClientCore::buildScriptShipsSqlDriver() {
     QVERIFY2(!package.isEmpty(), "package_client.ps1 must be readable");
     QVERIFY(package.contains(QStringLiteral("\"imageformats\"")));
     QVERIFY(package.contains(QStringLiteral("\"sqldrivers\"")));
+}
+
+// 打开会话时先用本地历史首屏渲染，再由在线历史覆盖：
+// 两个选择入口都必须先 loadInitialHistory()，
+// 预渲染本身只读本地库并把结果交给 replaceHistory()。
+void TestClientCore::conversationOpensFromLocalHistoryFirst() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    const QString room = functionSection(source, QStringLiteral("void MainWindow::selectRoom("));
+    const QString priv = functionSection(source, QStringLiteral("void MainWindow::selectPrivate("));
+    QVERIFY(room.contains(QStringLiteral("loadInitialHistory(")));
+    QVERIFY(priv.contains(QStringLiteral("loadInitialHistory(")));
+    const QString load = functionSection(source, QStringLiteral("void MainWindow::loadInitialHistory("));
+    QVERIFY(load.contains(QStringLiteral("history_store_.recent(")));
+    QVERIFY(load.contains(QStringLiteral("replaceHistory(")));
+}
+
+// 后台会话收到的推送同样要落本地库（不论是不是当前会话），
+// 私聊推送还要补一条会话摘要，便于离线侧栏显示。
+void TestClientCore::incomingPushesArePersistedForOtherConversations() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString room_push = caseSection(source, QStringLiteral("case chatbox::kCmdChatPush:"));
+    const QString private_push = caseSection(source, QStringLiteral("case chatbox::kCmdPrivatePush:"));
+    QVERIFY(room_push.contains(QStringLiteral("history_store_.saveMessage(")));
+    QVERIFY(private_push.contains(QStringLiteral("history_store_.saveMessage(")));
+    QVERIFY(private_push.contains(QStringLiteral("saveConversation(")));
 }
 
 QTEST_MAIN(TestClientCore)

@@ -10,6 +10,7 @@
 #include <QCloseEvent>
 #include <QCoreApplication>
 #include <QCursor>
+#include <QDebug>
 #include <QFont>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -46,6 +47,7 @@
 #include "core/autostart.h"
 #include "core/client_policy.h"
 #include "core/avatar_utils.h"
+#include "core/history_store.h"
 #include "core/identity.h"
 #include "core/message_renderer.h"
 #include "core/message_time.h"
@@ -118,6 +120,18 @@ QString errorText(quint16 code, const QString& message) {
         default:
             return message;
     }
+}
+
+// 构造一条会话摘要（房间名 / 昵称 / 备注），
+// last_* 留给 HistoryStore 按本地已存消息重算。
+chatbox::client::ConversationRow conversationRow(chatbox::client::ChatContext context,
+                                                 quint64 target_id,
+                                                 const QString& title) {
+    chatbox::client::ConversationRow row;
+    row.context = context;
+    row.target_id = target_id;
+    row.title = title;
+    return row;
 }
 
 }  // namespace
@@ -253,6 +267,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
 MainWindow::~MainWindow() {
     shutting_down_ = true;
+    // 本地历史库先关：解绑 MessageStore 后再关连接，避免留下悬空指针。
+    closeHistoryStore();
     // Destroy the dialog(s) while all MainWindow members are still alive.
     // Without this, a child dialog (including one already closed with a
     // pending deleteLater) can be deleted by QObject base teardown after the
@@ -2695,8 +2711,15 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
         input_edit_->clear();
     }
     clearReply();
+    if (history_store_.isOpen()) {
+        history_store_.saveConversation(
+            conversationRow(chatbox::client::ChatContext::kRoom,
+                            static_cast<quint64>(room_id), name));
+    }
     message_store_.reset(chatbox::client::ChatContext::kRoom,
                          static_cast<quint64>(room_id));
+    loadInitialHistory(chatbox::client::ChatContext::kRoom,
+                       static_cast<quint64>(room_id));
     restorePendingForCurrentContext();
     renderCurrentConversation(ScrollMode::kBottom);
     member_list_->clear();
@@ -2764,7 +2787,13 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
         input_edit_->clear();
     }
     clearReply();
+    if (history_store_.isOpen()) {
+        history_store_.saveConversation(
+            conversationRow(chatbox::client::ChatContext::kPrivate, peer_id,
+                            nickname));
+    }
     message_store_.reset(chatbox::client::ChatContext::kPrivate, peer_id);
+    loadInitialHistory(chatbox::client::ChatContext::kPrivate, peer_id);
     restorePendingForCurrentContext();
     renderCurrentConversation(ScrollMode::kBottom);
     member_list_->clear();
@@ -2788,6 +2817,51 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
     input_edit_->setEnabled(online_);
     send_button_->setEnabled(online_);
     setStatus("正在加载与 " + nickname + " 的私聊历史");
+}
+
+// 打开本地历史库：目录取 settings/history/path，为空时用默认目录。
+// 同一个账号重复打开是幂等的（HistoryStore 内部复用同一条连接）。
+// 打开失败只记日志并保持 MessageStore 纯内存，聊天功能不受影响。
+bool MainWindow::openHistoryStore(quint64 user_id) {
+    if (user_id == 0) {
+        return false;
+    }
+    QSettings settings;
+    const QString configured =
+        settings.value("settings/history/path").toString().trimmed();
+    const QString directory = configured.isEmpty()
+                                  ? chatbox::client::HistoryStore::defaultDirectory()
+                                  : configured;
+    QString error;
+    if (!history_store_.open(directory, user_id, &error)) {
+        message_store_.setHistoryStore(nullptr);
+        qWarning() << QStringLiteral("本地历史库打开失败，聊天功能不受影响：%1")
+                          .arg(error);
+        return false;
+    }
+    message_store_.setHistoryStore(&history_store_);
+    return true;
+}
+
+// 关闭本地历史库：先解绑 MessageStore，再关连接，
+// 顺序反了就会让 MessageStore 持有已析构的库指针。
+void MainWindow::closeHistoryStore() {
+    message_store_.setHistoryStore(nullptr);
+    history_store_.close();
+}
+
+// 切换会话时先用本地历史首屏渲染：在线历史回来后仍照旧覆盖这一屏。
+void MainWindow::loadInitialHistory(chatbox::client::ChatContext context,
+                                    quint64 target_id) {
+    if (!history_store_.isOpen()) {
+        return;
+    }
+    const QVector<chatbox::client::ChatMessage> local =
+        history_store_.recent(context, target_id, 50);
+    if (local.isEmpty()) {
+        return;
+    }
+    message_store_.replaceHistory(local);
 }
 
 void MainWindow::onMemberDoubleClicked(QListWidgetItem* item) {
@@ -2888,6 +2962,8 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             qInfo("login ok user_id=%llu",
                   static_cast<unsigned long long>(user_id_));
+            // 登录成功后打开本地历史库：失败只记日志，不阻塞登录。
+            openHistoryStore(user_id_);
             saveSession();
             login_page_->setBusy(false);
             stack_->setCurrentWidget(chat_page_);
@@ -2975,6 +3051,9 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             }
             qInfo("resume ok user_id=%llu",
                   static_cast<unsigned long long>(user_id_));
+            // 恢复会话时同样打开本地历史库（幂等），
+            // 保证下面恢复上一个会话时能先渲染本地首屏。
+            openHistoryStore(user_id_);
             saveSession();
             stack_->setCurrentWidget(chat_page_);
             updateOwnProfileStrip();
@@ -3029,6 +3108,13 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                     !reader.getU32(max_members) || !reader.getU32(online)) {
                     setStatus("房间列表格式错误", true);
                     return;
+                }
+                // 所有房间都记一条会话摘要（含界面只展示一个大厅的情况），
+                // 离线时侧栏才有房间名可显示。
+                if (history_store_.isOpen()) {
+                    history_store_.saveConversation(
+                        conversationRow(chatbox::client::ChatContext::kRoom,
+                                        static_cast<quint64>(id), name));
                 }
                 if (hall_added) {
                     continue;
@@ -3143,6 +3229,24 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                     return;
                 }
             }
+            chatbox::client::ChatMessage message;
+            message.message_id = message_id;
+            message.context = chatbox::client::ChatContext::kRoom;
+            message.target_id = room_id;
+            message.sender_id = sender_id;
+            message.sender_name = nickname;
+            message.content = content;
+            message.created_at_utc = chatbox::client::parseServerUtc(created_at);
+            message.reply_to_id = reply_to_id;
+            message.reply_sender_name = reply_sender_name;
+            message.reply_content = reply_content;
+            message.outgoing = sender_id == user_id_;
+            message.status = chatbox::client::MessageStatus::kSent;
+            // 任何房间的推送都先落本地库：当前会话之外的房间
+            // 之后切过去时也能立刻看到这一段。
+            if (history_store_.isOpen()) {
+                history_store_.saveMessage(message);
+            }
             if (sender_id == user_id_) {
                 break;
             }
@@ -3152,19 +3256,6 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             peer_names_.insert(sender_id, nickname);
             if (context_type_ == ContextType::Room &&
                 room_id == static_cast<uint32_t>(current_room_id_)) {
-                chatbox::client::ChatMessage message;
-                message.message_id = message_id;
-                message.context = chatbox::client::ChatContext::kRoom;
-                message.target_id = room_id;
-                message.sender_id = sender_id;
-                message.sender_name = nickname;
-                message.content = content;
-                message.created_at_utc = chatbox::client::parseServerUtc(created_at);
-                message.reply_to_id = reply_to_id;
-                message.reply_sender_name = reply_sender_name;
-                message.reply_content = reply_content;
-                message.outgoing = false;
-                message.status = chatbox::client::MessageStatus::kSent;
                 addIncomingMessage(message);
             }
             break;
@@ -3210,6 +3301,27 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                     return;
                 }
             }
+            chatbox::client::ChatMessage message;
+            message.message_id = message_id;
+            message.context = chatbox::client::ChatContext::kPrivate;
+            message.target_id = from_id;
+            message.sender_id = from_id;
+            message.sender_name = nickname;
+            message.content = content;
+            message.created_at_utc = chatbox::client::parseServerUtc(created_at);
+            message.reply_to_id = reply_to_id;
+            message.reply_sender_name = reply_sender_name;
+            message.reply_content = reply_content;
+            message.outgoing = from_id == user_id_;
+            message.status = chatbox::client::MessageStatus::kSent;
+            // 后台私聊同样落本地库并记一条会话摘要：
+            // 之后切到该好友时能立刻看到这一段。
+            if (history_store_.isOpen()) {
+                history_store_.saveMessage(message);
+                history_store_.saveConversation(
+                    conversationRow(chatbox::client::ChatContext::kPrivate,
+                                    from_id, nickname));
+            }
             if (from_id == user_id_) {
                 break;
             }
@@ -3219,19 +3331,6 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                                     ? true
                                     : item->data(Qt::UserRole + 3).toBool();
             if (context_type_ == ContextType::Private && from_id == current_peer_id_) {
-                chatbox::client::ChatMessage message;
-                message.message_id = message_id;
-                message.context = chatbox::client::ChatContext::kPrivate;
-                message.target_id = from_id;
-                message.sender_id = from_id;
-                message.sender_name = nickname;
-                message.content = content;
-                message.created_at_utc = chatbox::client::parseServerUtc(created_at);
-                message.reply_to_id = reply_to_id;
-                message.reply_sender_name = reply_sender_name;
-                message.reply_content = reply_content;
-                message.outgoing = false;
-                message.status = chatbox::client::MessageStatus::kSent;
                 addIncomingMessage(message);
                 sendMarkRead(from_id, message_id);
                 updateConversationItem(from_id, 0, nickname, content, created_at, online);
@@ -3269,6 +3368,19 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                     !reader.getU32(unread)) {
                     setStatus("会话列表格式错误", true);
                     return;
+                }
+                // 会话摘要先落库（好友过滤之前），
+                // 标题优先用已知的备注，没有备注时用昵称。
+                if (history_store_.isOpen()) {
+                    QString title = nickname;
+                    const auto view = friend_views_.constFind(peer_id);
+                    if (view != friend_views_.constEnd() &&
+                        !view->remark.trimmed().isEmpty()) {
+                        title = view->remark;
+                    }
+                    history_store_.saveConversation(
+                        conversationRow(chatbox::client::ChatContext::kPrivate,
+                                        peer_id, title));
                 }
                 if (!friend_ids_.contains(peer_id)) {
                     continue;
@@ -3935,6 +4047,9 @@ void MainWindow::clearSession() {
     if (network_ != nullptr) {
         network_->requestStop();
     }
+    // 本地历史库随会话一起关掉，但磁盘上的记录保留：
+    // 下次登录同一账号仍能读到本地首屏。
+    closeHistoryStore();
     resuming_ = false;
     if (auth_timeout_timer_ != nullptr) {
         auth_timeout_timer_->stop();

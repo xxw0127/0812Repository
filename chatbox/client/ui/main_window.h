@@ -14,6 +14,7 @@
 #include "core/chat_message.h"
 #include "core/contact_store.h"
 #include "core/friend_view.h"
+#include "core/history_store.h"
 #include "core/message_store.h"
 #include "core/outbox.h"
 #include "core/user_profile.h"
@@ -146,6 +147,12 @@ private:
     void requestHistory(int kind, quint64 target, quint64 before_id);
     void selectRoom(int room_id, const QString& name);
     void selectPrivate(quint64 peer_id, const QString& nickname);
+    // 打开本地历史库（按账号隔离）；失败只记日志，聊天照常。
+    bool openHistoryStore(quint64 user_id);
+    // 关闭本地历史库：先解绑 MessageStore，再关连接。
+    void closeHistoryStore();
+    // 切换会话时先用本地历史首屏渲染，在线历史回来后覆盖。
+    void loadInitialHistory(chatbox::client::ChatContext context, quint64 target_id);
     void resetContext();
     void renderCurrentConversation(ScrollMode mode);
     void addIncomingMessage(const chatbox::client::ChatMessage& message);
@@ -244,6 +251,7 @@ private:
     quint64 current_peer_id_ = 0;
     QString current_peer_name_;
     chatbox::client::MessageStore message_store_;
+    chatbox::client::HistoryStore history_store_;
     chatbox::client::Outbox outbox_;
     QHash<quint32, QString> pending_sequences_;
     quint64 next_before_id_ = 0;
