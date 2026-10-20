@@ -74,8 +74,9 @@ void MessageStore::replaceHistory(const QVector<ChatMessage>& history) {
         messages_.push_back(message);
     }
 
-    // 以合并后的最终状态为准写穿透：待发/失败消息不会落库。
-    for (const ChatMessage& message : messages_) {
+    // 写穿透只落服务端刚返回的这一页（adopted），不遍历内存里的历史存量：
+    // 存量消息早已由 appendIncoming / markSent 落库，整批重写会造成平方级写放大。
+    for (const ChatMessage& message : adopted) {
         persistMessage(message);
     }
 }
@@ -88,13 +89,14 @@ void MessageStore::prependHistory(const QVector<ChatMessage>& history) {
         }
         page.push_back(message);
     }
-    page += messages_;
-    messages_ = page;
 
-    // 以合并后的最终状态为准写穿透：待发/失败消息不会落库。
-    for (const ChatMessage& message : messages_) {
+    // 写穿透只落这一页更旧的历史，不遍历合并后的内存存量（避免平方级写放大）。
+    for (const ChatMessage& message : page) {
         persistMessage(message);
     }
+
+    page += messages_;
+    messages_ = page;
 }
 
 void MessageStore::appendIncoming(const ChatMessage& message) {
