@@ -1,6 +1,9 @@
 #include "core/history_store.h"
 
+#include <algorithm>
+
 #include <QDir>
+#include <QDebug>
 #include <QFileInfo>
 #include <QHash>
 #include <QSqlDatabase>
@@ -8,6 +11,8 @@
 #include <QSqlQuery>
 #include <QStandardPaths>
 #include <QVariant>
+
+#include "core/message_time.h"
 
 namespace chatbox {
 namespace client {
@@ -67,6 +72,86 @@ QString databasePath(const QString& directory) {
 qint64 fileSizeOf(const QString& path) {
     const QFileInfo info(path);
     return info.exists() ? info.size() : 0;
+}
+
+// 每页条数：调用方传入的 limit 会被夹到 1..200。
+const int kMinPageLimit = 1;
+const int kMaxPageLimit = 200;
+
+int clampLimit(int limit) {
+    if (limit < kMinPageLimit) {
+        return kMinPageLimit;
+    }
+    if (limit > kMaxPageLimit) {
+        return kMaxPageLimit;
+    }
+    return limit;
+}
+
+// 时间列统一存 yyyy-MM-dd HH:mm:ss（UTC），与服务端字符串格式一致，可直接比较。
+QString formatUtcColumn(const QDateTime& utc) {
+    return utc.toUTC().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+}
+
+// 读取时间列：主格式与服务端一致；另兼容 ISO8601 写法。
+QDateTime parseUtcColumn(const QString& text) {
+    const QDateTime parsed = parseServerUtc(text);
+    if (parsed.isValid()) {
+        return parsed;
+    }
+    QDateTime fallback = QDateTime::fromString(text, Qt::ISODate);
+    if (!fallback.isValid()) {
+        return QDateTime();
+    }
+    if (fallback.timeSpec() == Qt::LocalTime) {
+        fallback.setTimeSpec(Qt::UTC);
+    }
+    return fallback;
+}
+
+// QString() 是 null 串，绑到 NOT NULL 列上会失败，这里统一成空串。
+QString textOrEmpty(const QString& text) {
+    return text.isNull() ? QString::fromLatin1("") : text;
+}
+
+// LIKE 关键字转义：先转义反斜杠，再转义 % 和 _，顺序不能颠倒，
+// 否则转义出来的反斜杠会被自己转义一次。
+QString escapeLikeKeyword(const QString& keyword) {
+    QString escaped;
+    escaped.reserve(keyword.size());
+    for (const QChar ch : keyword) {
+        if (ch == QLatin1Char('\\') || ch == QLatin1Char('%') ||
+            ch == QLatin1Char('_')) {
+            escaped.append(QLatin1Char('\\'));
+        }
+        escaped.append(ch);
+    }
+    return escaped;
+}
+
+// 读取用的列清单，messageFromRow 依赖这个顺序。
+const char* const kSelectColumns =
+    "context, target_id, message_id, sender_id, sender_name, content,"
+    " created_at_utc, reply_to_id, reply_sender_name, reply_content,"
+    " recalled, outgoing";
+
+// 把一行数据库记录还原成 ChatMessage（列顺序见 kSelectColumns）。
+ChatMessage messageFromRow(const QSqlQuery& query) {
+    ChatMessage message;
+    message.context = static_cast<ChatContext>(query.value(0).toInt());
+    message.target_id = query.value(1).toULongLong();
+    message.message_id = query.value(2).toULongLong();
+    message.sender_id = query.value(3).toULongLong();
+    message.sender_name = query.value(4).toString();
+    message.content = query.value(5).toString();
+    message.created_at_utc = parseUtcColumn(query.value(6).toString());
+    message.reply_to_id = query.value(7).toULongLong();
+    message.reply_sender_name = query.value(8).toString();
+    message.reply_content = query.value(9).toString();
+    message.recalled = query.value(10).toInt() != 0;
+    message.outgoing = query.value(11).toInt() != 0;
+    message.status = MessageStatus::kSent;
+    return message;
 }
 
 // 执行单条 DDL / PRAGMA；失败时写入中文错误文本。
@@ -306,6 +391,175 @@ qint64 HistoryStore::messageCount() const {
 
 bool HistoryStore::hasMessages() const {
     return messageCount() > 0;
+}
+
+bool HistoryStore::saveMessage(const ChatMessage& message) {
+    // 未确认的消息（message_id == 0）只留在内存里，不落库。
+    if (message.message_id == 0) {
+        return false;
+    }
+    if (!isOpen()) {
+        return false;
+    }
+    QSqlDatabase db = QSqlDatabase::database(connection_name_, false);
+    if (!db.isOpen()) {
+        return false;
+    }
+
+    QDateTime created = message.created_at_utc;
+    if (!created.isValid()) {
+        created = QDateTime::currentDateTimeUtc();
+    }
+    // 撤回消息不保留正文。
+    const QString content = textOrEmpty(message.recalled ? QString() : message.content);
+
+    QSqlQuery query(db);
+    if (!query.prepare(QStringLiteral(
+            "INSERT INTO messages (user_id, context, target_id, message_id,"
+            " sender_id, sender_name, content, created_at_utc, reply_to_id,"
+            " reply_sender_name, reply_content, recalled, outgoing)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            " ON CONFLICT(user_id, context, target_id, message_id) DO UPDATE SET"
+            " sender_id = excluded.sender_id,"
+            " sender_name = excluded.sender_name,"
+            " content = excluded.content,"
+            " created_at_utc = excluded.created_at_utc,"
+            " reply_to_id = excluded.reply_to_id,"
+            " reply_sender_name = excluded.reply_sender_name,"
+            " reply_content = excluded.reply_content,"
+            " recalled = excluded.recalled,"
+            " outgoing = excluded.outgoing"))) {
+        // 写库失败只记日志，不打断界面；日志里不出现任何消息正文。
+        qWarning() << QStringLiteral("本地历史库写入语句准备失败：%1")
+                          .arg(query.lastError().text());
+        return false;
+    }
+    query.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    query.addBindValue(static_cast<int>(message.context));
+    query.addBindValue(QVariant::fromValue<qulonglong>(message.target_id));
+    query.addBindValue(QVariant::fromValue<qulonglong>(message.message_id));
+    query.addBindValue(QVariant::fromValue<qulonglong>(message.sender_id));
+    query.addBindValue(textOrEmpty(message.sender_name));
+    query.addBindValue(content);
+    query.addBindValue(formatUtcColumn(created));
+    query.addBindValue(QVariant::fromValue<qulonglong>(message.reply_to_id));
+    query.addBindValue(textOrEmpty(message.reply_sender_name));
+    query.addBindValue(textOrEmpty(message.reply_content));
+    query.addBindValue(message.recalled ? 1 : 0);
+    query.addBindValue(message.outgoing ? 1 : 0);
+    const bool ok = query.exec();
+    if (!ok) {
+        qWarning() << QStringLiteral("本地历史库写入失败：%1")
+                          .arg(query.lastError().text());
+    }
+    return ok;
+}
+
+bool HistoryStore::markRecalled(quint64 message_id) {
+    if (message_id == 0 || !isOpen()) {
+        return false;
+    }
+    QSqlDatabase db = QSqlDatabase::database(connection_name_, false);
+    if (!db.isOpen()) {
+        return false;
+    }
+    QSqlQuery query(db);
+    if (!query.prepare(QStringLiteral(
+            "UPDATE messages SET recalled = 1, content = ''"
+            " WHERE user_id = ? AND message_id = ?"))) {
+        return false;
+    }
+    query.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    query.addBindValue(QVariant::fromValue<qulonglong>(message_id));
+    if (!query.exec()) {
+        return false;
+    }
+    return query.numRowsAffected() > 0;
+}
+
+QVector<ChatMessage> HistoryStore::recent(ChatContext context, quint64 target_id,
+                                          int limit) const {
+    return readPage(context, target_id, false, 0, limit);
+}
+
+QVector<ChatMessage> HistoryStore::before(ChatContext context, quint64 target_id,
+                                          quint64 before_id, int limit) const {
+    return readPage(context, target_id, true, before_id, limit);
+}
+
+QVector<ChatMessage> HistoryStore::readPage(ChatContext context,
+                                             quint64 target_id, bool has_before,
+                                             quint64 before_id, int limit) const {
+    QVector<ChatMessage> rows;
+    if (!isOpen()) {
+        return rows;
+    }
+    QSqlDatabase db = QSqlDatabase::database(connection_name_, false);
+    if (!db.isOpen()) {
+        return rows;
+    }
+    QString sql = QStringLiteral("SELECT ") + QString::fromLatin1(kSelectColumns) +
+                  QStringLiteral(" FROM messages"
+                                 " WHERE user_id = ? AND context = ? AND target_id = ?");
+    if (has_before) {
+        sql += QStringLiteral(" AND message_id < ?");
+    }
+    sql += QStringLiteral(" ORDER BY message_id DESC LIMIT ?");
+
+    QSqlQuery query(db);
+    if (!query.prepare(sql)) {
+        return rows;
+    }
+    query.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    query.addBindValue(static_cast<int>(context));
+    query.addBindValue(QVariant::fromValue<qulonglong>(target_id));
+    if (has_before) {
+        query.addBindValue(QVariant::fromValue<qulonglong>(before_id));
+    }
+    query.addBindValue(clampLimit(limit));
+    if (!query.exec()) {
+        return rows;
+    }
+    while (query.next()) {
+        rows.append(messageFromRow(query));
+    }
+    // 取的是最新的一页，返回时反转为升序（旧→新），方便直接追加到视图尾部。
+    std::reverse(rows.begin(), rows.end());
+    return rows;
+}
+
+QVector<ChatMessage> HistoryStore::search(ChatContext context, quint64 target_id,
+                                          const QString& keyword, int limit) const {
+    QVector<ChatMessage> rows;
+    if (!isOpen() || keyword.isEmpty()) {
+        return rows;
+    }
+    QSqlDatabase db = QSqlDatabase::database(connection_name_, false);
+    if (!db.isOpen()) {
+        return rows;
+    }
+    QSqlQuery query(db);
+    if (!query.prepare(QStringLiteral("SELECT ") +
+                       QString::fromLatin1(kSelectColumns) +
+                       QStringLiteral(" FROM messages"
+                                      " WHERE user_id = ? AND context = ? AND target_id = ?"
+                                      " AND content LIKE ? ESCAPE '\\'"
+                                      " ORDER BY message_id DESC LIMIT ?"))) {
+        return rows;
+    }
+    query.addBindValue(QVariant::fromValue<qulonglong>(user_id_));
+    query.addBindValue(static_cast<int>(context));
+    query.addBindValue(QVariant::fromValue<qulonglong>(target_id));
+    query.addBindValue(QStringLiteral("%") + escapeLikeKeyword(keyword) +
+                       QStringLiteral("%"));
+    query.addBindValue(clampLimit(limit));
+    if (!query.exec()) {
+        return rows;
+    }
+    while (query.next()) {
+        rows.append(messageFromRow(query));
+    }
+    return rows;
 }
 
 QString HistoryStore::defaultDirectory() {

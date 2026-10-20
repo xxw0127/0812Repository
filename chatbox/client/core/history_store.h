@@ -3,6 +3,7 @@
 
 #include <QDateTime>
 #include <QString>
+#include <QVector>
 #include <QtGlobal>
 
 #include "core/chat_message.h"
@@ -45,10 +46,34 @@ public:
     qint64 messageCount() const; // 当前 user_id 的消息数
     bool hasMessages() const;
 
+    // 写入一条服务端已确认的消息（message_id > 0）。
+    // 按 (user_id, context, target_id, message_id) 去重：同一条消息重复写入
+    // 只会更新既有行。message_id == 0（未确认）时返回 false，不写库也不报错。
+    // 时间为空时用当前 UTC 落库；recalled 为真时正文写空。
+    bool saveMessage(const ChatMessage& message);
+    // 标记某条消息已撤回：清空正文并置 recalled；没有匹配行时返回 false。
+    bool markRecalled(quint64 message_id);
+    // 读取当前会话最近 limit 条消息，升序（旧→新）返回。
+    QVector<ChatMessage> recent(ChatContext context, quint64 target_id,
+                                int limit) const;
+    // 读取当前会话中 message_id < before_id 的最近 limit 条消息，升序（旧→新）返回。
+    QVector<ChatMessage> before(ChatContext context, quint64 target_id,
+                                quint64 before_id, int limit) const;
+    // 在当前会话内按关键字搜索，按 message_id 倒序（新→旧）返回。
+    // 关键字按字面量匹配：% 与 _ 会被转义，不作为通配符；空关键字返回空结果。
+    QVector<ChatMessage> search(ChatContext context, quint64 target_id,
+                                const QString& keyword, int limit) const;
+
     static QString defaultDirectory();
 
 private:
     static QString connectionNameFor(quint64 user_id);
+
+    // 读取一页消息（recent / before 共用）：按 message_id 倒序取 limit 条，
+    // 再反转为升序返回。has_before 为真时附加 message_id < before_id 条件。
+    QVector<ChatMessage> readPage(ChatContext context, quint64 target_id,
+                                  bool has_before, quint64 before_id,
+                                  int limit) const;
 
     // 连接名归属登记：同一个 history_<user_id> 同时只能被一个存活实例持有，
     // 否则第二个实例会顺手 removeDatabase 掉第一个实例的连接。

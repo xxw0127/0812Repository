@@ -77,6 +77,22 @@ QString functionSection(const QString& source, const QString& signature) {
     return sourceSection(source, signature, QStringLiteral("\nvoid MainWindow::"));
 }
 
+// 构造一条服务端已确认的消息（message_id > 0）。
+chatbox::client::ChatMessage confirmedMessage(quint64 id, quint64 target,
+                                              const QString& content,
+                                              const QString& utc = QStringLiteral("2026-10-20 10:00:00")) {
+    chatbox::client::ChatMessage message;
+    message.message_id = id;
+    message.context = chatbox::client::ChatContext::kRoom;
+    message.target_id = target;
+    message.sender_id = 9001;
+    message.sender_name = QStringLiteral("alice");
+    message.content = content;
+    message.created_at_utc = chatbox::client::parseServerUtc(utc);
+    message.status = chatbox::client::MessageStatus::kSent;
+    return message;
+}
+
 }  // namespace
 
 class TestClientCore : public QObject {
@@ -138,6 +154,13 @@ private slots:
     void historyStoreCreatesSchema();
     void historyStoreReportsOpenFailure();
     void historyStoreRejectsSecondInstance();
+    void historyStoreSaveAndLoadRecent();
+    void historyStoreDedupesByMessageId();
+    void historyStoreSkipsUnconfirmedMessages();
+    void historyStoreMarksRecalled();
+    void historyStoreIsolatesUsers();
+    void historyStoreIsolatesConversations();
+    void historyStoreSearchFindsInConversation();
 };
 
 void TestClientCore::parseServerUtc() {
@@ -1741,6 +1764,109 @@ void TestClientCore::historyStoreRejectsSecondInstance() {
     first.close();
     QVERIFY2(second.open(dir.path(), 1103, &error), qPrintable(error));
     second.close();
+}
+
+// Confirmed messages must round-trip through the local store: the newest
+// page comes back in ascending order and the older page is reachable with
+// the pagination cursor.
+void TestClientCore::historyStoreSaveAndLoadRecent() {
+    QTemporaryDir dir; chatbox::client::HistoryStore store; QString error;
+    QVERIFY(store.open(dir.path(), 1201, &error));
+    QVERIFY(store.saveMessage(confirmedMessage(1, 7, "one", "2026-10-20 10:00:00")));
+    QVERIFY(store.saveMessage(confirmedMessage(2, 7, "two", "2026-10-20 10:01:00")));
+    QVERIFY(store.saveMessage(confirmedMessage(3, 7, "three", "2026-10-20 10:02:00")));
+    const auto last = store.recent(chatbox::client::ChatContext::kRoom, 7, 2);
+    QCOMPARE(last.size(), 2);
+    QCOMPARE(last.at(0).message_id, quint64(2));
+    QCOMPARE(last.at(1).message_id, quint64(3));
+    const auto older = store.before(chatbox::client::ChatContext::kRoom, 7, 2, 5);
+    QCOMPARE(older.size(), 1);
+    QCOMPARE(older.at(0).message_id, quint64(1));
+    QVERIFY(store.before(chatbox::client::ChatContext::kRoom, 7, 1, 5).isEmpty());
+}
+
+// The same server message must never be stored twice; a repeated write
+// updates the existing row in place.
+void TestClientCore::historyStoreDedupesByMessageId() {
+    QTemporaryDir dir; chatbox::client::HistoryStore store; QString error;
+    QVERIFY(store.open(dir.path(), 1202, &error));
+    QVERIFY(store.saveMessage(confirmedMessage(5, 7, "hello")));
+    QVERIFY(store.saveMessage(confirmedMessage(5, 7, "edited")));
+    QCOMPARE(store.messageCount(), qint64(1));
+    QCOMPARE(store.recent(chatbox::client::ChatContext::kRoom, 7, 10).at(0).content,
+             QString("edited"));
+}
+
+// Unconfirmed (still pending) messages stay in memory only: they must not
+// reach the local database.
+void TestClientCore::historyStoreSkipsUnconfirmedMessages() {
+    QTemporaryDir dir; chatbox::client::HistoryStore store; QString error;
+    QVERIFY(store.open(dir.path(), 1203, &error));
+    auto pending = confirmedMessage(0, 7, "not confirmed");
+    pending.status = chatbox::client::MessageStatus::kSending;
+    QVERIFY(!store.saveMessage(pending));
+    QCOMPARE(store.messageCount(), qint64(0));
+    QVERIFY(!store.hasMessages());
+}
+
+// A recall wipes the body from the local copy as well.
+void TestClientCore::historyStoreMarksRecalled() {
+    QTemporaryDir dir; chatbox::client::HistoryStore store; QString error;
+    QVERIFY(store.open(dir.path(), 1204, &error));
+    QVERIFY(store.saveMessage(confirmedMessage(7, 7, "to be recalled")));
+    QVERIFY(store.markRecalled(7));
+    const auto rows = store.recent(chatbox::client::ChatContext::kRoom, 7, 10);
+    QCOMPARE(rows.size(), 1);
+    QVERIFY(rows.at(0).recalled);
+    QVERIFY(rows.at(0).content.isEmpty());
+    QVERIFY(!store.markRecalled(999));
+}
+
+// Two accounts share one database file but must never see each other's rows.
+void TestClientCore::historyStoreIsolatesUsers() {
+    QTemporaryDir dir; chatbox::client::HistoryStore store; QString error;
+    QVERIFY(store.open(dir.path(), 1205, &error));
+    QVERIFY(store.saveMessage(confirmedMessage(1, 7, "mine")));
+    QVERIFY(store.open(dir.path(), 1206, &error));
+    QCOMPARE(store.messageCount(), qint64(0));
+    QVERIFY(store.recent(chatbox::client::ChatContext::kRoom, 7, 10).isEmpty());
+    QVERIFY(store.open(dir.path(), 1205, &error));
+    QCOMPARE(store.messageCount(), qint64(1));
+}
+
+// A room and a private chat are separate conversations even when they use
+// the same numeric target id.
+void TestClientCore::historyStoreIsolatesConversations() {
+    QTemporaryDir dir; chatbox::client::HistoryStore store; QString error;
+    QVERIFY(store.open(dir.path(), 1207, &error));
+    QVERIFY(store.saveMessage(confirmedMessage(1, 7, "room message")));
+    auto priv = confirmedMessage(2, 8, "private message");
+    priv.context = chatbox::client::ChatContext::kPrivate;
+    QVERIFY(store.saveMessage(priv));
+    QCOMPARE(store.recent(chatbox::client::ChatContext::kRoom, 7, 10).size(), 1);
+    QCOMPARE(store.recent(chatbox::client::ChatContext::kPrivate, 8, 10).size(), 1);
+    QVERIFY(store.recent(chatbox::client::ChatContext::kPrivate, 7, 10).isEmpty());
+}
+
+// Local search is scoped to the current conversation and must treat the
+// keyword literally: % and _ are not wildcards.
+void TestClientCore::historyStoreSearchFindsInConversation() {
+    QTemporaryDir dir; chatbox::client::HistoryStore store; QString error;
+    QVERIFY(store.open(dir.path(), 1208, &error));
+    QVERIFY(store.saveMessage(confirmedMessage(1, 7, "hello 100% done")));
+    QVERIFY(store.saveMessage(confirmedMessage(2, 7, "hello world")));
+    auto priv = confirmedMessage(3, 8, "hello private");
+    priv.context = chatbox::client::ChatContext::kPrivate;
+    QVERIFY(store.saveMessage(priv));
+
+    QCOMPARE(store.search(chatbox::client::ChatContext::kRoom, 7, "hello", 50).size(), 2);
+    const auto priv_hits = store.search(chatbox::client::ChatContext::kPrivate, 8, "hello", 50);
+    QCOMPARE(priv_hits.size(), 1);
+    QCOMPARE(priv_hits.at(0).message_id, quint64(3));
+    QCOMPARE(store.search(chatbox::client::ChatContext::kRoom, 7, "100%", 50).size(), 1);
+    QCOMPARE(store.search(chatbox::client::ChatContext::kRoom, 7, "%", 50).size(), 1);  // 只中 100%
+    QCOMPARE(store.search(chatbox::client::ChatContext::kRoom, 7, "_", 50).size(), 0);  // 下划线被转义
+    QCOMPARE(store.search(chatbox::client::ChatContext::kRoom, 7, "hello", 1).size(), 1);
 }
 
 QTEST_MAIN(TestClientCore)
