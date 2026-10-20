@@ -747,15 +747,16 @@ void MainWindow::openSettings() {
                 dialog.setHistoryInfo(history_store_.directory(),
                                       history_store_.sizeBytes(),
                                       history_store_.isOpen());
+                if (offline_mode_) {
+                    // 换了库：离线视图要按新库重建。
+                    // 先重建再写状态：重建过程里的提示不能盖掉本次操作结果。
+                    refreshOfflineAfterClear();
+                }
                 setStatus(migrate ? "本地聊天记录已迁移到新目录"
                                   : "本地聊天记录已切换到新目录");
                 // 日志只记动作与目录，不记任何消息正文。
                 qInfo("history directory changed migrate=%d dir=%s",
                       migrate ? 1 : 0, qPrintable(history_store_.directory()));
-                if (offline_mode_) {
-                    // 换了库：离线视图要按新库重建。
-                    refreshOfflineAfterClear();
-                }
             });
     // 清空本地副本：只删本机数据，服务器历史不受影响。
     connect(&dialog, &SettingsDialog::historyClearAllRequested, this,
@@ -768,11 +769,12 @@ void MainWindow::openSettings() {
                 dialog.setHistoryInfo(history_store_.directory(),
                                       history_store_.sizeBytes(),
                                       history_store_.isOpen());
-                setStatus("本地聊天记录已清空");
-                qInfo("local history cleared");
                 if (offline_mode_) {
+                    // 先重建视图再写状态：状态提示由本次操作给出。
                     refreshOfflineAfterClear();
                 }
+                setStatus("本地聊天记录已清空");
+                qInfo("local history cleared");
             });
     // 清理 N 天前的本地副本：同样只影响本机数据。
     connect(&dialog, &SettingsDialog::historyClearOlderRequested, this,
@@ -785,11 +787,12 @@ void MainWindow::openSettings() {
                 dialog.setHistoryInfo(history_store_.directory(),
                                       history_store_.sizeBytes(),
                                       history_store_.isOpen());
-                setStatus(QString("已清理 %1 天前的本地聊天记录").arg(days));
-                qInfo("local history pruned days=%d", days);
                 if (offline_mode_) {
+                    // 先重建视图再写状态：状态提示由本次操作给出。
                     refreshOfflineAfterClear();
                 }
+                setStatus(QString("已清理 %1 天前的本地聊天记录").arg(days));
+                qInfo("local history pruned days=%d", days);
             });
     dialog.exec();
 }
@@ -3309,7 +3312,9 @@ void MainWindow::populateOfflineSidebar() {
 
 // 清理或切换本地记录后重建离线视图：
 // 重置当前会话，按本地库重载侧栏，再选中第一个可显示的会话。
-// 会话被清空时保持重置状态，并提示本地记录已清空。
+// 会话被清空时保持重置状态。
+// 本函数不写操作结果类的状态提示：状态由调用方在刷新之后给出，
+// 否则「已迁移到新目录」会被这里的「已清空」盖掉。
 void MainWindow::refreshOfflineAfterClear() {
     resetContext();
     populateOfflineSidebar();
@@ -3334,8 +3339,8 @@ void MainWindow::refreshOfflineAfterClear() {
         }
     }
     if (!selected) {
+        // 没有可显示的会话：保持重置状态，提示交给调用方。
         resetContext();
-        setStatus("本地聊天记录已清空");
         return;
     }
     setStatus("离线模式 · 仅显示本地记录");
