@@ -1,5 +1,6 @@
 #include <QtTest>
 #include <algorithm>
+#include <cmath>
 #include <QApplication>
 #include <QCheckBox>
 #include <QDir>
@@ -144,6 +145,8 @@ private slots:
     void profileDialogSelfMode();
     void profileDialogViewModeActions();
     void messageBubbleColoursComeFromTheme();
+    void contrastTokensMeetAa();
+    void themeTokensMatchContrastSpec();
     void themeTokensMatchStyleSheet();
     void messageActionBarHasSingleSoftShadow();
     void brandAppIconExposesSizes();
@@ -1532,6 +1535,56 @@ void TestClientCore::messageBubbleColoursComeFromTheme() {
 // guards the palette in resources/style.qss (embedded as :/style.qss at build
 // time) against drifting from core/ui_theme.h; bubble, banner and semantic
 // colours live in C++/HTML only and are not asserted here.
+double contrastRatio(const QColor& foreground, const QColor& background) {
+    const auto luminance = [](const QColor& color) {
+        const auto channel = [](double value) {
+            return value <= 0.03928 ? value / 12.92
+                                    : std::pow((value + 0.055) / 1.055, 2.4);
+        };
+        return 0.2126 * channel(color.redF()) + 0.7152 * channel(color.greenF()) +
+               0.0722 * channel(color.blueF());
+    };
+    const double a = luminance(foreground);
+    const double b = luminance(background);
+    return (std::max(a, b) + 0.05) / (std::min(a, b) + 0.05);
+}
+
+void TestClientCore::contrastTokensMeetAa() {
+    const QColor white(chatbox::client::theme::kCanvas);
+    const QColor soft(chatbox::client::theme::kSurfaceSoft);
+    const QColor own(chatbox::client::theme::kBubbleOwn);
+    const QColor muted(chatbox::client::theme::kMuted);
+    const QColor muted_soft(chatbox::client::theme::kMutedSoft);
+
+    const QVector<QPair<QString, double>> checks = {
+        {QStringLiteral("kMuted on canvas"), contrastRatio(muted, white)},
+        {QStringLiteral("kMuted on soft"), contrastRatio(muted, soft)},
+        {QStringLiteral("kMutedSoft on canvas"), contrastRatio(muted_soft, white)},
+        {QStringLiteral("kMutedSoft on bubble"), contrastRatio(muted_soft, own)},
+    };
+    for (const auto& check : checks) {
+        QVERIFY2(check.second >= 4.5,
+                 qPrintable(QStringLiteral("%1 = %2").arg(check.first).arg(check.second)));
+    }
+}
+
+void TestClientCore::themeTokensMatchContrastSpec() {
+    const QString source = readClientSource(QStringLiteral("core/ui_theme.h"));
+    QVERIFY2(!source.isEmpty(), "core/ui_theme.h must be readable");
+    QVERIFY(source.contains(QStringLiteral("#616877")));
+    QVERIFY(source.contains(QStringLiteral("#676D76")));
+    QVERIFY(source.contains(QStringLiteral("kSemanticUpText")));
+    QVERIFY(source.contains(QStringLiteral("#027A48")));
+    QVERIFY(source.contains(QStringLiteral("kOnlineDot")));
+    QVERIFY(source.contains(QStringLiteral("#038A52")));
+    QVERIFY(source.contains(QStringLiteral("kQuoteBg")));
+    QVERIFY(source.contains(QStringLiteral("#F4F6F8")));
+    QVERIFY(source.contains(QStringLiteral("kDangerText")));
+    QVERIFY(source.contains(QStringLiteral("#B42318")));
+    QVERIFY(source.contains(QStringLiteral("kDisabledText")));
+    QVERIFY(source.contains(QStringLiteral("#6B7280")));
+}
+
 void TestClientCore::themeTokensMatchStyleSheet() {
     // resolve relative to the test binary first so the guard also works when
     // the binary is launched outside tests/ (Qt Creator, CI, ...)
@@ -1552,7 +1605,6 @@ void TestClientCore::themeTokensMatchStyleSheet() {
         chatbox::client::theme::kAccent,
         chatbox::client::theme::kAccentHover,
         chatbox::client::theme::kAccentActive,
-        chatbox::client::theme::kAccentDisabled,
         chatbox::client::theme::kCanvas,
         chatbox::client::theme::kSurfaceSoft,
         chatbox::client::theme::kSurfaceStrong,
@@ -1561,6 +1613,7 @@ void TestClientCore::themeTokensMatchStyleSheet() {
         chatbox::client::theme::kInk,
         chatbox::client::theme::kMuted,
         chatbox::client::theme::kMutedSoft,
+        chatbox::client::theme::kDisabledText,
     };
     QStringList allowed;
     for (const QString& token : required) {

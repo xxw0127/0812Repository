@@ -23,6 +23,7 @@ chatbox/client/tests/.qmake.stash
 moc_*.cpp
 qrc_*.cpp
 ui_*.h
+!chatbox/client/core/ui_theme.h
 
 # ================= 本地工具 / 环境 =================
 .opencode/

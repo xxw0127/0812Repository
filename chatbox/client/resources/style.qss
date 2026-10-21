@@ -25,12 +25,12 @@ QLabel#AppTitle {
 }
 
 QLabel#AppSubtitle {
-    color: #7C828A;
+    color: #616877;
     font-size: 12px;
 }
 
 QLabel#SectionLabel {
-    color: #7C828A;
+    color: #616877;
     font-size: 11px;
     font-weight: 600;
     padding: 8px 6px 4px 6px;
@@ -43,7 +43,7 @@ QLabel#ContextTitle {
 }
 
 QLabel#MutedLabel {
-    color: #7C828A;
+    color: #616877;
     font-size: 12px;
 }
 
@@ -89,7 +89,7 @@ QPushButton:pressed {
 }
 
 QPushButton:disabled {
-    color: #A8ACB3;
+    color: #676D76;
     background: #F7F7F7;
 }
 
@@ -108,8 +108,8 @@ QPushButton#PrimaryButton:pressed {
 }
 
 QPushButton#PrimaryButton:disabled {
-    background: #A8B8CC;
-    color: #FFFFFF;
+    background: #E6E8EC;
+    color: #6B7280;
 }
 
 QPushButton#SendButton {
@@ -191,11 +191,11 @@ QStackedWidget {
 QStatusBar {
     background: #FFFFFF;
     border-top: 1px solid #DEE1E6;
-    color: #7C828A;
+    color: #616877;
 }
 
 QStatusBar QLabel {
-    color: #7C828A;
+    color: #616877;
     padding-left: 6px;
 }
 
@@ -228,13 +228,13 @@ QScrollBar:vertical {
 }
 
 QScrollBar::handle:vertical {
-    background: #A8ACB3;
+    background: #676D76;
     border-radius: 4px;
     min-height: 24px;
 }
 
 QScrollBar::handle:vertical:hover {
-    background: #7C828A;
+    background: #616877;
 }
 
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
@@ -252,7 +252,7 @@ QCheckBox::indicator {
     width: 18px;
     height: 18px;
     border-radius: 4px;
-    border: 1px solid #A8ACB3;
+    border: 1px solid #676D76;
     background: #FFFFFF;
 }
 

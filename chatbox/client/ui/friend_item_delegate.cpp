@@ -98,7 +98,7 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
     }
 
     if (online) {
-        painter->setBrush(QColor(theme::kSemanticUp));
+        painter->setBrush(QColor(theme::kOnlineDot));
         painter->setPen(QPen(QColor(theme::kCanvas), 2));
         painter->drawEllipse(QPoint(avatar_rect.right() - 2, avatar_rect.bottom() - 2),
                              5, 5);
@@ -114,7 +114,7 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
     name_font.setBold(true);
     painter->setFont(name_font);
     painter->setPen(primary);
-    const QRect name_rect(text_left, row.top() + 7, text_right - text_left - 42, 18);
+    const QRect name_rect(text_left, row.top() + 7, text_right - text_left - 48, 18);
     painter->drawText(name_rect, Qt::AlignLeft | Qt::AlignVCenter,
                       QFontMetrics(name_font).elidedText(name, Qt::ElideRight,
                                                          name_rect.width()));
@@ -135,10 +135,10 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
         const QString local =
             utc.isValid() ? chatbox::client::formatLocalTime(utc) : time;
         QFont time_font = painter->font();
-        time_font.setPixelSize(10);
+        time_font.setPixelSize(11);
         painter->setFont(time_font);
         painter->setPen(secondary);
-        painter->drawText(QRect(row.right() - 48, row.top() + 7, 40, 16),
+        painter->drawText(QRect(row.right() - 54, row.top() + 7, 46, 16),
                           Qt::AlignRight | Qt::AlignVCenter, local);
     }
 

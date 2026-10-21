@@ -180,6 +180,8 @@ void ProfileDialog::buildUi() {
     remark_button_->setObjectName("ProfileRemarkButton");
     remove_friend_button_ = new QPushButton("删除好友", action_row_);
     remove_friend_button_->setObjectName("ProfileRemoveFriendButton");
+    remove_friend_button_->setStyleSheet(
+        "color: " + QString::fromLatin1(theme::kDangerText) + ";");
     add_friend_button_ = new QPushButton("添加好友", action_row_);
     add_friend_button_->setObjectName("ProfileAddFriendButton");
     add_friend_button_->setStyleSheet(message_button_->styleSheet());
@@ -475,7 +477,7 @@ void ProfileDialog::updateDisplay() {
     const bool online = self_ || profile_.online;
     online_label_->setText(online ? "● 在线" : "● 离线");
     online_label_->setStyleSheet(
-        online ? QString("font-size: 12px; color: %1;").arg(theme::kSemanticUp)
+        online ? QString("font-size: 12px; color: %1;").arg(theme::kSemanticUpText)
                : QString("font-size: 12px; color: %1;").arg(theme::kMutedSoft));
 }
 
