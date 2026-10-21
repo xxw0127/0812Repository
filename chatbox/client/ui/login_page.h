@@ -19,6 +19,7 @@ public:
     void setStatus(const QString& text, bool error = false);
     void setBusy(bool busy);
     void clearPassword();
+    void resetToLogin();
     void setServerSettings(const QString& host, quint16 port, bool tls);
     // 本地记录入口：只有本机确实存过该账号的聊天记录时才显示。
     void setLocalHistoryAvailable(bool available, const QString& nickname = QString());
@@ -35,13 +36,19 @@ signals:
 private slots:
     void submitLogin();
     void submitRegister();
+    void submitPrimary();
+    void toggleRegisterMode();
 
 private:
+    void setRegisterMode(bool enabled);
+
     QLineEdit* host_edit_ = nullptr;
     QSpinBox* port_spin_ = nullptr;
     QLineEdit* username_edit_ = nullptr;
     QLineEdit* password_edit_ = nullptr;
+    QLabel* nickname_label_ = nullptr;
     QLineEdit* nickname_edit_ = nullptr;
+    bool register_mode_ = false;
     QCheckBox* tls_check_ = nullptr;
     QWidget* advanced_panel_ = nullptr;
     QToolButton* advanced_toggle_ = nullptr;

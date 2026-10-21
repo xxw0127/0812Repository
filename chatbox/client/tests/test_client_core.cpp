@@ -179,6 +179,7 @@ private slots:
     void recallPushUpdatesBackgroundHistory();
     void loginPageOffersLocalHistory();
     void loginPageHidesServerFieldsBehindMoreDots();
+    void loginPageShowsNicknameOnlyInRegisterMode();
     void settingsDialogDefaultsToPublicServer();
     void offlineModeIsReadOnlyAndLocal();
     void settingsDialogShowsHistoryInfo();
@@ -2178,6 +2179,31 @@ void TestClientCore::loginPageHidesServerFieldsBehindMoreDots() {
     QVERIFY(!panel->isHidden());
     toggle->click();
     QVERIFY(panel->isHidden());
+}
+
+// 昵称只在注册时出现：登录态点“注册”进入注册态，
+// 主按钮变“注册”，次按钮变“返回登录”；返回后昵称隐藏。
+void TestClientCore::loginPageShowsNicknameOnlyInRegisterMode() {
+    LoginPage page;
+    auto* nickname = page.findChild<QLineEdit*>(QStringLiteral("NicknameEdit"));
+    auto* login = page.findChild<QPushButton*>(QStringLiteral("PrimaryButton"));
+    auto* register_button = page.findChild<QPushButton*>(QStringLiteral("RegisterButton"));
+    QVERIFY(nickname != nullptr);
+    QVERIFY(login != nullptr);
+    QVERIFY(register_button != nullptr);
+    QVERIFY(nickname->isHidden());
+    QCOMPARE(login->text(), QStringLiteral("登录"));
+    QCOMPARE(register_button->text(), QStringLiteral("注册"));
+
+    register_button->click();
+    QVERIFY(!nickname->isHidden());
+    QCOMPARE(login->text(), QStringLiteral("注册"));
+    QCOMPARE(register_button->text(), QStringLiteral("返回登录"));
+
+    register_button->click();
+    QVERIFY(nickname->isHidden());
+    QCOMPARE(login->text(), QStringLiteral("登录"));
+    QCOMPARE(register_button->text(), QStringLiteral("注册"));
 }
 
 void TestClientCore::settingsDialogDefaultsToPublicServer() {

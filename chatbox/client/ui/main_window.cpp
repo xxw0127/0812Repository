@@ -671,6 +671,7 @@ void MainWindow::finishLogout() {
         network_->requestStop();
     }
     clearSession();
+    login_page_->resetToLogin();
     login_page_->setStatus("已退出登录");
     setStatus("已退出登录");
 }
@@ -4808,6 +4809,7 @@ void MainWindow::clearSession() {
     stack_->setCurrentWidget(login_page_);
     login_page_->setBusy(false);
     login_page_->clearPassword();
+    login_page_->resetToLogin();
     login_page_->setStatus("会话已失效，请重新登录", true);
     // 退出登录后仍然保留本地记录入口。
     updateLocalHistoryEntry();

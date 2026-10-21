@@ -70,7 +70,9 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     password_edit_ = new QLineEdit(card);
     password_edit_->setEchoMode(QLineEdit::Password);
     password_edit_->setPlaceholderText("至少 8 位");
+    nickname_label_ = new QLabel("昵称", card);
     nickname_edit_ = new QLineEdit(card);
+    nickname_edit_->setObjectName("NicknameEdit");
     nickname_edit_->setPlaceholderText("注册时填写");
 
     QSettings settings;
@@ -80,7 +82,9 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
 
     form->addRow("用户名", username_edit_);
     form->addRow("密码", password_edit_);
-    form->addRow("昵称", nickname_edit_);
+    form->addRow(nickname_label_, nickname_edit_);
+    nickname_label_->hide();
+    nickname_edit_->hide();
     card_layout->addLayout(form);
 
     advanced_panel_ = new QWidget(card);
@@ -112,6 +116,7 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     login_button_->setObjectName("PrimaryButton");
     login_button_->setMinimumHeight(38);
     register_button_ = new QPushButton("注册", card);
+    register_button_->setObjectName("RegisterButton");
     register_button_->setMinimumHeight(38);
     cancel_button_ = new QPushButton("取消", card);
     cancel_button_->hide();
@@ -138,12 +143,13 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     root->addWidget(card, 0, Qt::AlignCenter);
     root->addStretch();
 
-    connect(login_button_, &QPushButton::clicked, this, &LoginPage::submitLogin);
-    connect(register_button_, &QPushButton::clicked, this, &LoginPage::submitRegister);
+    connect(login_button_, &QPushButton::clicked, this, &LoginPage::submitPrimary);
+    connect(register_button_, &QPushButton::clicked, this, &LoginPage::toggleRegisterMode);
     connect(cancel_button_, &QPushButton::clicked, this, &LoginPage::cancelRequested);
     connect(local_history_button_, &QPushButton::clicked, this,
             &LoginPage::viewLocalHistoryRequested);
-    connect(password_edit_, &QLineEdit::returnPressed, this, &LoginPage::submitLogin);
+    connect(password_edit_, &QLineEdit::returnPressed, this, &LoginPage::submitPrimary);
+    connect(nickname_edit_, &QLineEdit::returnPressed, this, &LoginPage::submitPrimary);
     connect(advanced_toggle_, &QToolButton::toggled, this, [this](bool expanded) {
         advanced_panel_->setVisible(expanded);
         advanced_toggle_->setToolTip(expanded ? "收起更多选项" : "更多选项");
@@ -194,6 +200,33 @@ void LoginPage::setLocalHistoryAvailable(bool available, const QString& nickname
         local_history_button_->show();
     } else {
         local_history_button_->hide();
+    }
+}
+
+void LoginPage::setRegisterMode(bool enabled) {
+    register_mode_ = enabled;
+    nickname_label_->setVisible(enabled);
+    nickname_edit_->setVisible(enabled);
+    login_button_->setText(enabled ? "注册" : "登录");
+    register_button_->setText(enabled ? "返回登录" : "注册");
+    if (enabled) {
+        nickname_edit_->setFocus();
+    }
+}
+
+void LoginPage::resetToLogin() {
+    setRegisterMode(false);
+}
+
+void LoginPage::toggleRegisterMode() {
+    setRegisterMode(!register_mode_);
+}
+
+void LoginPage::submitPrimary() {
+    if (register_mode_) {
+        submitRegister();
+    } else {
+        submitLogin();
     }
 }
 
