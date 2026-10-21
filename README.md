@@ -8,6 +8,8 @@ C++ 聊天室：Windows 端 Qt 5.15 桌面客户端 + Linux C++17 高并发服�
 - 服务端：IO 线程池 + 业务工作线程池、MySQL 连接池（每线程独立连接 / 预处理语句）、心跳与断线重连、限流与连接上限。
 - 协议：自定义二进制帧（14 字节大端帧头 + TLV 消息体），登录/注册、房间与大厅广播、私聊、历史分页、引用回复、撤回、消息搜索、好友与备注、个人资料与头像。
 
+> **开发方式**：本项目为 vibe coding 实践，代码主要由 AI 助手 **DeepSeek** 编写，开发过程使用 [Superpowers](https://github.com/obra/superpowers) 技能包；详见[「开发方式」](#开发方式)。
+
 ## 目录结构
 
 ```text
@@ -91,6 +93,12 @@ Qt 客户端 --TLS 9443--> nginx stream（证书 /etc/chatbox/certs）--PROXY-->
 - 网络传输一律大端序列化，禁止直接发送内存结构体。
 - Token 只存哈希（`SHA-256`），密码使用 Argon2id；日志不打印口令与 Token。
 - 本仓库为个人学习/演示项目，以 [MIT 许可证](LICENSE) 开源。
+
+## 开发方式
+
+- 本项目采用 **vibe coding** 方式开发：需求、技术决策与验收由仓库所有者完成，代码主要由 AI 助手 **DeepSeek**（DeepSeek V4.1 Flash）编写。
+- 开发过程使用 [Superpowers](https://github.com/obra/superpowers) 技能包，覆盖头脑风暴、方案设计、计划执行、调试与代码评审等环节。
+- 仓库的日常提交、推送与文档维护同样由 **DeepSeek V4.1 Flash** 在所有者授权下完成。
 
 ## 仓库管理
 
