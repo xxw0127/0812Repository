@@ -44,7 +44,7 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     advanced_toggle_->setCheckable(true);
     advanced_toggle_->setAutoRaise(true);
     advanced_toggle_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    advanced_toggle_->setFixedSize(48, 44);
+    advanced_toggle_->setFixedSize(48, 48);
     advanced_toggle_->setCursor(Qt::PointingHandCursor);
     top_row->addWidget(advanced_toggle_, 0, Qt::AlignTop | Qt::AlignRight);
     card_layout->addLayout(top_row);

@@ -2160,6 +2160,7 @@ void TestClientCore::loginPageHidesServerFieldsBehindMoreDots() {
     QVERIFY(toggle->text().isEmpty());
     QVERIFY(!toggle->icon().isNull());
     QVERIFY(toggle->iconSize().width() >= 24);
+    QCOMPARE(toggle->width(), toggle->height());
     QVERIFY(panel->isHidden());
 
     auto* host = page.findChild<QLineEdit*>(QStringLiteral("ServerHostEdit"));
