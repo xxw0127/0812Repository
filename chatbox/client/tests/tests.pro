@@ -13,6 +13,7 @@ SOURCES += \
     ../core/client_policy.cpp \
     ../core/credential_store.cpp \
     ../core/focus_ring.cpp \
+    ../core/ui_theme.cpp \
     ../core/client_log.cpp \
     ../core/message_time.cpp \
     ../core/message_store.cpp \

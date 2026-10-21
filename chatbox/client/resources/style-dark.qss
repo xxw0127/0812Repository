@@ -1,0 +1,459 @@
+* {
+    font-family: "Segoe UI", "Microsoft YaHei UI";
+    font-size: 13px;
+    color: #F2F4F7;
+}
+
+QMainWindow, QDialog {
+    background: #1A2027;
+}
+
+QWidget#LoginPage {
+    background: #1A2027;
+}
+
+QFrame#LoginCard {
+    background: #0F1419;
+    border: 1px solid #323B44;
+    border-radius: 16px;
+}
+
+QLabel#AppTitle {
+    font-size: 26px;
+    font-weight: 600;
+    color: #F2F4F7;
+}
+
+QLabel#AppSubtitle {
+    color: #8A929C;
+    font-size: 12px;
+}
+
+QLabel#SectionLabel {
+    color: #8A929C;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 8px 6px 4px 6px;
+}
+
+QLabel#ContextTitle {
+    font-size: 16px;
+    font-weight: 600;
+    padding: 2px 4px;
+}
+
+QLabel#MutedLabel {
+    color: #8A929C;
+    font-size: 12px;
+}
+
+QLineEdit, QSpinBox {
+    background: #232B33;
+    border: 1px solid #323B44;
+    border-radius: 8px;
+    padding: 8px 10px;
+    selection-background-color: #4D8DFF;
+    selection-color: #FFFFFF;
+}
+
+QLineEdit:focus, QSpinBox:focus {
+    background: #0F1419;
+    border: 1px solid #4D8DFF;
+}
+
+QLineEdit#MessageInput {
+    background: #232B33;
+    border: 1px solid transparent;
+    border-radius: 18px;
+    padding: 9px 14px;
+}
+
+QLineEdit#MessageInput:focus {
+    background: #0F1419;
+    border: 1px solid #4D8DFF;
+}
+
+QPushButton {
+    background: #232B33;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+QPushButton[keyboardFocus="true"]:focus {
+    border: 2px solid #4D8DFF;
+    padding: 6px 10px;
+}
+
+QPushButton:hover {
+    background: #2B343D;
+}
+
+QPushButton:pressed {
+    background: #323B44;
+}
+
+QPushButton:disabled {
+    color: #79818B;
+    background: #1A2027;
+}
+
+QPushButton#PrimaryButton {
+    background: #4D8DFF;
+    color: #FFFFFF;
+    font-weight: 600;
+}
+
+QPushButton#PrimaryButton:hover {
+    background: #3B7BEB;
+}
+
+QPushButton#PrimaryButton[keyboardFocus="true"]:focus {
+    border: 2px solid #4D8DFF;
+    padding: 6px 10px;
+}
+
+QPushButton#PrimaryButton:pressed {
+    background: #2F6FDC;
+}
+
+QPushButton#PrimaryButton:disabled {
+    background: #2B343D;
+    color: #8A929C;
+}
+
+QPushButton#SendButton {
+    background: #4D8DFF;
+    color: #FFFFFF;
+    border-radius: 18px;
+    padding: 8px 14px;
+}
+
+QPushButton#SendButton:hover {
+    background: #3B7BEB;
+}
+
+QPushButton#SendButton[keyboardFocus="true"]:focus {
+    border: 2px solid #4D8DFF;
+    padding: 6px 12px;
+}
+
+QPushButton#SendButton:pressed {
+    background: #2F6FDC;
+}
+
+QPushButton#IconButton {
+    padding: 7px;
+}
+
+QPushButton#SidebarAction, QPushButton#FooterAction {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 0 8px;
+    color: #F2F4F7;
+    font-size: 13px;
+    text-align: left;
+}
+
+QPushButton#SidebarAction:hover, QPushButton#FooterAction:hover {
+    background: #1A2027;
+}
+
+QPushButton#DangerFooterAction {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 0 8px;
+    color: #FF8A80;
+    font-size: 13px;
+}
+
+QPushButton#DangerFooterAction:hover {
+    background: #1A2027;
+}
+
+QLabel#FriendRequestBadge {
+    background: #4D8DFF;
+    color: #FFFFFF;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QWidget#Sidebar {
+    background: #0F1419;
+    border-right: 1px solid #323B44;
+}
+
+QWidget#RightSidebar {
+    background: #0F1419;
+    border-left: 1px solid #323B44;
+}
+
+QWidget#ChatPanel {
+    background: #1A2027;
+}
+
+QWidget#ChatHeader {
+    background: #0F1419;
+    border-bottom: 1px solid #323B44;
+}
+
+QWidget#Composer {
+    background: #0F1419;
+    border-top: 1px solid #323B44;
+}
+
+QTextBrowser {
+    background: #1A2027;
+    border: none;
+    padding: 8px;
+}
+
+QFrame#MessageActionBar {
+    background: #0F1419;
+    border: 1px solid #323B44;
+    border-radius: 12px;
+}
+
+QFrame#MessageActionBar QPushButton {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 3px 9px;
+    color: #4D8DFF;
+    font-size: 11px;
+}
+
+QFrame#MessageActionBar QPushButton:hover {
+    background: #1A2027;
+}
+
+QFrame#MessageActionBar QPushButton[keyboardFocus="true"]:focus {
+    border: 1px solid #4D8DFF;
+}
+
+QFrame#MessageActionBar QPushButton:pressed {
+    background: #232B33;
+}
+
+QStackedWidget {
+    background: #1A2027;
+}
+
+QStatusBar {
+    background: #0F1419;
+    border-top: 1px solid #323B44;
+    color: #8A929C;
+}
+
+QStatusBar QLabel {
+    color: #8A929C;
+    padding-left: 6px;
+}
+
+QListWidget {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+QListWidget[keyboardFocus="true"]:focus {
+    border: 2px solid #4D8DFF;
+    border-radius: 10px;
+}
+
+QListWidget::item {
+    padding: 9px 10px;
+    border-radius: 8px;
+    margin: 1px 0;
+}
+
+QListWidget::item:hover {
+    background: #1A2027;
+}
+
+QListWidget::item:selected {
+    background: #232B33;
+    color: #F2F4F7;
+}
+
+QScrollBar:vertical {
+    background: transparent;
+    width: 8px;
+    margin: 2px;
+}
+
+QScrollBar::handle:vertical {
+    background: #79818B;
+    border-radius: 4px;
+    min-height: 24px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #8A929C;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+    border: none;
+    height: 0;
+}
+
+QCheckBox {
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid #79818B;
+    background: #0F1419;
+}
+
+QCheckBox::indicator:checked {
+    background: #4D8DFF;
+    border: 1px solid #4D8DFF;
+    image: url(:/icons/check.png);
+}
+
+QCheckBox[keyboardFocus="true"]::indicator:focus {
+    border: 2px solid #4D8DFF;
+}
+
+QDialogButtonBox QPushButton {
+    min-width: 72px;
+}
+
+QMenu {
+    background: #0F1419;
+    border: 1px solid #323B44;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+QMenu::item {
+    padding: 8px 24px 8px 12px;
+    border-radius: 4px;
+}
+
+QMenu::item:selected {
+    background: #232B33;
+    color: #F2F4F7;
+}
+
+QToolTip {
+    background: #F2F4F7;
+    color: #FFFFFF;
+    border: none;
+    padding: 6px 8px;
+}
+QToolButton#MoreButton, QToolButton#AdvancedOptionsButton {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 0px;
+}
+
+QToolButton[keyboardFocus="true"]:focus {
+    background: #2B343D;
+    border: 2px solid #4D8DFF;
+    border-radius: 8px;
+}
+
+QToolButton#MoreButton[keyboardFocus="true"]:focus,
+QToolButton#AdvancedOptionsButton[keyboardFocus="true"]:focus {
+    background: #2B343D;
+    border: 2px solid #4D8DFF;
+    border-radius: 8px;
+}
+
+QToolButton#MoreButton:hover, QToolButton#AdvancedOptionsButton:hover {
+    background: #2B343D;
+}
+
+QToolButton#MoreButton:pressed, QToolButton#AdvancedOptionsButton:pressed {
+    background: #2B343D;
+}
+
+QToolButton#MoreButton::menu-indicator {
+    image: none;
+    width: 0px;
+}
+
+/* Dark-specific tooltip: light-on-dark surfaces would be unreadable. */
+QToolTip {
+    background: #232B33;
+    color: #FFFFFF;
+}
+
+
+QLabel#EmptyStateTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: #F2F4F7;
+}
+
+QLabel#EmptyStateDescription {
+    font-size: 13px;
+    color: #8A929C;
+}
+
+QPushButton#EmptyStateAction {
+    background: transparent;
+    border: none;
+    color: #4D8DFF;
+    font-size: 13px;
+    padding: 6px 8px;
+}
+
+QPushButton#EmptyStateAction:hover {
+    color: #3B7BEB;
+}
+
+QLabel#SettingsIdLabel {
+    font-weight: 600;
+    color: #F2F4F7;
+}
+
+QLabel#SettingsCaption {
+    color: #8A929C;
+}
+
+QLabel#HistoryPathLabel {
+    color: #AEB6C0;
+}
+
+QLabel#SettingsVersion {
+    color: #8A929C;
+}
+
+QPushButton#MyProfileButton {
+    background: #0F1419;
+    border: none;
+    border-top: 1px solid #323B44;
+    border-radius: 0;
+    padding: 4px 2px;
+}
+
+QPushButton#MyProfileButton:hover {
+    background: #1A2027;
+}
+
+QPushButton#MyProfileButton:pressed {
+    background: #232B33;
+}
+
+QLabel#MyProfileName {
+    font-size: 13px;
+    font-weight: 600;
+    color: #F2F4F7;
+}
+
+QLabel#MyProfileUid {
+    font-size: 11px;
+    color: #8A929C;
+}

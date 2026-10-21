@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>style.qss</file>
+        <file>style-dark.qss</file>
         <file>app.ico</file>
         <file>icons/search.png</file>
         <file>icons/settings.png</file>

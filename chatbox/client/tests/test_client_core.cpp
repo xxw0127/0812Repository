@@ -3,6 +3,7 @@
 #include <cmath>
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDir>
 #include <QColor>
 #include <QCoreApplication>
@@ -153,6 +154,7 @@ private slots:
     void profileDialogViewModeActions();
     void messageBubbleColoursComeFromTheme();
     void contrastTokensMeetAa();
+    void darkPaletteMatchesSpec();
     void themeTokensMatchContrastSpec();
     void styleSheetHasVisibleKeyboardFocus();
     void keyboardFocusReasonIsKeyboardOnly();
@@ -1682,11 +1684,12 @@ double contrastRatio(const QColor& foreground, const QColor& background) {
 }
 
 void TestClientCore::contrastTokensMeetAa() {
-    const QColor white(chatbox::client::theme::kCanvas);
-    const QColor soft(chatbox::client::theme::kSurfaceSoft);
-    const QColor own(chatbox::client::theme::kBubbleOwn);
-    const QColor muted(chatbox::client::theme::kMuted);
-    const QColor muted_soft(chatbox::client::theme::kMutedSoft);
+    const auto& palette = chatbox::client::theme::lightPalette();
+    const QColor white(palette.canvas);
+    const QColor soft(palette.surfaceSoft);
+    const QColor own(palette.bubbleOwn);
+    const QColor muted(palette.muted);
+    const QColor muted_soft(palette.mutedSoft);
 
     const QVector<QPair<QString, double>> checks = {
         {QStringLiteral("kMuted on canvas"), contrastRatio(muted, white)},
@@ -1700,8 +1703,24 @@ void TestClientCore::contrastTokensMeetAa() {
     }
 }
 
+void TestClientCore::darkPaletteMatchesSpec() {
+    const auto& dark = chatbox::client::theme::darkPalette();
+    QCOMPARE(QString::fromLatin1(dark.canvas), QStringLiteral("#0F1419"));
+    QCOMPARE(QString::fromLatin1(dark.surfaceSoft), QStringLiteral("#1A2027"));
+    QCOMPARE(QString::fromLatin1(dark.ink), QStringLiteral("#F2F4F7"));
+    QCOMPARE(QString::fromLatin1(dark.accent), QStringLiteral("#4D8DFF"));
+    QCOMPARE(QString::fromLatin1(dark.bubbleOther), QStringLiteral("#1A2027"));
+
+    QFile style(QStringLiteral(":/style-dark.qss"));
+    QVERIFY2(style.open(QIODevice::ReadOnly | QIODevice::Text),
+             "style-dark.qss must be embedded in the resource file");
+    const QString css = QString::fromUtf8(style.readAll());
+    QVERIFY(css.contains(QStringLiteral("#0F1419")));
+    QVERIFY(css.contains(QStringLiteral("#4D8DFF")));
+}
+
 void TestClientCore::themeTokensMatchContrastSpec() {
-    const QString source = readClientSource(QStringLiteral("core/ui_theme.h"));
+    const QString source = readClientSource(QStringLiteral("core/ui_theme.cpp"));
     QVERIFY2(!source.isEmpty(), "core/ui_theme.h must be readable");
     QVERIFY(source.contains(QStringLiteral("#616877")));
     QVERIFY(source.contains(QStringLiteral("#676D76")));
@@ -1812,20 +1831,22 @@ void TestClientCore::themeTokensMatchStyleSheet() {
     // QSS 负责的颜色（App 从 :/style.qss 加载同一文件，构建时嵌入）。
     // 注意：kBody/kBubbleOwn/kBubbleOther/kSemanticUp/kSemanticDown/kBanner*
     // 只出现在 C++/HTML 里，不在 QSS，故不在此列表。
+    const auto& light = chatbox::client::theme::lightPalette();
     const QStringList required = {
-        chatbox::client::theme::kAccent,
-        chatbox::client::theme::kAccentHover,
-        chatbox::client::theme::kAccentActive,
-        chatbox::client::theme::kCanvas,
-        chatbox::client::theme::kSurfaceSoft,
-        chatbox::client::theme::kSurfaceStrong,
-        chatbox::client::theme::kSurfaceStrongHover,
-        chatbox::client::theme::kHairline,
-        chatbox::client::theme::kInk,
-        chatbox::client::theme::kMuted,
-        chatbox::client::theme::kMutedSoft,
-        chatbox::client::theme::kDisabledText,
-        chatbox::client::theme::kDangerText,
+        light.accent,
+        light.accentHover,
+        light.accentActive,
+        light.canvas,
+        light.surfaceSoft,
+        light.surfaceStrong,
+        light.surfaceStrongHover,
+        light.hairline,
+        light.ink,
+        light.body,
+        light.muted,
+        light.mutedSoft,
+        light.disabledText,
+        light.dangerText,
     };
     QStringList allowed;
     for (const QString& token : required) {
@@ -2167,7 +2188,7 @@ void TestClientCore::headerUsesAvatarAndMoreMenu() {
              "message search moved out of the composer");
     QVERIFY2(source.contains(QStringLiteral("more_button_->setPopupMode(QToolButton::InstantPopup)")),
              "the header owns an instant-popup menu button");
-    QVERIFY2(source.contains(QStringLiteral("more_button_->setIcon(chatbox::client::moreDotsIcon())")),
+    QVERIFY2(source.contains(QStringLiteral("more_button_->setIcon(chatbox::client::moreDotsIcon(")),
              "the header more control uses three filled dots");
     QVERIFY2(!source.contains(QStringLiteral("more_button_->setText")),
              "the header more control must not render thin text dots");
@@ -2900,9 +2921,13 @@ void TestClientCore::settingsDialogDefaultsToPublicServer() {
     auto* host = dialog.findChild<QLineEdit*>(QStringLiteral("ServerHostEdit"));
     auto* port = dialog.findChild<QSpinBox*>(QStringLiteral("ServerPortSpin"));
     auto* tls = dialog.findChild<QCheckBox*>(QStringLiteral("ServerTlsCheck"));
+    auto* appearance =
+        dialog.findChild<QComboBox*>(QStringLiteral("AppearanceCombo"));
     QVERIFY(host != nullptr);
     QVERIFY(port != nullptr);
     QVERIFY(tls != nullptr);
+    QVERIFY(appearance != nullptr);
+    QCOMPARE(appearance->count(), 3);
     QCOMPARE(host->text(), QStringLiteral("frp-oil.com"));
     QCOMPARE(port->value(), 15318);
     QVERIFY(tls->isChecked());

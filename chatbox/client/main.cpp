@@ -3,6 +3,7 @@
 #include "core/client_policy.h"
 #include "core/focus_ring.h"
 #include "core/socket_compat.h"
+#include "core/ui_theme.h"
 
 #include <QApplication>
 #include <QDir>
@@ -62,10 +63,6 @@ int main(int argc, char** argv) {
 
     application.setStyle(QStyleFactory::create("Fusion"));
     application.setWindowIcon(QIcon(":/app.ico"));
-    QFile style_file(":/style.qss");
-    if (style_file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        application.setStyleSheet(QString::fromUtf8(style_file.readAll()));
-    }
     installClientLogging();
     qInfo("client starting version=%s", qPrintable(QCoreApplication::applicationVersion()));
 
@@ -80,6 +77,7 @@ int main(int argc, char** argv) {
             qInfo("settings migrated from the pre-ChatBox store");
         }
     }
+    chatbox::client::theme::applyThemeFromSettings(&application);
 
     std::string error;
     if (!chatbox::initializeSockets(error)) {

@@ -446,16 +446,6 @@ QWidget* MainWindow::buildChatPage() {
     my_profile_button_->setObjectName("MyProfileButton");
     my_profile_button_->setCursor(Qt::PointingHandCursor);
     my_profile_button_->setFixedHeight(52);
-    my_profile_button_->setStyleSheet(
-        "QPushButton#MyProfileButton {"
-        " background: " + QString::fromLatin1(theme::kCanvas) +
-        "; border: none; border-top: 1px solid " + QString::fromLatin1(theme::kHairline) +
-        "; border-radius: 0; padding: 4px 2px; }"
-        "QPushButton#MyProfileButton:hover { background: " +
-        QString::fromLatin1(theme::kSurfaceSoft) +
-        "; }"
-        "QPushButton#MyProfileButton:pressed { background: " +
-        QString::fromLatin1(theme::kSurfaceStrong) + "; }");
     auto* profile_layout = new QHBoxLayout(my_profile_button_);
     profile_layout->setContentsMargins(8, 2, 8, 2);
     profile_layout->setSpacing(10);
@@ -469,13 +459,10 @@ QWidget* MainWindow::buildChatPage() {
     profile_text_layout->setContentsMargins(0, 0, 0, 0);
     profile_text_layout->setSpacing(0);
     my_profile_name_ = new QLabel(my_profile_button_);
-    my_profile_name_->setStyleSheet(
-        "font-size: 13px; font-weight: 600; color: " +
-        QString::fromLatin1(theme::kInk) + ";");
+    my_profile_name_->setObjectName("MyProfileName");
     my_profile_name_->setAttribute(Qt::WA_TransparentForMouseEvents);
     my_profile_uid_ = new QLabel(my_profile_button_);
-    my_profile_uid_->setStyleSheet("font-size: 11px; color: " +
-                                   QString::fromLatin1(theme::kMuted) + ";");
+    my_profile_uid_->setObjectName("MyProfileUid");
     my_profile_uid_->setAttribute(Qt::WA_TransparentForMouseEvents);
     profile_text_layout->addWidget(my_profile_name_);
     profile_text_layout->addWidget(my_profile_uid_);
@@ -528,7 +515,7 @@ QWidget* MainWindow::buildChatPage() {
     more_button_ = new QToolButton(header);
     more_button_->setObjectName("MoreButton");
     more_button_->setAccessibleName("更多");
-    more_button_->setIcon(chatbox::client::moreDotsIcon());
+    more_button_->setIcon(chatbox::client::moreDotsIcon(QColor(theme::kInk)));
     more_button_->setIconSize(QSize(20, 20));
     more_button_->setToolTip("更多");
     more_button_->setFixedSize(32, 32);
@@ -814,6 +801,15 @@ void MainWindow::openSettings() {
                           history_store_.directory(),
                           history_store_.sizeBytes(),
                           history_store_.isOpen(), this);
+    connect(&dialog, &SettingsDialog::appearanceChanged, this, [this] {
+        if (more_button_ != nullptr) {
+            more_button_->setIcon(
+                chatbox::client::moreDotsIcon(QColor(theme::kInk)));
+        }
+        if (chat_view_ != nullptr) {
+            renderCurrentConversation(ScrollMode::kPreserve);
+        }
+    });
     connect(&dialog, &SettingsDialog::settingsSaved, this,
             [this](const QString& host, quint16 port, bool tls,
                    bool notifications, bool system_popup, bool autostart) {

@@ -1,6 +1,7 @@
 #include "ui/login_page.h"
 
 #include <QCheckBox>
+#include <QColor>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -42,7 +43,7 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     top_row->addStretch(1);
     advanced_toggle_ = new QToolButton(card);
     advanced_toggle_->setObjectName("AdvancedOptionsButton");
-    advanced_toggle_->setIcon(chatbox::client::moreDotsIcon());
+    advanced_toggle_->setIcon(chatbox::client::moreDotsIcon(QColor(theme::kInk)));
     advanced_toggle_->setIconSize(QSize(20, 20));
     advanced_toggle_->setToolTip("更多选项");
     advanced_toggle_->setCheckable(true);
@@ -275,6 +276,7 @@ void LoginPage::reloadSavedCredentials() {
 
 void LoginPage::resetToLogin() {
     setRegisterMode(false);
+    advanced_toggle_->setIcon(chatbox::client::moreDotsIcon(QColor(theme::kInk)));
     reloadSavedCredentials();
     username_edit_->setFocus();
 }

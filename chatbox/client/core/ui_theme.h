@@ -1,41 +1,79 @@
 #ifndef CHATBOX_CLIENT_CORE_UI_THEME_H
 #define CHATBOX_CLIENT_CORE_UI_THEME_H
 
+class QApplication;
+
 namespace chatbox {
 namespace client {
 namespace theme {
 
-// Coinbase design language tokens (see
-// docs/superpowers/specs/2026-10-19-coinbase-style-ui.md). The palette is the
-// single source of truth for colours used in C++ painting and message HTML.
-// resources/style.qss carries the same palette for Qt widgets; the
-// themeTokensMatchStyleSheet test guards that both stay in sync.
-constexpr const char* kAccent = "#0052FF";            // primary
-constexpr const char* kAccentHover = "#0046DD";       // derived, no Coinbase token
-constexpr const char* kAccentActive = "#003ECC";      // primary-active
-constexpr const char* kCanvas = "#FFFFFF";
-constexpr const char* kSurfaceSoft = "#F7F7F7";
-constexpr const char* kSurfaceStrong = "#EEF0F3";
-constexpr const char* kSurfaceStrongHover = "#E6E8EC";  // derived
-constexpr const char* kHairline = "#DEE1E6";
-constexpr const char* kInk = "#0A0B0D";
-constexpr const char* kBody = "#5B616E";
-constexpr const char* kMuted = "#616877";
-constexpr const char* kMutedSoft = "#676D76";
-constexpr const char* kOnPrimary = "#FFFFFF";
-constexpr const char* kSemanticUp = "#05B169";
-constexpr const char* kSemanticUpText = "#027A48";
-constexpr const char* kOnlineDot = "#038A52";
-constexpr const char* kSemanticDown = "#CF202F";
-constexpr const char* kDangerText = "#B42318";
-constexpr const char* kDisabledText = "#6B7280";
-constexpr const char* kQuoteBg = "#F4F6F8";
-// Deliberate deviation from the Coinbase file: green stays the semantic colour
-// for the user's own messages, as a 10% tint of kSemanticUp.
-constexpr const char* kBubbleOwn = "#E6F7F0";
-constexpr const char* kBubbleOther = "#FFFFFF";
-constexpr const char* kBannerErrorBg = "#FAE9EA";     // derived tint
-constexpr const char* kBannerErrorLine = "#F2BCC0";   // derived tint
+enum class ThemeMode {
+    kSystem = 0,
+    kLight = 1,
+    kDark = 2,
+};
+
+struct ThemePalette {
+    const char* accent;
+    const char* accentHover;
+    const char* accentActive;
+    const char* canvas;
+    const char* surfaceSoft;
+    const char* surfaceStrong;
+    const char* surfaceStrongHover;
+    const char* hairline;
+    const char* ink;
+    const char* body;
+    const char* muted;
+    const char* mutedSoft;
+    const char* onPrimary;
+    const char* semanticUp;
+    const char* semanticUpText;
+    const char* onlineDot;
+    const char* semanticDown;
+    const char* dangerText;
+    const char* disabledText;
+    const char* quoteBg;
+    const char* bubbleOwn;
+    const char* bubbleOther;
+    const char* bannerErrorBg;
+    const char* bannerErrorLine;
+};
+
+const ThemePalette& lightPalette();
+const ThemePalette& darkPalette();
+ThemeMode themeMode();
+bool systemPrefersDark();
+void setThemeMode(ThemeMode mode);
+void applyTheme(QApplication* application, ThemeMode mode);
+void applyThemeFromSettings(QApplication* application);
+
+// Current palette values. They are pointers rather than constexpr strings so
+// the whole app can switch palettes at runtime without rebuilding widgets.
+extern const char* kAccent;
+extern const char* kAccentHover;
+extern const char* kAccentActive;
+extern const char* kCanvas;
+extern const char* kSurfaceSoft;
+extern const char* kSurfaceStrong;
+extern const char* kSurfaceStrongHover;
+extern const char* kHairline;
+extern const char* kInk;
+extern const char* kBody;
+extern const char* kMuted;
+extern const char* kMutedSoft;
+extern const char* kOnPrimary;
+extern const char* kSemanticUp;
+extern const char* kSemanticUpText;
+extern const char* kOnlineDot;
+extern const char* kSemanticDown;
+extern const char* kDangerText;
+extern const char* kDisabledText;
+extern const char* kQuoteBg;
+extern const char* kBubbleOwn;
+extern const char* kBubbleOther;
+extern const char* kBannerErrorBg;
+extern const char* kBannerErrorLine;
 
 }  // namespace theme
 }  // namespace client

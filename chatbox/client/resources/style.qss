@@ -29,6 +29,29 @@ QLabel#AppSubtitle {
     font-size: 12px;
 }
 
+QLabel#EmptyStateTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0A0B0D;
+}
+
+QLabel#EmptyStateDescription {
+    font-size: 13px;
+    color: #616877;
+}
+
+QPushButton#EmptyStateAction {
+    background: transparent;
+    border: none;
+    color: #0052FF;
+    font-size: 13px;
+    padding: 6px 8px;
+}
+
+QPushButton#EmptyStateAction:hover {
+    color: #0046DD;
+}
+
 QLabel#SectionLabel {
     color: #616877;
     font-size: 11px;
@@ -45,6 +68,23 @@ QLabel#ContextTitle {
 QLabel#MutedLabel {
     color: #616877;
     font-size: 12px;
+}
+
+QLabel#SettingsIdLabel {
+    font-weight: 600;
+    color: #0A0B0D;
+}
+
+QLabel#SettingsCaption {
+    color: #616877;
+}
+
+QLabel#HistoryPathLabel {
+    color: #5B616E;
+}
+
+QLabel#SettingsVersion {
+    color: #616877;
 }
 
 QLineEdit, QSpinBox {
@@ -144,6 +184,33 @@ QPushButton#SendButton:pressed {
 
 QPushButton#IconButton {
     padding: 7px;
+}
+
+QPushButton#MyProfileButton {
+    background: #FFFFFF;
+    border: none;
+    border-top: 1px solid #DEE1E6;
+    border-radius: 0;
+    padding: 4px 2px;
+}
+
+QPushButton#MyProfileButton:hover {
+    background: #F7F7F7;
+}
+
+QPushButton#MyProfileButton:pressed {
+    background: #EEF0F3;
+}
+
+QLabel#MyProfileName {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0A0B0D;
+}
+
+QLabel#MyProfileUid {
+    font-size: 11px;
+    color: #616877;
 }
 
 QPushButton#SidebarAction, QPushButton#FooterAction {

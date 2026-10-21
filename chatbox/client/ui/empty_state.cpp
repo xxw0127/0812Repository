@@ -46,18 +46,6 @@ EmptyState::EmptyState(QWidget* parent) : QWidget(parent) {
     layout->addWidget(action_button_, 0, Qt::AlignHCenter);
 
     layout->addStretch(1);
-
-    title_label_->setStyleSheet(
-        "font-size: 15px; font-weight: 600; color: " +
-        QString::fromLatin1(theme::kInk) + ";");
-    description_label_->setStyleSheet(
-        "font-size: 13px; color: " + QString::fromLatin1(theme::kMuted) + ";");
-    action_button_->setStyleSheet(
-        "QPushButton#EmptyStateAction { background: transparent; border: none; "
-        "color: " + QString::fromLatin1(theme::kAccent) + "; font-size: 13px; "
-        "padding: 6px 8px; }"
-        "QPushButton#EmptyStateAction:hover { color: " +
-        QString::fromLatin1(theme::kAccentHover) + "; }");
 }
 
 void EmptyState::setIcon(const QIcon& icon) {
