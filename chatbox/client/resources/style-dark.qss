@@ -99,13 +99,13 @@ QPushButton:disabled {
 }
 
 QPushButton#PrimaryButton {
-    background: #4D8DFF;
+    background: #2F6FDC;
     color: #FFFFFF;
     font-weight: 600;
 }
 
 QPushButton#PrimaryButton:hover {
-    background: #3B7BEB;
+    background: #2660C7;
 }
 
 QPushButton#PrimaryButton[keyboardFocus="true"]:focus {
@@ -114,7 +114,7 @@ QPushButton#PrimaryButton[keyboardFocus="true"]:focus {
 }
 
 QPushButton#PrimaryButton:pressed {
-    background: #2F6FDC;
+    background: #1F54B0;
 }
 
 QPushButton#PrimaryButton:disabled {
@@ -123,14 +123,14 @@ QPushButton#PrimaryButton:disabled {
 }
 
 QPushButton#SendButton {
-    background: #4D8DFF;
+    background: #2F6FDC;
     color: #FFFFFF;
     border-radius: 18px;
     padding: 8px 14px;
 }
 
 QPushButton#SendButton:hover {
-    background: #3B7BEB;
+    background: #2660C7;
 }
 
 QPushButton#SendButton[keyboardFocus="true"]:focus {
@@ -139,7 +139,7 @@ QPushButton#SendButton[keyboardFocus="true"]:focus {
 }
 
 QPushButton#SendButton:pressed {
-    background: #2F6FDC;
+    background: #1F54B0;
 }
 
 QPushButton#IconButton {
@@ -174,7 +174,7 @@ QPushButton#DangerFooterAction:hover {
 }
 
 QLabel#FriendRequestBadge {
-    background: #4D8DFF;
+    background: #2F6FDC;
     color: #FFFFFF;
     border-radius: 8px;
     font-size: 11px;

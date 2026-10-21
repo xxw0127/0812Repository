@@ -82,6 +82,11 @@ void MainWindow::refreshFriendListView() {
         item->setData(Qt::UserRole, QVariant::fromValue<qulonglong>(0));
         item->setSizeHint(QSize(0, 26));
     };
+    // The section label "好友" already names the list. Only add 在线/离线
+    // group headers when there are two groups to distinguish; otherwise a
+    // single group would stack two consecutive 11px labels with no content
+    // between them.
+    const bool show_group_headers = !online.isEmpty() && !offline.isEmpty();
     const auto add_friend = [this](const chatbox::client::FriendView& view) {
         auto* item = new QListWidgetItem(conversation_list_);
         item->setData(Qt::UserRole, QVariant::fromValue<qulonglong>(view.user_id));
@@ -112,13 +117,17 @@ void MainWindow::refreshFriendListView() {
     };
 
     if (!online.isEmpty()) {
-        add_header("在线");
+        if (show_group_headers) {
+            add_header("在线");
+        }
         for (const auto& view : online) {
             add_friend(view);
         }
     }
     if (!offline.isEmpty()) {
-        add_header("离线");
+        if (show_group_headers) {
+            add_header("离线");
+        }
         for (const auto& view : offline) {
             add_friend(view);
         }

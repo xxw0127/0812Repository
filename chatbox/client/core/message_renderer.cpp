@@ -17,6 +17,33 @@ QString senderLabel(const ChatMessage& message) {
     return QString::number(message.sender_id);
 }
 
+int visualTextUnits(const QString& text) {
+    int units = 0;
+    for (const QChar ch : text) {
+        // CJK/emoji glyphs occupy roughly two Latin character widths at the
+        // same font size. Counting units keeps the width cap deterministic
+        // without laying out the document twice.
+        units += ch.unicode() >= 0x2E80 ? 2 : 1;
+    }
+    return units;
+}
+
+bool messageNeedsWidthCap(const ChatMessage& message) {
+    constexpr int kWideMessageUnits = 88;
+    constexpr int kQuoteUnits = 40;
+    int units = visualTextUnits(message.content);
+    int quote_units = 0;
+    if (message.reply_to_id != 0) {
+        quote_units = visualTextUnits(message.reply_content);
+        units += quote_units;
+    }
+    // A quote with anything longer than a short phrase should be bounded even
+    // when the reply body itself is one word; otherwise a long quoted ID can
+    // stretch the entire bubble to the transcript width.
+    return units > kWideMessageUnits ||
+           (message.reply_to_id != 0 && quote_units > kQuoteUnits);
+}
+
 QString messageMeta(const ChatMessage& message) {
     QString meta = formatLocalTime(message.created_at_utc);
     switch (message.status) {
@@ -88,7 +115,9 @@ QString renderMessageFragment(const ChatMessage& message, quint64 self_user_id,
     QString background = outgoing ? QString::fromLatin1(theme::kBubbleOwn)
                                   : QString::fromLatin1(theme::kBubbleOther);
     if (message.recalled) {
-        background = QString::fromLatin1(theme::kSurfaceSoft);
+        // kSurfaceSoft equals the light canvas; recalled messages need a
+        // strictly different surface in both palettes.
+        background = QString::fromLatin1(theme::kSurfaceStrong);
     }
     const QString quote_background = QString::fromLatin1(theme::kQuoteBg);
 
@@ -99,9 +128,14 @@ QString renderMessageFragment(const ChatMessage& message, quint64 self_user_id,
     html += "<div style=\"margin-top: " + QString::number(top_margin) + "px;\">";
     // Nested tables are the only reliable way to simulate a 1px border in
     // Qt's rich-text engine (border-radius and box-shadow are unsupported).
-    html += "<table align=\"" + alignment +
-            "\" cellspacing=\"0\" cellpadding=\"1\" bgcolor=\"" +
-            QString::fromLatin1(theme::kHairline) + "\"><tr><td>";
+    // Once content would exceed roughly 620px at 14px, pin the bubble to 72%
+    // of the viewport so short messages stay content-sized and long ones stop
+    // before filling the whole transcript.
+    const QString width_attr =
+        messageNeedsWidthCap(message) ? " width=\"72%\"" : QString();
+    html += "<table align=\"" + alignment + "\"" + width_attr +
+            " cellspacing=\"0\" cellpadding=\"1\" bgcolor=\"" +
+            QString::fromLatin1(theme::kBubbleBorder) + "\"><tr><td>";
     html += "<table cellspacing=\"0\" cellpadding=\"10\" bgcolor=\"" + background +
             "\"><tr><td>";
     if (!outgoing && !message.recalled && show_sender_name) {
@@ -115,7 +149,7 @@ QString renderMessageFragment(const ChatMessage& message, quint64 self_user_id,
         if (quote.isEmpty()) {
             quote = "消息已撤回";
         }
-        html += "<table width=\"100%\" cellspacing=\"0\" cellpadding=\"6\" bgcolor=\"" +
+        html += "<table cellspacing=\"0\" cellpadding=\"6\" bgcolor=\"" +
                 quote_background + "\"><tr><td><div style=\"color: " +
                 QString::fromLatin1(theme::kMuted) +
                 "; font-size: 12px;\">回复 " +

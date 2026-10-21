@@ -42,6 +42,10 @@ struct ThemePalette {
     const char* bubbleOther;
     const char* bannerErrorBg;
     const char* bannerErrorLine;
+    const char* bubbleBorder;
+    const char* primary;
+    const char* primaryHover;
+    const char* primaryActive;
 };
 
 const ThemePalette& lightPalette();
@@ -78,6 +82,10 @@ extern const char* kBubbleOwn;
 extern const char* kBubbleOther;
 extern const char* kBannerErrorBg;
 extern const char* kBannerErrorLine;
+extern const char* kBubbleBorder;
+extern const char* kPrimary;
+extern const char* kPrimaryHover;
+extern const char* kPrimaryActive;
 
 }  // namespace theme
 }  // namespace client

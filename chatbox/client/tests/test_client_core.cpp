@@ -10,6 +10,7 @@
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFrame>
 #include <QGraphicsDropShadowEffect>
 #include <QIcon>
 #include <QImage>
@@ -155,6 +156,8 @@ private slots:
     void rendererFragmentMatchesFullRender();
     void rendererAlignsOwnMessages();
     void rendererQuoteBlockWithoutInlineActions();
+    void rendererCapsWideBubbleWidth();
+    void rendererQuoteBubbleStaysNarrow();
     void messageActionsAvailability();
     void messageActionsRecallWindow();
     void chatViewMapsMessagesToIds();
@@ -175,6 +178,9 @@ private slots:
     void profileDialogViewModeActions();
     void messageBubbleColoursComeFromTheme();
     void contrastTokensMeetAa();
+    void darkSurfaceContrastMeetsAa();
+    void primaryButtonContrastMeetsAa();
+    void bubbleBoundaryMeetsNonTextContrast();
     void darkPaletteMatchesSpec();
     void themeTokensMatchContrastSpec();
     void styleSheetHasVisibleKeyboardFocus();
@@ -183,6 +189,8 @@ private slots:
     void mainWindowExposesKeyboardShortcuts();
     void mainWindowAccessibilityLabels();
     void friendItemsExposeAccessibleText();
+    void mainWindowOmitsJoinRoomStatusNoise();
+    void friendListAvoidsDuplicateGroupLabels();
     void themeTokensMatchStyleSheet();
     void messageActionBarHasSingleSoftShadow();
     void messageActionBarIsKeyboardReachable();
@@ -233,6 +241,7 @@ private slots:
     void emptyStateShowsConfiguredCopy();
     void emptyStatesAreWired();
     void messageInputHandlesKeyboardAndPlainPaste();
+    void messageInputHidesEmptyScrollbar();
     void messageComposerUsesByteCounter();
     void dangerousActionsUseChineseDialogs();
     void loginPageShowsNicknameOnlyInRegisterMode();
@@ -573,7 +582,7 @@ void TestClientCore::rendererBubbleSpecUsesBorderAndExternalTimestamp() {
 
     const QString html = chatbox::client::renderConversationHtml({message}, 1);
     QVERIFY(html.contains(QStringLiteral("cellpadding=\"1\"")));
-    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kHairline)));
+    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kBubbleBorder)));
     QVERIFY(html.contains(QStringLiteral("cellpadding=\"10\"")));
     QVERIFY(html.contains(QStringLiteral("line-height: 150%")));
     const QString local_time = chatbox::client::formatLocalTime(created);
@@ -640,7 +649,8 @@ void TestClientCore::rendererRecalledBubbleHasNoSenderName() {
     const QString html = chatbox::client::renderConversationHtml({recalled}, 1);
     QVERIFY(html.contains(QStringLiteral("消息已撤回")));
     QVERIFY(!html.contains(QStringLiteral("SenderOnly")));
-    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kSurfaceSoft)));
+    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kSurfaceStrong)));
+    QVERIFY(!html.contains(QString::fromLatin1(chatbox::client::theme::kSurfaceSoft)));
 }
 
 void TestClientCore::rendererFragmentMatchesFullRender() {
@@ -724,6 +734,63 @@ void TestClientCore::rendererQuoteBlockWithoutInlineActions() {
     own.outgoing = true;
     html = chatbox::client::renderConversationHtml({own}, 1);
     QVERIFY(!html.contains("recall:9"));
+}
+
+void TestClientCore::rendererCapsWideBubbleWidth() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage message;
+    message.message_id = 41;
+    message.sender_name = "Bob";
+    message.content = QString(300, QChar('x'));
+    message.created_at_utc = created;
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html =
+        chatbox::client::renderConversationHtml({message}, 1, &keys);
+    ChatView view;
+    view.resize(560, 600);
+    view.show();
+    QTest::qWait(30);
+    view.setConversationHtml(html, keys);
+
+    const QRect bubble = view.messageBubbleRect(41);
+    QVERIFY(!bubble.isNull());
+    const int limit = static_cast<int>(view.viewport()->width() * 0.8);
+    QVERIFY2(bubble.width() <= limit,
+             qPrintable(QStringLiteral("bubble %1 > limit %2")
+                            .arg(bubble.width())
+                            .arg(limit)));
+}
+
+void TestClientCore::rendererQuoteBubbleStaysNarrow() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage quoted;
+    quoted.message_id = 42;
+    quoted.sender_name = "Bob";
+    quoted.content = "reply";
+    quoted.created_at_utc = created;
+    quoted.reply_to_id = 5;
+    quoted.reply_sender_name = "Alice";
+    quoted.reply_content =
+        QStringLiteral("room original 32-Chinese-character "
+                       "859d8d66-5453-4675-aa97-3d418f31f17e");
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html =
+        chatbox::client::renderConversationHtml({quoted}, 1, &keys);
+    ChatView view;
+    view.resize(560, 600);
+    view.show();
+    QTest::qWait(30);
+    view.setConversationHtml(html, keys);
+
+    const QRect bubble = view.messageBubbleRect(42);
+    QVERIFY(!bubble.isNull());
+    const int limit = static_cast<int>(view.viewport()->width() * 0.8);
+    QVERIFY2(bubble.width() <= limit,
+             qPrintable(QStringLiteral("quote bubble %1 > limit %2")
+                            .arg(bubble.width())
+                            .arg(limit)));
 }
 
 void TestClientCore::messageActionsAvailability() {
@@ -1727,6 +1794,76 @@ void TestClientCore::contrastTokensMeetAa() {
     }
 }
 
+void TestClientCore::darkSurfaceContrastMeetsAa() {
+    const auto& dark = chatbox::client::theme::darkPalette();
+    const QColor muted_soft(dark.mutedSoft);
+    const QColor own(dark.bubbleOwn);
+    const QColor other(dark.bubbleOther);
+    const QColor canvas(dark.canvas);
+    const QColor strong(dark.surfaceStrong);
+
+    const QVector<QPair<QString, double>> checks = {
+        {QStringLiteral("kMutedSoft on dark own bubble"),
+         contrastRatio(muted_soft, own)},
+        {QStringLiteral("kMutedSoft on dark other bubble"),
+         contrastRatio(muted_soft, other)},
+        {QStringLiteral("kMutedSoft on dark canvas"),
+         contrastRatio(muted_soft, canvas)},
+        {QStringLiteral("kMutedSoft on dark recalled surface"),
+         contrastRatio(muted_soft, strong)},
+    };
+    for (const auto& check : checks) {
+        QVERIFY2(check.second >= 4.5,
+                 qPrintable(QStringLiteral("%1 = %2")
+                                .arg(check.first)
+                                .arg(check.second, 0, 'f', 2)));
+    }
+}
+
+void TestClientCore::primaryButtonContrastMeetsAa() {
+    const auto check = [](const chatbox::client::theme::ThemePalette& palette,
+                          const QString& label) {
+        const QColor text(palette.onPrimary);
+        const QVector<QPair<QString, QColor>> surfaces = {
+            {QStringLiteral("primary"), QColor(palette.primary)},
+            {QStringLiteral("primary hover"), QColor(palette.primaryHover)},
+            {QStringLiteral("primary active"), QColor(palette.primaryActive)},
+        };
+        for (const auto& surface : surfaces) {
+            const double ratio = contrastRatio(text, surface.second);
+            QVERIFY2(ratio >= 4.5,
+                     qPrintable(QStringLiteral("%1 %2 = %3")
+                                    .arg(label, surface.first)
+                                    .arg(ratio, 0, 'f', 2)));
+        }
+    };
+    check(chatbox::client::theme::lightPalette(), QStringLiteral("light"));
+    check(chatbox::client::theme::darkPalette(), QStringLiteral("dark"));
+}
+
+void TestClientCore::bubbleBoundaryMeetsNonTextContrast() {
+    const auto check = [](const chatbox::client::theme::ThemePalette& palette,
+                          const QString& label) {
+        const double ratio =
+            contrastRatio(QColor(palette.bubbleBorder), QColor(palette.canvas));
+        QVERIFY2(ratio >= 3.0,
+                 qPrintable(QStringLiteral("%1 bubble border = %2")
+                                .arg(label)
+                                .arg(ratio, 0, 'f', 2)));
+        const double other_ratio =
+            contrastRatio(QColor(palette.bubbleBorder), QColor(palette.bubbleOther));
+        QVERIFY2(other_ratio >= 3.0,
+                 qPrintable(QStringLiteral("%1 border on other bubble = %2")
+                                .arg(label)
+                                .arg(other_ratio, 0, 'f', 2)));
+        QVERIFY2(QColor(palette.surfaceStrong) != QColor(palette.canvas),
+                 qPrintable(QStringLiteral("%1 recalled surface equals canvas")
+                                .arg(label)));
+    };
+    check(chatbox::client::theme::lightPalette(), QStringLiteral("light"));
+    check(chatbox::client::theme::darkPalette(), QStringLiteral("dark"));
+}
+
 void TestClientCore::darkPaletteMatchesSpec() {
     const auto& dark = chatbox::client::theme::darkPalette();
     QCOMPARE(QString::fromLatin1(dark.canvas), QStringLiteral("#0F1419"));
@@ -1837,6 +1974,27 @@ void TestClientCore::friendItemsExposeAccessibleText() {
     const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY(source.contains(QStringLiteral("Qt::AccessibleTextRole")));
+}
+
+void TestClientCore::mainWindowOmitsJoinRoomStatusNoise() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window_net.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window_net.cpp must be readable");
+    QVERIFY(!source.contains(QStringLiteral("已加入房间")));
+    const QString chat_source =
+        readClientSource(QStringLiteral("ui/main_window_chat.cpp"));
+    QVERIFY2(!chat_source.isEmpty(), "ui/main_window_chat.cpp must be readable");
+    QVERIFY(!chat_source.contains(QStringLiteral("正在进入房间")));
+}
+
+void TestClientCore::friendListAvoidsDuplicateGroupLabels() {
+    const QString source =
+        readClientSource(QStringLiteral("ui/main_window_contacts.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window_contacts.cpp must be readable");
+    const QString section =
+        functionSection(source, QStringLiteral("void MainWindow::refreshFriendListView()"));
+    QVERIFY(!section.isEmpty());
+    QVERIFY2(section.contains(QStringLiteral("show_group_headers")),
+             "only render 在线/离线 headers when both groups are non-empty");
 }
 
 void TestClientCore::themeTokensMatchStyleSheet() {
@@ -2772,6 +2930,7 @@ public:
 
 void TestClientCore::messageInputHandlesKeyboardAndPlainPaste() {
     MessageInput input;
+    QCOMPARE(input.frameShape(), QFrame::NoFrame);
     input.resize(400, 60);
     input.show();
     QTest::qWait(30);
@@ -2803,6 +2962,28 @@ void TestClientCore::messageInputHandlesKeyboardAndPlainPaste() {
     QTest::qWait(20);
     QVERIFY(input.height() >= 40);
     QVERIFY(input.height() <= 120);
+}
+
+void TestClientCore::messageInputHidesEmptyScrollbar() {
+    QFile style(QStringLiteral(":/style.qss"));
+    QVERIFY(style.open(QIODevice::ReadOnly | QIODevice::Text));
+    const QString previous_style = qApp->styleSheet();
+    qApp->setStyleSheet(QString::fromUtf8(style.readAll()));
+
+    MessageInput input;
+    input.setPlaceholderText("输入消息，回车发送，Shift + 回车换行");
+    input.resize(446, 40);
+    input.show();
+    input.setFocus();
+    QTest::qWait(100);
+    const bool fits =
+        input.document()->size().height() <= input.viewport()->height();
+    const bool visible = input.verticalScrollBar()->isVisible();
+    qApp->setStyleSheet(previous_style);
+    QVERIFY2(fits,
+             "empty composer document must fit inside the padded viewport");
+    QVERIFY2(!visible,
+             "an empty composer must not paint a scrollbar handle on its right edge");
 }
 
 void TestClientCore::messageComposerUsesByteCounter() {

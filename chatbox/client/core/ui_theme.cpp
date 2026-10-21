@@ -20,13 +20,15 @@ const ThemePalette kLight = {
     "#E6E8EC", "#DEE1E6", "#0A0B0D", "#5B616E", "#616877", "#676D76",
     "#FFFFFF", "#05B169", "#027A48", "#038A52", "#CF202F", "#B42318",
     "#6B7280", "#F4F6F8", "#E6F7F0", "#FFFFFF", "#FAE9EA", "#F2BCC0",
+    "#7C848E", "#0052FF", "#0046DD", "#003ECC",
 };
 
 const ThemePalette kDark = {
     "#4D8DFF", "#3B7BEB", "#2F6FDC", "#0F1419", "#1A2027", "#232B33",
-    "#2B343D", "#323B44", "#F2F4F7", "#AEB6C0", "#8A929C", "#79818B",
+    "#2B343D", "#323B44", "#F2F4F7", "#AEB6C0", "#8A929C", "#9AA2AC",
     "#FFFFFF", "#34D399", "#6EE7B7", "#34D399", "#FF7A7A", "#FF8A80",
     "#8A929C", "#202830", "#14332A", "#1A2027", "#3A2024", "#6B3035",
+    "#667380", "#2F6FDC", "#2660C7", "#1F54B0",
 };
 
 }  // namespace
@@ -55,6 +57,10 @@ const char* kBubbleOwn = kLight.bubbleOwn;
 const char* kBubbleOther = kLight.bubbleOther;
 const char* kBannerErrorBg = kLight.bannerErrorBg;
 const char* kBannerErrorLine = kLight.bannerErrorLine;
+const char* kBubbleBorder = kLight.bubbleBorder;
+const char* kPrimary = kLight.primary;
+const char* kPrimaryHover = kLight.primaryHover;
+const char* kPrimaryActive = kLight.primaryActive;
 
 namespace {
 
@@ -83,6 +89,10 @@ void assignPalette(const ThemePalette& palette) {
     kBubbleOther = palette.bubbleOther;
     kBannerErrorBg = palette.bannerErrorBg;
     kBannerErrorLine = palette.bannerErrorLine;
+    kBubbleBorder = palette.bubbleBorder;
+    kPrimary = palette.primary;
+    kPrimaryHover = palette.primaryHover;
+    kPrimaryActive = palette.primaryActive;
 }
 
 const ThemePalette& paletteFor(ThemeMode mode) {

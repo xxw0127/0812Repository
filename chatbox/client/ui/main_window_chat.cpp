@@ -627,7 +627,8 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
     input_edit_->setEnabled(online_);
     send_button_->setEnabled(online_);
     updateMessageByteCounter();
-    setStatus("正在进入房间: " + name);
+    // The chat header already names the room; a persistent status-bar line
+    // would just repeat it until the next unrelated event.
 }
 
 void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {

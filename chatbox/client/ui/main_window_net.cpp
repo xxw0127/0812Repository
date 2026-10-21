@@ -540,7 +540,8 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             break;
         }
         case chatbox::kCmdJoinRoom:
-            setStatus("已加入房间");
+            // Joining a room is a silent success; the header and member list
+            // already reflect it, so do not add transient status-bar noise.
             requestMembers(current_room_id_);
             requestRoomList();
             break;

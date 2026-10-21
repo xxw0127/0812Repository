@@ -8,18 +8,22 @@
 
 | Token | 浅色 | 深色 | 用途 |
 |---|---|---|---|
-| `kAccent` | `#0052FF` | `#4D8DFF` | 主操作、链接、焦点环 |
-| `kAccentHover` | `#0046DD` | `#3B7BEB` | 主操作悬停 |
-| `kAccentActive` | `#003ECC` | `#2F6FDC` | 主操作按下 |
+| `kAccent` | `#0052FF` | `#4D8DFF` | 链接、焦点环、选中态 |
+| `kAccentHover` | `#0046DD` | `#3B7BEB` | 链接悬停 |
+| `kAccentActive` | `#003ECC` | `#2F6FDC` | 链接按下 |
+| `kPrimary` | `#0052FF` | `#2F6FDC` | 主按钮、发送按钮、好友角标 |
+| `kPrimaryHover` | `#0046DD` | `#2660C7` | 主按钮悬停 |
+| `kPrimaryActive` | `#003ECC` | `#1F54B0` | 主按钮按下 |
 | `kCanvas` | `#FFFFFF` | `#0F1419` | 卡片、侧栏、输入框焦点底 |
 | `kSurfaceSoft` | `#F7F7F7` | `#1A2027` | 画布、次级表面、悬停 |
-| `kSurfaceStrong` | `#EEF0F3` | `#232B33` | 输入框、按钮、选中行 |
+| `kSurfaceStrong` | `#EEF0F3` | `#232B33` | 输入框、按钮、选中行、撤回气泡 |
 | `kSurfaceStrongHover` | `#E6E8EC` | `#2B343D` | 表面悬停、禁用主按钮底 |
-| `kHairline` | `#DEE1E6` | `#323B44` | 1px 分隔线、气泡描边 |
+| `kHairline` | `#DEE1E6` | `#323B44` | 1px 分隔线 |
+| `kBubbleBorder` | `#7C848E` | `#667380` | 气泡 1px 描边（对画布和对方气泡 ≥ 3:1） |
 | `kInk` | `#0A0B0D` | `#F2F4F7` | 标题、主要正文 |
 | `kBody` | `#5B616E` | `#AEB6C0` | 正文、发送者名 |
 | `kMuted` | `#616877` | `#8A929C` | 元信息、次级文字 |
-| `kMutedSoft` | `#676D76` | `#79818B` | 时间戳、弱提示 |
+| `kMutedSoft` | `#676D76` | `#9AA2AC` | 时间戳、弱提示 |
 | `kOnPrimary` | `#FFFFFF` | `#FFFFFF` | 主按钮文字 |
 | `kSemanticUp` | `#05B169` | `#34D399` | 成功/在线填充 |
 | `kSemanticUpText` | `#027A48` | `#6EE7B7` | 在线文字 |
@@ -70,7 +74,7 @@
 
 ### 按钮
 
-- 主按钮：`kAccent` 底、`kOnPrimary` 字、8px 圆角、44px 高。
+- 主按钮：`kPrimary` 底、`kOnPrimary` 字、8px 圆角、44px 高。深色主按钮使用 `kPrimary`（`#2F6FDC`）而不是亮 accent，保证白字 ≥ 4.5:1；链接仍用 `kAccent`。
 - 次按钮：`kSurfaceStrong` 底、`kInk` 字，悬停 `kSurfaceStrongHover`。
 - 危险文字按钮：透明底，`kDangerText`。
 - 图标按钮：至少 32×32px；`更多` 为 32×32、20px 图标，图标本身是三个 3px 圆角方点。
@@ -79,23 +83,25 @@
 ### 输入
 
 - 标准输入：`kSurfaceStrong` 底、1px `kHairline`、8px 圆角；聚焦 `kCanvas` 底 + `kAccent` 描边。
-- 消息输入：多行 `QTextEdit`，40–120px 自适应，12px 圆角；Enter 发送，Shift+Enter 换行，Ctrl+Enter 发送。
+- 消息输入：多行 `QTextEdit`，40–120px 自适应，12px 圆角；关闭原生 `QFrame`，并把文档边距设为 0、高度按 `文档 + 19px` 计算，确保空输入时文档不会撑出垂直滚动条（右侧 1px 竖线的根因）；Enter 发送，Shift+Enter 换行，Ctrl+Enter 发送。
 - 粘贴消息只保留纯文本。
 - 2000 字节上限；超过 1800 显示计数，超过 2000 禁用发送并变红。
 
 ### 消息流
 
-- 气泡：外层 1px `kHairline` 模拟描边，内层 `cellpadding=10`；Qt 富文本不支持 `border-radius` / `box-shadow`，不得尝试。
+- 气泡：外层 1px `kBubbleBorder` 模拟描边，内层 `cellpadding=10`；Qt 富文本不支持 `border-radius` / `box-shadow`，不得尝试。
+- 宽度：短消息按内容收窄；视觉长度超过约 88 个半角单位（中文/emoji 按 2 计），或引用内容超过约 40 个单位时，气泡限制为视口宽度 **72%**，不得横贯整个聊天区。
 - 时间戳在气泡外下方；己方右对齐，对方左对齐。
 - 同一发送者 3 分钟内不重复昵称；发送者名 12px `kBody`，不加粗。
-- 引用块：`kQuoteBg` 背景、6px 内边距、12px `kMuted`，禁止左侧竖线（side-stripe）。
-- 撤回：`kSurfaceSoft` 底、14px 斜体 `kMutedSoft`、不显示发送者名。
+- 引用块：`kQuoteBg` 背景、6px 内边距、12px `kMuted`，禁止左侧竖线（side-stripe）；引用块本身不设 `width="100%"`，宽度由气泡内容决定。
+- 撤回：`kSurfaceStrong` 底（浅色 `#EEF0F3` 与画布区分）、14px 斜体 `kMutedSoft`、不显示发送者名。
 - 日期分隔：11px `kMuted`，上下 16px。
 
 ### 列表与侧栏
 
 - 大厅列表 56–160px，超过约 3 个房间内部滚动。
 - 好友/会话列表行高 56px；空列表显示空状态，不显示空白区域。
+- “好友”已作为列表的区块标题；只有在线、离线两组都非空时才额外显示“在线/离线”分组标题，禁止连续堆叠两个 11px 标签。
 - 右侧“在线成员 (N)”置顶，成员列表拉伸，设置/退出登录固定在底部 32px 次级按钮。
 - 好友申请未读使用右侧 16px `kAccent` 圆角角标，按钮文字恒为“好友申请”。
 

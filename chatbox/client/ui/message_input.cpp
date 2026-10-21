@@ -1,11 +1,20 @@
 #include "ui/message_input.h"
 
+#include <QFrame>
 #include <QKeyEvent>
 #include <QMimeData>
 #include <QTextDocument>
 #include <QTextDocumentFragment>
 
 MessageInput::MessageInput(QWidget* parent) : QTextEdit(parent) {
+    // Drop the native QFrame chrome; all visible borders come from QSS and
+    // must follow the focus/theme rules.
+    setFrameShape(QFrame::NoFrame);
+    setLineWidth(0);
+    // The stylesheet supplies the visual padding; QTextEdit's default 4px
+    // document margin would otherwise make the empty document taller than the
+    // viewport and force a scrollbar handle onto the right edge.
+    document()->setDocumentMargin(0);
     setAcceptRichText(false);
     setMinimumHeight(40);
     setMaximumHeight(120);
@@ -38,6 +47,11 @@ void MessageInput::insertFromMimeData(const QMimeData* source) {
 }
 
 void MessageInput::adjustHeight() {
-    const int content_height = static_cast<int>(document()->size().height()) + 16;
+    // 8px top + 8px bottom stylesheet padding, 1px top/bottom border, plus
+    // one spare pixel so the document never exactly equals the viewport
+    // height (Qt shows a scrollbar in that case).
+    const int chrome_height = 19;
+    const int content_height =
+        static_cast<int>(document()->size().height()) + chrome_height;
     setFixedHeight(qBound(40, content_height, 120));
 }
