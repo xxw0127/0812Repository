@@ -204,6 +204,8 @@ private slots:
     void loginPageHasNoLocalHistoryEntry();
     void loginPageHidesServerFieldsBehindMoreDots();
     void layoutWeightsFollowAudit();
+    void adaptiveLayoutUsesSplitter();
+    void textNeverSmallerThanElevenPixels();
     void loginPageShowsNicknameOnlyInRegisterMode();
     void loginPageHasAutoLoginAndRememberPasswordOptions();
     void loginPageAccessibleNames();
@@ -2681,6 +2683,32 @@ void TestClientCore::layoutWeightsFollowAudit() {
     QVERIFY(source.contains(QStringLiteral("QMessageBox::question")));
     QVERIFY(source.contains(QStringLiteral("more_button_->setFixedSize(32, 32)")));
     QVERIFY(source.contains(QStringLiteral("friend_requests_button_->setText(\"好友申请\")")));
+}
+
+void TestClientCore::adaptiveLayoutUsesSplitter() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("setMinimumSize(880, 560)")));
+    QVERIFY(source.contains(QStringLiteral("QSplitter(Qt::Horizontal")));
+    QVERIFY(source.contains(QStringLiteral("setChildrenCollapsible(false)")));
+    QVERIFY(source.contains(QStringLiteral("setHandleWidth(0)")));
+    QVERIFY(source.contains(QStringLiteral("setMinimumWidth(240)")));
+    QVERIFY(source.contains(QStringLiteral("setMaximumWidth(360)")));
+    QVERIFY(source.contains(QStringLiteral("setMinimumWidth(180)")));
+    QVERIFY(source.contains(QStringLiteral("setMaximumWidth(280)")));
+    QVERIFY(source.contains(QStringLiteral("setStretchFactor(0, 0)")));
+    QVERIFY(source.contains(QStringLiteral("setStretchFactor(1, 1)")));
+    QVERIFY(source.contains(QStringLiteral("setStretchFactor(2, 0)")));
+}
+
+void TestClientCore::textNeverSmallerThanElevenPixels() {
+    const QString qss = readClientSource(QStringLiteral("resources/style.qss"));
+    QVERIFY2(!qss.isEmpty(), "resources/style.qss must be readable");
+    QVERIFY(!qss.contains(QStringLiteral("font-size: 10px")));
+    const QString delegate =
+        readClientSource(QStringLiteral("ui/friend_item_delegate.cpp"));
+    QVERIFY2(!delegate.isEmpty(), "ui/friend_item_delegate.cpp must be readable");
+    QVERIFY(!delegate.contains(QStringLiteral("setPixelSize(10)")));
 }
 
 // 昵称只在注册时出现：登录态点“注册”进入注册态，

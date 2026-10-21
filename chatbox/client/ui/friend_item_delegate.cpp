@@ -145,7 +145,7 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
     if (unread > 0) {
         const QString label = unread > 99 ? QString("99+") : QString::number(unread);
         QFont badge_font = painter->font();
-        badge_font.setPixelSize(10);
+        badge_font.setPixelSize(11);
         badge_font.setBold(true);
         painter->setFont(badge_font);
         const int width = qMax(18, QFontMetrics(badge_font).horizontalAdvance(label) + 10);

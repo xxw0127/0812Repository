@@ -28,6 +28,7 @@
 #include <QSettings>
 #include <QShortcut>
 #include <QSize>
+#include <QSplitter>
 #include <QPainter>
 #include <QPixmap>
 #include <QStackedWidget>
@@ -153,6 +154,7 @@ QString conversationAccessibleText(const QString& name, bool online, int unread,
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setWindowTitle("ChatBox");
     resize(1120, 720);
+    setMinimumSize(880, 560);
     buildUi();
 
     auto* message_search_shortcut =
@@ -361,13 +363,19 @@ void MainWindow::buildUi() {
 QWidget* MainWindow::buildChatPage() {
     auto* page = new QWidget(this);
     page->setObjectName("ChatPage");
-    auto* layout = new QHBoxLayout(page);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(0);
+    auto* page_layout = new QVBoxLayout(page);
+    page_layout->setContentsMargins(0, 0, 0, 0);
+    page_layout->setSpacing(0);
+    auto* splitter = new QSplitter(Qt::Horizontal, page);
+    splitter->setObjectName("ChatSplitter");
+    splitter->setChildrenCollapsible(false);
+    splitter->setHandleWidth(0);
+    page_layout->addWidget(splitter);
 
     auto* left_panel = new QWidget(page);
     left_panel->setObjectName("Sidebar");
-    left_panel->setFixedWidth(300);
+    left_panel->setMinimumWidth(240);
+    left_panel->setMaximumWidth(360);
     auto* left = new QVBoxLayout(left_panel);
     left->setContentsMargins(12, 12, 12, 12);
     left->setSpacing(6);
@@ -464,7 +472,7 @@ QWidget* MainWindow::buildChatPage() {
     profile_layout->addLayout(profile_text_layout, 1);
     left->addWidget(my_profile_button_);
     updateOwnProfileStrip();
-    layout->addWidget(left_panel);
+    splitter->addWidget(left_panel);
 
     auto* center_panel = new QWidget(page);
     center_panel->setObjectName("ChatPanel");
@@ -583,11 +591,11 @@ QWidget* MainWindow::buildChatPage() {
     input_layout->addWidget(send_button_);
     composer_layout->addLayout(input_layout);
     center->addWidget(composer);
-    layout->addWidget(center_panel, 1);
 
     auto* right_panel = new QWidget(page);
     right_panel->setObjectName("RightSidebar");
-    right_panel->setFixedWidth(220);
+    right_panel->setMinimumWidth(180);
+    right_panel->setMaximumWidth(280);
     auto* right = new QVBoxLayout(right_panel);
     right->setContentsMargins(12, 12, 12, 12);
     right->setSpacing(6);
@@ -618,7 +626,11 @@ QWidget* MainWindow::buildChatPage() {
     footer_layout->addWidget(logout_button_);
     footer_layout->addStretch(1);
     right->addWidget(footer);
-    layout->addWidget(right_panel);
+    splitter->addWidget(center_panel);
+    splitter->addWidget(right_panel);
+    splitter->setStretchFactor(0, 0);
+    splitter->setStretchFactor(1, 1);
+    splitter->setStretchFactor(2, 0);
 
     connect(room_list_, &QListWidget::itemClicked, this, &MainWindow::onRoomClicked);
     connect(room_list_, &QListWidget::itemActivated, this, &MainWindow::onRoomClicked);
