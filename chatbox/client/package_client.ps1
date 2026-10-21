@@ -11,10 +11,14 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ($LASTEXITCODE -ne 0) { throw "build_client.ps1 failed" }
 
 $release = Join-Path $root "build\release"
-$distRoot = Join-Path $root "dist"
+# Publish directly to release; build\release is only the linker output and dist
+# would otherwise keep a second full copy of every package.
+$publishRoot = Join-Path $root "release"
 $name = "chatbox-$Version"
-$target = Join-Path $distRoot $name
+$target = Join-Path $publishRoot "$name-win64"
+$zip = Join-Path $publishRoot "$name-win64.zip"
 if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $publishRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $target | Out-Null
 
 Copy-Item (Join-Path $release "chatbox.exe") $target -Force
@@ -36,20 +40,8 @@ foreach ($required in @("chatbox.exe", "Qt5Sql.dll", "sqldrivers\qsqlite.dll", "
     }
 }
 
-$zip = Join-Path $distRoot "$name-win64.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path $target -DestinationPath $zip -CompressionLevel Optimal
 
-# The final artifact belongs in a visible release directory. build\release is
-# only the linker output and is easy to confuse with an older package.
-$releaseRoot = Join-Path $root "release"
-$publishedDir = Join-Path $releaseRoot "$name-win64"
-$publishedZip = Join-Path $releaseRoot "$name-win64.zip"
-if (Test-Path $publishedDir) { Remove-Item $publishedDir -Recurse -Force }
-New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
-Copy-Item $target $publishedDir -Recurse -Force
-Copy-Item $zip $publishedZip -Force
-
-Write-Host "Package complete: $zip"
-Write-Host "Release published: $publishedZip"
-Write-Host "Release folder: $publishedDir"
+Write-Host "Release published: $zip"
+Write-Host "Release folder: $target"

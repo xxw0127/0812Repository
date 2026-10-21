@@ -44,12 +44,11 @@ cd D:\OpenCode_WorkSpace\chatbox\client
 生成：
 
 ```text
-dist\chatbox-0.2.0-win64.zip
 release\chatbox-0.2.0-win64.zip
 release\chatbox-0.2.0-win64\chatbox.exe
 ```
 
-`release\` 是给最终用户直接拿包的发布目录；`build\release\` 只是编译输出，不要直接发给别人。
+`release\` 是唯一的最终发布目录；`build\release\` 只是编译输出，不要直接发给别人。脚本不再额外保留 `dist\` 副本。
 
 ZIP 内含 exe、Qt/MinGW/OpenSSL DLL、`vcruntime140.dll`、`certs`、`platforms`、`styles`、
 `imageformats`、`sqldrivers` 和 README，可直接解压运行。
