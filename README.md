@@ -14,7 +14,7 @@ C++ 聊天室：Windows 端 Qt 5.15 桌面客户端 + Linux C++17 高并发服�
 
 ```text
 ├── chatbox/
-│   ├── client/          # Qt 5.15 客户端（qmake + MinGW），含 QtTest 回归与截图
+│   ├── client/          # Qt 5.15 客户端（qmake + MinGW），含 QtTest 回归与截图（`screenshots/`）
 │   ├── server/          # Linux 服务端（CMake，epoll + MySQL + Argon2id + OpenSSL）
 │   ├── common/          # 协议编解码、命令字、错误码（客户端共用）
 │   ├── tools/           # 协议级联调/压测脚本（Python）、run_server.sh
@@ -68,13 +68,13 @@ Qt 客户端 --TLS 9443--> nginx stream（证书 /etc/chatbox/certs）--PROXY-->
 
 | 登录 | 聊天（大厅） |
 |---|---|
-| ![登录](chatbox/client/screenshot-coinbase-login.png) | ![主界面](chatbox/client/screenshot-coinbase-main.png) |
+| ![登录](chatbox/client/screenshots/screenshot-coinbase-login.png) | ![主界面](chatbox/client/screenshots/screenshot-coinbase-main.png) |
 
 | 个人资料 | 设置 |
 |---|---|
-| ![资料](chatbox/client/screenshot-coinbase-profile.png) | ![设置](chatbox/client/screenshot-coinbase-settings.png) |
+| ![资料](chatbox/client/screenshots/screenshot-coinbase-profile.png) | ![设置](chatbox/client/screenshots/screenshot-coinbase-settings.png) |
 
-更多界面与验证证据（图标、消息操作、好友、头像修复等）见 `chatbox/client/` 下的 `screenshot-*.png` 与客户端 README 索引。
+更多界面与验证证据（图标、消息操作、好友、头像修复等）见 `chatbox/client/screenshots/` 下的 `screenshot-*.png` 与客户端 README 索引。
 
 ## 文档
 

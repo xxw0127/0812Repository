@@ -8,6 +8,7 @@ chatbox/client/tests/Makefile.*
 chatbox/client/tests/object_script.*
 chatbox/client/tests/client_tests.exe
 chatbox/client/tests/results*.txt
+chatbox/client/tests/test_out.txt
 chatbox/client/tests/.qmake.stash
 *.o
 *.obj
@@ -35,6 +36,7 @@ __pycache__/
 *.pyo
 
 # ================= 过程记录：只保留台账，不保留源码快照 =================
+.superpowers/brainstorm/
 .superpowers/sdd/user-profile-2026-10-18/
 .superpowers/**/snapshots/
 
