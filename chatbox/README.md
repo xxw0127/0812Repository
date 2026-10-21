@@ -206,6 +206,16 @@ sudo mysql -e 'DROP DATABASE chatbox_restore_test;'
 
 SakuraFrp 免费额度约 5 GiB/月、10 Mbps；额度耗尽、节点维护或本机断网时公网不可用，局域网不受影响。**UFW 未启用，合盖/睡眠和 Wi-Fi 省电未修改**；笔记本合盖或睡眠时公网会断开，唤醒后 frpc 自动重连，因此不承诺 24 小时在线。不要分享访问 token、隧道 ID 或 CA 私钥。
 
+撤销公网路径（不影响局域网）：
+
+```bash
+sudo systemctl disable --now sakurafrp
+# 从 /etc/nginx/stream.d/chat.conf 删除或注释 127.0.0.1:9444 的 server 块
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+撤销时不要删除 CA 或重签证书；`192.168.2.240:9443` 继续使用原证书。
+
 ## 协议
 
 固定 14 字节大端帧头：
