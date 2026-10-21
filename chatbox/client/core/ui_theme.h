@@ -7,6 +7,10 @@ namespace chatbox {
 namespace client {
 namespace theme {
 
+// ChatBox design tokens (see docs/design/DESIGN.md). The palette is the single
+// source of truth for C++ painting and message HTML; style.qss/style-dark.qss
+// mirror it for Qt widgets and the theme tests guard both directions.
+
 enum class ThemeMode {
     kSystem = 0,
     kLight = 1,

@@ -2,6 +2,8 @@
 
 产品名 **ChatBox**；目录、可执行文件（`chatbox.exe`）、QSettings 键与服务端 systemd 服务名在 2026-10-19 已全部统一为 `chatbox`/`ChatBox`。启动时会把旧的 `Chatroom/ChatroomClient` 设置一次性迁移到 `ChatBox/ChatBox`，已有登录会话和设置不受改名影响。
 
+UI 颜色、字号、间距、组件和暗色规则见 [`../docs/design/DESIGN.md`](../docs/design/DESIGN.md)。
+
 Windows Qt 5.15.2 Widgets 客户端，原生 Winsock + 独立网络线程。
 
 ## 环境
@@ -176,7 +178,7 @@ cd D:\OpenCode_WorkSpace\chatbox\client\tests
 ## 已实现
 
 - Coinbase 设计语言浅色 UI：白底、冷灰表面（`#F7F7F7` / `#EEF0F3`）、单一蓝色强调 `#0052FF`、hairline 分隔、4/8/12/16 圆角刻度（输入框与发送键保留 18px 胶囊）、操作条单层柔和阴影；己方气泡保留绿色语义（`#05B169` 的 10% tint `#E6F7F0`）。色板唯一来源 `core/ui_theme.h`，`themeTokensMatchStyleSheet` 测试守卫 `style.qss` 不漂移（规格：`../../docs/superpowers/specs/2026-10-19-coinbase-style-ui.md`）
-- 品牌图标（2026-10-19）：应用/任务栏图标改为 `resources/app.ico` 多帧标记（16/24px 简化版纯气泡、32/48/64/128/256px 完整版蓝底白气泡 + 镂空 C；生成脚本 `tools/make_app_icon.ps1`，可重复再生成）；托盘图标同款（16px 简化帧）；大厅徽标改为品牌蓝气泡 `roomAvatar()`，房间列表与聊天头部共用，圆底取 `theme::kAccent`（规格：`../../docs/superpowers/specs/2026-10-19-client-brand-icons.md`、证据图 `screenshots/screenshot-coinbase-icons.png`）
+- 品牌图标（2026-10-19）：应用/任务栏图标改为 `resources/app.ico` 多帧标记（16/24px 简化版纯气泡、32/48/64/128/256px 完整版蓝底白气泡 + 镂空 C；生成脚本 `tools/make_app_icon.ps1`，可重复再生成）；托盘图标同款（16px 简化帧）；大厅徽标改为品牌蓝气泡 `roomAvatar()`，房间列表与聊天头部共用，圆底取 `theme::kAccent`（规格：`../../docs/superpowers/specs/2026-10-19-client-brand-icons.md`、证据图 `screenshots/ui-brand-icons.png`）
 - 注册 + 注册成功自动登录
 - 登录、Token 会话恢复
 - TLS 加密连接（OpenSSL，证书校验）
@@ -193,7 +195,7 @@ cd D:\OpenCode_WorkSpace\chatbox\client\tests
 - 用户搜索（用户名/昵称/用户ID）、好友申请/接受/拒绝、好友列表、删除好友
 - 个人主页：查看他人资料、编辑自己资料、头像上传/清除/回退、昵称/签名修改
 - 在线好友资料推送（昵称 + 头像版本）、好友列表 `avatar_version`、头像按版本缓存
-- 在线成员列表头像（2026-10-19）：成员行优先取头像缓存，未命中时按「版本未知先问一次」请求 `AVATAR_GET`，响应到达后重绘该行（含自己；证据图 `screenshots/screenshot-member-avatar.png`）
+- 在线成员列表头像（2026-10-19）：成员行优先取头像缓存，未命中时按「版本未知先问一次」请求 `AVATAR_GET`，响应到达后重绘该行（含自己；证据图 `screenshots/ui-member-avatar.png`）
 - 服务端好友备注、在线/离线分组、两行消息预览、时间/未读角标
 - 用户身份标识 `U + 8 位 user_id`，设置页可查看，搜索和好友申请中展示
 - 全量改名统一（2026-10-19）：目录 `chatbox/`、可执行文件 `chatbox.exe`、C++ 命名空间 `chatbox::client`、头文件宏 `CHATBOX_*`、QSettings `ChatBox/ChatBox`、服务端目标 `chatbox_server`、systemd 服务 `chatbox`、MySQL 库/用户 `chatbox` 全部一致；启动时自动迁移旧 QSettings（`Chatroom/ChatroomClient` → `ChatBox/ChatBox`），用户无感
@@ -217,7 +219,7 @@ cd D:\OpenCode_WorkSpace\chatbox\client\tests
 - 用户名 `@username` 只用于登录且不可修改；昵称用于展示，可以修改，二者不是同一个字段。
 - 头像保存在服务端 `users.avatar`（最大 48 KiB），按 `avatar_version` 缓存；清除头像不会删除历史版本号，而是继续递增并回退首字母。
 - 成员列表的成员多数不是好友，其头像版本不出现在好友/会话列表里：客户端按「版本未知先问一次」的策略请求一次 `AVATAR_GET`（服务端返回当前版本，含"无头像"），并把结果写进同一头像缓存；因此成员换头像后的展示依赖下次成员列表加载或资料更新推送。
-- 字母头像（无头像时的回退）统一取色于 `core/avatar_utils.cpp::fallbackAvatar()`；修复前 `main_window.cpp` 自带 6 色私有表、而资料页用 8 色表，同一用户两处底色不同（证据图 `screenshots/screenshot-avatar-palette.png`）。
+- 字母头像（无头像时的回退）统一取色于 `core/avatar_utils.cpp::fallbackAvatar()`；修复前 `main_window.cpp` 自带 6 色私有表、而资料页用 8 色表，同一用户两处底色不同（证据图 `screenshots/ui-avatar-palette.png`）。
 - JPEG 头像运行时必须有 `imageformats\qjpeg.dll`；该文件由 `build_client.ps1` 复制到构建输出。
 - 窗口/托盘图标运行时读取 `resources/app.ico`，需要 `imageformats\qico.dll`（`build_client.ps1` 一并复制）；缺少该插件时窗口图标回退为 exe 内嵌图标（`app.rc` 的 `IDI_ICON1`），托盘图标可能不显示。
 - 设置页修改服务器/TLS 会结束当前会话，返回登录页并使用新地址登录。
@@ -231,28 +233,15 @@ cd D:\OpenCode_WorkSpace\chatbox\client\tests
 - 当前仍没有聊天图片/文件传输（头像除外）、群管理。
 - @提及目前按昵称匹配并触发客户端提醒，不保存服务端 mention 表。
 - 消息搜索返回结果列表，暂不支持双击定位到历史位置。
-- 参考截图：`screenshots/screenshot-profile-own.png`、`screenshots/screenshot-profile-friend.png`、
-  `screenshots/screenshot-profile-edit-avatar.png`、`screenshots/screenshot-profile-saved.png`、
-  `screenshots/screenshot-profile-friend-avatar.png`、`screenshots/screenshot-profile-friend-push.png`、
-  `screenshots/screenshot-profile-fallback.png`、`screenshots/screenshot-profile-chat-header.png`、
-  `screenshots/screenshot-final-server-remark.png`、`screenshots/screenshot-friend-menu2.png`、
-  `screenshots/screenshot-final-friends-id.png`、`screenshots/screenshot-server-remark-ui.png`、
-  `screenshots/screenshot-friends-two-line.png`、`screenshots/screenshot-friends-final2.png`、
-  `screenshots/screenshot-friend-request.png`、`screenshots/screenshot-friends-final.png`、
-  `screenshots/screenshot-telegram-final3.png`、`screenshots/screenshot-telegram-login2.png`、
-  `screenshots/screenshot-p1-final2.png`、`screenshots/screenshot-search-result.png`、
-  `screenshots/screenshot-contact-added.png`、`screenshots/screenshot-settings.png`、
-  `screenshots/screenshot-quote-bar.png`、`screenshots/screenshot-quote-sent.png`、
-  `screenshots/screenshot-recall-done.png`、`screenshots/screenshot-msg-search-result.png`、
-  `screenshots/screenshot-message-actions-hover-own.png`、`screenshots/screenshot-message-actions-hover-incoming.png`、
-  `screenshots/screenshot-message-actions-no-recall.png`、`screenshots/screenshot-message-actions-menu-own.png`、
-  `screenshots/screenshot-message-actions-menu-incoming.png`；
-  Coinbase 换肤版（2026-10-19）：`screenshots/screenshot-coinbase-login.png`、`screenshots/screenshot-coinbase-main.png`、
-  `screenshots/screenshot-coinbase-message-actions.png`、`screenshots/screenshot-coinbase-message-menu.png`、
-  `screenshots/screenshot-coinbase-profile.png`、`screenshots/screenshot-coinbase-settings.png`、
-  `screenshots/screenshot-coinbase-message-search.png`、`screenshots/screenshot-coinbase-user-search.png`、
-  `screenshots/screenshot-coinbase-friend-request.png`；
-  品牌图标证据（2026-10-19）：`screenshots/screenshot-coinbase-icons.png`（多帧 app.ico 阶梯、任务栏按钮、托盘图标、大厅徽标）；
-  在线成员列表头像修复（2026-10-19）：`screenshots/screenshot-member-avatar.png`（修复前字母头像 / 修复后照片）；
-  字母头像调色板统一（2026-10-19）：`screenshots/screenshot-avatar-palette.png`（三处底色统一 + 像素级验证）；
-  全量改名统一（2026-10-19）：`screenshots/screenshot-chatbox-rename.png`（exe 为 `chatbox.exe`、窗口标题 ChatBox、会话经 QSettings 迁移后自动登录成功）。
+- ???????`screenshots/README.md`?
+  - ???`screenshots/ui-login-default.png`
+  - ???`screenshots/ui-main-room.png`
+  - ???`screenshots/ui-private-chat.png`
+  - ?????`screenshots/ui-message-actions.png`
+  - ?????`screenshots/ui-message-search.png`
+  - ???`screenshots/ui-profile.png`
+  - ???`screenshots/ui-settings.png`
+  - ?????`screenshots/ui-user-search.png`
+  - ?????`screenshots/ui-friend-request.png`
+  - ?????`screenshots/ui-chat-offline.png`
+  - ??/?????`screenshots/ui-brand-icons.png`?`screenshots/ui-member-avatar.png`?`screenshots/ui-avatar-palette.png`
