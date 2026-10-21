@@ -80,7 +80,7 @@ TLS 代理部署（nginx 终结 TLS、服务端只监听回环）：
 ```bash
 chmod +x tools/run_server.sh
 ./tools/run_server.sh --listen 127.0.0.1 --port 9100 --io-threads 4 \
-    --worker-threads 4 --max-connections 20000 --max-conn-per-ip 0 \
+    --worker-threads 4 --max-connections 500 --max-conn-per-ip 50 \
     --proxy-protocol --idle-timeout 90
 ```
 
@@ -102,8 +102,8 @@ kill -TERM <pid>
 
 - 登录失败：IP + 用户名 5 次/分钟，超限返回 `1005`
 - 发消息：每连接 10 条/秒，突发 20，超限返回 `1005`
-- 全局连接：20,000
-- 单 IP 连接：直连默认 20；经过 nginx/FRP 时所有连接来自代理 IP，需设为 `0`（当前 systemd 配置已设为 0）
+- 全局连接：500
+- 单 IP 连接：50；服务端在 PROXY v2 解析后按真实 IP 计数，经过 nginx/FRP 时也必须保留 `--max-conn-per-ip 50`，不能改回 `0`
 
 安装 systemd 与日志轮转：
 
@@ -146,7 +146,9 @@ MySQL 连接在每个业务请求前通过 `mysql_ping` 检查；连接丢失会
 拓扑：
 
 ```text
-Qt 客户端 --TLS 9443--> nginx stream --PROXY + 明文--> 127.0.0.1:9100
+局域网: Qt 客户端 --TLS 9443--> nginx stream --PROXY + 明文--> 127.0.0.1:9100
+公网:   Qt 客户端 --TLS frp-oil.com:15318--> SakuraFrp 节点 --TCP--> frpc
+        --PROXY v2--> nginx 127.0.0.1:9444 --TLS 终结 --PROXY + 明文--> 127.0.0.1:9100
 ```
 
 证书与 nginx：
@@ -157,13 +159,13 @@ sudo cp deploy/nginx-chat-stream.conf /etc/nginx/stream.d/chat.conf
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-- 服务端证书 SAN：`IP:192.168.2.240`、`DNS:chatbox.local`
+- 服务端证书 SAN：`IP:192.168.2.240`、`DNS:chatbox.local`、`DNS:frp-oil.com`
 - 服务器 LAN 地址固定为 `192.168.2.240/24`（NetworkManager 静态配置），不再依赖 DHCP 租约
 - CA：`/etc/chatbox/certs/ca.crt`，客户端副本在 `client/certs/ca.crt`
-- `deploy/gen_certs.sh` 会重新生成 CA 与服务器证书；**重新生成 CA 会让所有现有客户端拒绝连接**，必须同步把新的 `ca.crt` 分发到各客户端 `certs` 目录。只换服务器证书时应复用原 CA（保留 `ca.crt`/`ca.key`）
-- nginx 开启 `proxy_protocol on`
-- 服务端必须使用 `--proxy-protocol`，否则无法读取真实 IP
-- 客户端默认 `9443 + TLS`，并校验 CA 与 IP SAN
+- `deploy/gen_certs.sh` 只在 CA 缺失时生成 CA；正常运行只重签服务器证书并保留原 CA。**不要删除或重新生成 `ca.crt`/`ca.key`**，否则所有现有客户端都会拒绝连接；只换服务器证书时应复用原 CA，并备份证书目录
+- nginx 开启 `proxy_protocol on`；9443 为局域网监听，9444 仅监听 `127.0.0.1` 供 frpc 使用
+- 服务端必须使用 `--proxy-protocol`，否则无法读取真实 IP；公开入口使用 PROXY v2
+- 客户端默认 `9443 + TLS`，并校验 CA 与 IP/域名 SAN；公网入口为 `frp-oil.com:15318`
 
 ### 固定服务器地址
 
@@ -180,6 +182,29 @@ sudo nmcli connection up <连接名>
 ```
 
 改地址后必须重签服务器证书（复用原 CA），并同步客户端的 `server/host`、`session/host` 和 SSH 别名。
+
+## 公网部署与备份
+
+公网入口由本机 `frpc` 连接 SakuraFrp 免费 TCP 隧道，再由 nginx `127.0.0.1:9444` 终结 TLS。客户端使用现有 portable ZIP，不重新打包；首次连接填写 `frp-oil.com:15318` 并勾选 TLS，之后 QSettings 会记住。局域网 `192.168.2.240:9443` 保持可用。面向朋友的说明见 `docs/public-access.md`。
+
+常用检查：
+
+```bash
+systemctl status chatbox nginx mysql sakurafrp
+journalctl -u sakurafrp -n 100 --no-pager
+ss -ltnp | grep -E ':(9443|9444|9100|3306)\b'
+```
+
+每日备份由 `chatbox-backup.timer` 在 03:15 触发（睡眠时 `Persistent=true` 会在唤醒后补跑），保留 7 天，文件在 `/var/backups/chatbox/`，权限 `600 root:root`。备份使用专用账号 `chatbox_backup@localhost`，凭据在 `/etc/chatbox/backup.cnf`（`600 root:root`）。恢复演练：
+
+```bash
+latest=$(ls -1t /var/backups/chatbox/chatbox-*.sql.gz | head -1)
+sudo mysql -e 'DROP DATABASE IF EXISTS chatbox_restore_test; CREATE DATABASE chatbox_restore_test;'
+gunzip -c "$latest" | sudo mysql chatbox_restore_test
+sudo mysql -e 'DROP DATABASE chatbox_restore_test;'
+```
+
+SakuraFrp 免费额度约 5 GiB/月、10 Mbps；额度耗尽、节点维护或本机断网时公网不可用，局域网不受影响。**UFW 未启用，合盖/睡眠和 Wi-Fi 省电未修改**；笔记本合盖或睡眠时公网会断开，唤醒后 frpc 自动重连，因此不承诺 24 小时在线。不要分享访问 token、隧道 ID 或 CA 私钥。
 
 ## 协议
 
