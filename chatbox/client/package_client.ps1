@@ -39,4 +39,17 @@ foreach ($required in @("chatbox.exe", "Qt5Sql.dll", "sqldrivers\qsqlite.dll", "
 $zip = Join-Path $distRoot "$name-win64.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path $target -DestinationPath $zip -CompressionLevel Optimal
+
+# The final artifact belongs in a visible release directory. build\release is
+# only the linker output and is easy to confuse with an older package.
+$releaseRoot = Join-Path $root "release"
+$publishedDir = Join-Path $releaseRoot "$name-win64"
+$publishedZip = Join-Path $releaseRoot "$name-win64.zip"
+if (Test-Path $publishedDir) { Remove-Item $publishedDir -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
+Copy-Item $target $publishedDir -Recurse -Force
+Copy-Item $zip $publishedZip -Force
+
 Write-Host "Package complete: $zip"
+Write-Host "Release published: $publishedZip"
+Write-Host "Release folder: $publishedDir"

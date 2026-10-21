@@ -40,6 +40,7 @@ SOURCES += \
     ui/chat_view.cpp \
     ui/message_action_bar.cpp \
     ui/login_page.cpp \
+    ui/more_dots.cpp \
     ui/friend_request_dialog.cpp \
     ui/friend_item_delegate.cpp \
     ui/friend_list_widget.cpp \
@@ -73,6 +74,7 @@ HEADERS += \
     ui/chat_view.h \
     ui/message_action_bar.h \
     ui/login_page.h \
+    ui/more_dots.h \
     ui/friend_request_dialog.h \
     ui/friend_item_delegate.h \
     ui/friend_list_widget.h \

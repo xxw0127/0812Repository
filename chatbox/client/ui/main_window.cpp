@@ -60,6 +60,7 @@
 #include "ui/friend_request_dialog.h"
 #include "ui/message_action_bar.h"
 #include "ui/message_search_dialog.h"
+#include "ui/more_dots.h"
 #include "ui/profile_dialog.h"
 #include "ui/settings_dialog.h"
 #include "ui/user_search_dialog.h"
@@ -260,8 +261,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
         });
     }
     loadSession();
-    // 登录页的本地记录入口：本机存过记录时才显示。
-    updateLocalHistoryEntry();
     if (!logged_in_) {
         setStatus("请输入服务器和账号");
     }
@@ -316,8 +315,6 @@ void MainWindow::buildUi() {
         login_page_->setStatus("已取消登录");
         setStatus("已取消登录");
     });
-    connect(login_page_, &LoginPage::viewLocalHistoryRequested, this,
-            &MainWindow::openLocalHistory);
 }
 
 QWidget* MainWindow::buildChatPage() {
@@ -447,9 +444,11 @@ QWidget* MainWindow::buildChatPage() {
     header_row->addWidget(context_label_, 1);
     more_button_ = new QToolButton(header);
     more_button_->setObjectName("MoreButton");
-    more_button_->setText(QStringLiteral("⋯"));
+    more_button_->setIcon(chatbox::client::moreDotsIcon());
+    more_button_->setIconSize(QSize(44, 44));
     more_button_->setToolTip("更多");
-    more_button_->setFixedSize(30, 30);
+    more_button_->setFixedSize(48, 48);
+    more_button_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     more_button_->setArrowType(Qt::NoArrow);
     more_button_->setStyleSheet(
         "QToolButton#MoreButton::menu-indicator { image: none; width: 0px; }");
@@ -607,14 +606,13 @@ void MainWindow::saveSession() {
     }
     settings.setValue("session/user_id", QVariant::fromValue<qulonglong>(user_id_));
     settings.setValue("session/nickname", nickname_);
-    // 本地记录入口：记住本机存过记录的是哪个账号，退出登录后还能找回。
+    // 记住最近使用的本机历史库账号，供离线缓存定位。
     settings.setValue("history/last_user_id", QVariant::fromValue<qulonglong>(user_id_));
     settings.setValue("history/last_nickname", nickname_);
     settings.setValue("server/host", host_);
     settings.setValue("server/port", port_);
     settings.setValue("server/tls", use_tls_);
     settings.sync();
-    updateLocalHistoryEntry();
 }
 
 void MainWindow::loadSession() {
@@ -633,7 +631,7 @@ void MainWindow::loadSession() {
     token_ = token;
     user_id_ = settings.value("session/user_id").toULongLong();
     nickname_ = settings.value("session/nickname").toString();
-    // 升级路径：早期版本只存了 session/*，这里补齐本地记录入口用的两个键。
+    // 升级路径：早期版本只存了 session/*，这里补齐离线缓存定位用的两个键。
     if (user_id_ != 0) {
         settings.setValue("history/last_user_id",
                           QVariant::fromValue<qulonglong>(user_id_));
@@ -3211,8 +3209,7 @@ void MainWindow::loadInitialHistory(chatbox::client::ChatContext context,
 }
 
 // 进入离线模式：只读地显示本机保存的聊天记录，全程不发任何请求帧。
-// with_token 为真表示还留着登录 token，自动重连继续工作；
-// 为假表示纯本地浏览（登录页的「查看本地记录」），没有 token 也不重连。
+// 只在已保存会话连不上/恢复失败时自动触发，后台继续退避重连。
 bool MainWindow::enterOfflineMode(bool with_token) {
     if (user_id_ == 0) {
         return false;
@@ -3403,85 +3400,6 @@ void MainWindow::loadOlderFromLocal() {
     }
     renderCurrentConversation(ScrollMode::kTop);
     setStatus(QString("已加载 %1 条更早的本地记录").arg(page.size()));
-}
-
-// 登录页的本地记录入口：本机存过这个账号的记录时才显示。
-void MainWindow::updateLocalHistoryEntry() {
-    if (login_page_ == nullptr) {
-        return;
-    }
-    QSettings settings;
-    const quint64 last_user_id =
-        settings.value("history/last_user_id").toULongLong();
-    if (last_user_id == 0) {
-        login_page_->setLocalHistoryAvailable(false);
-        return;
-    }
-    QString nickname = settings.value("history/last_nickname").toString().trimmed();
-    if (nickname.isEmpty()) {
-        nickname = settings.value("session/nickname").toString().trimmed();
-    }
-    login_page_->setLocalHistoryAvailable(true, nickname);
-}
-
-// 登录页的「查看本地记录」：不连服务端，只读地看本机存下来的聊天。
-void MainWindow::openLocalHistory() {
-    QSettings settings;
-    const quint64 last_user_id =
-        settings.value("history/last_user_id").toULongLong();
-    if (last_user_id == 0) {
-        login_page_->setStatus("暂无可查看的本地记录", true);
-        setStatus("暂无可查看的本地记录", true);
-        return;
-    }
-    QString nickname = settings.value("history/last_nickname").toString().trimmed();
-    if (nickname.isEmpty()) {
-        nickname = settings.value("session/nickname").toString().trimmed();
-    }
-    if (nickname.isEmpty()) {
-        nickname = QString("本地用户");
-    }
-
-    // 纯本地浏览：不带 token、不算登录态，也不参与自动重连。
-    user_id_ = last_user_id;
-    nickname_ = nickname;
-    token_.clear();
-    password_.clear();
-    logged_in_ = false;
-    pending_auth_ = PendingAuth::None;
-    resuming_ = false;
-    logging_out_ = false;
-    logout_finishing_ = false;
-    connected_ = false;
-    // 彻底断开并作废当前连接代次：
-    // 否则旧连接线程迟到的 disconnected 信号会把界面弹回登录页。
-    ++connection_generation_;
-    if (network_ != nullptr) {
-        disconnect(network_, nullptr, this, nullptr);
-        network_->requestStop();
-        network_->wait();
-        delete network_;
-        network_ = nullptr;
-    }
-    if (reconnect_timer_ != nullptr) {
-        reconnect_timer_->stop();
-        reconnect_scheduled_ = false;
-    }
-
-    if (!openHistoryStore(user_id_) || !history_store_.hasMessages()) {
-        closeHistoryStore();
-        login_page_->setStatus("本机没有该账号的聊天记录", true);
-        setStatus("本机没有该账号的聊天记录", true);
-        return;
-    }
-    if (!enterOfflineMode(false)) {
-        closeHistoryStore();
-        login_page_->setStatus("本机没有该账号的聊天记录", true);
-        setStatus("本机没有该账号的聊天记录", true);
-        return;
-    }
-    login_page_->setStatus("正在查看本地记录（只读）");
-    setStatus("已打开本地记录（只读）");
 }
 
 // 离线模式下的「重试连接」：没有 token 就没什么可重试的。
@@ -4800,8 +4718,7 @@ void MainWindow::clearSession() {
     }
     clearReply();
     QSettings settings;
-    // 只删会话信息：本地记录（history/*）要保留，
-    // 登录页的「查看本地记录」入口依赖它。
+    // 只删会话信息：本地记录（history/*）保留，离线模式继续可用。
     settings.remove("session");
     settings.sync();
     if (conversation_list_ != nullptr) {
@@ -4819,8 +4736,6 @@ void MainWindow::clearSession() {
     login_page_->clearPassword();
     login_page_->resetToLogin();
     login_page_->setStatus("会话已失效，请重新登录", true);
-    // 退出登录后仍然保留本地记录入口。
-    updateLocalHistoryEntry();
 }
 
 void MainWindow::resetContext() {

@@ -81,9 +81,6 @@ private slots:
     void onLoadMoreClicked();
     // 离线模式下的「重试连接」：只有还留着 token 时才真的重连。
     void retryConnection();
-    // 登录页的本地记录入口：以只读方式打开本机保存的聊天记录。
-    void openLocalHistory();
-
 private:
     enum class PendingAuth { None, Login, Register };
     enum class ContextType { None, Room, Private };
@@ -166,8 +163,6 @@ private:
     void refreshOfflineAfterClear();
     // 离线翻页：从本地历史库取更早的一页。
     void loadOlderFromLocal();
-    // 刷新登录页的本地记录入口（是否有记录、账号昵称）。
-    void updateLocalHistoryEntry();
     void resetContext();
     void renderCurrentConversation(ScrollMode mode);
     void addIncomingMessage(const chatbox::client::ChatMessage& message);

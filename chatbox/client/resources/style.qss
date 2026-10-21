@@ -292,10 +292,8 @@ QToolTip {
 QToolButton#MoreButton, QToolButton#AdvancedOptionsButton {
     background: transparent;
     border: none;
-    border-radius: 6px;
-    color: #0A0B0D;
-    font-size: 18px;
-    padding: 2px;
+    border-radius: 12px;
+    padding: 0px;
 }
 
 QToolButton#MoreButton:hover, QToolButton#AdvancedOptionsButton:hover {

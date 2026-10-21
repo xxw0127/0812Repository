@@ -25,6 +25,7 @@ SOURCES += \
     ../ui/message_action_bar.cpp \
     ../ui/profile_dialog.cpp \
     ../ui/login_page.cpp \
+    ../ui/more_dots.cpp \
     ../ui/settings_dialog.cpp
 HEADERS += \
     ../core/app_settings.h \
@@ -47,6 +48,7 @@ HEADERS += \
     ../ui/message_action_bar.h \
     ../ui/profile_dialog.h \
     ../ui/login_page.h \
+    ../ui/more_dots.h \
     ../ui/settings_dialog.h
 
 win32: LIBS += -lcrypt32

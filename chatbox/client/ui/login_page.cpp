@@ -16,6 +16,7 @@
 
 #include "core/credential_store.h"
 #include "core/ui_theme.h"
+#include "ui/more_dots.h"
 
 namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
@@ -29,8 +30,24 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     card->setObjectName("LoginCard");
     card->setFixedWidth(390);
     auto* card_layout = new QVBoxLayout(card);
-    card_layout->setContentsMargins(30, 28, 30, 24);
+    card_layout->setContentsMargins(30, 22, 30, 24);
     card_layout->setSpacing(10);
+
+    auto* top_row = new QHBoxLayout();
+    top_row->setContentsMargins(0, 0, 0, 0);
+    top_row->addStretch(1);
+    advanced_toggle_ = new QToolButton(card);
+    advanced_toggle_->setObjectName("AdvancedOptionsButton");
+    advanced_toggle_->setIcon(chatbox::client::moreDotsIcon());
+    advanced_toggle_->setIconSize(QSize(44, 44));
+    advanced_toggle_->setToolTip("更多选项");
+    advanced_toggle_->setCheckable(true);
+    advanced_toggle_->setAutoRaise(true);
+    advanced_toggle_->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    advanced_toggle_->setFixedSize(48, 44);
+    advanced_toggle_->setCursor(Qt::PointingHandCursor);
+    top_row->addWidget(advanced_toggle_, 0, Qt::AlignTop | Qt::AlignRight);
+    card_layout->addLayout(top_row);
 
     auto* logo = new QLabel("C", card);
     logo->setFixedSize(56, 56);
@@ -67,8 +84,10 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     tls_check_->setObjectName("ServerTlsCheck");
     tls_check_->setChecked(true);
     username_edit_ = new QLineEdit(card);
+    username_edit_->setObjectName("UsernameEdit");
     username_edit_->setPlaceholderText("3-32 位字母、数字、下划线");
     password_edit_ = new QLineEdit(card);
+    password_edit_->setObjectName("PasswordEdit");
     password_edit_->setEchoMode(QLineEdit::Password);
     password_edit_->setPlaceholderText("至少 8 位");
     nickname_label_ = new QLabel("昵称", card);
@@ -106,16 +125,7 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     login_options->addStretch(1);
     card_layout->addLayout(login_options);
 
-    if (remember_password_check_->isChecked()) {
-        QString saved_username;
-        QString saved_password;
-        if (chatbox::client::loadSavedCredentials(&saved_username, &saved_password)) {
-            if (username_edit_->text().isEmpty()) {
-                username_edit_->setText(saved_username);
-            }
-            password_edit_->setText(saved_password);
-        }
-    }
+    reloadSavedCredentials();
 
     advanced_panel_ = new QWidget(card);
     advanced_panel_->setObjectName("AdvancedOptionsPanel");
@@ -129,16 +139,6 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     advanced_form->addRow("连接", tls_check_);
     advanced_panel_->hide();
     card_layout->addWidget(advanced_panel_);
-
-    advanced_toggle_ = new QToolButton(card);
-    advanced_toggle_->setObjectName("AdvancedOptionsButton");
-    advanced_toggle_->setText(QStringLiteral("⋯"));
-    advanced_toggle_->setToolTip("更多选项");
-    advanced_toggle_->setCheckable(true);
-    advanced_toggle_->setAutoRaise(true);
-    advanced_toggle_->setFixedSize(30, 24);
-    advanced_toggle_->setCursor(Qt::PointingHandCursor);
-    card_layout->addWidget(advanced_toggle_, 0, Qt::AlignLeft);
 
     auto* buttons = new QHBoxLayout();
     buttons->setSpacing(8);
@@ -156,14 +156,6 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     buttons->addWidget(cancel_button_);
     card_layout->addLayout(buttons);
 
-    // 本地记录入口放在按钮行下面：默认隐藏，
-    // 只有本机确实存过该账号的聊天记录时才出现。
-    local_history_button_ = new QPushButton("查看本地记录", card);
-    local_history_button_->setObjectName("LocalHistoryButton");
-    local_history_button_->setMinimumHeight(32);
-    local_history_button_->hide();
-    card_layout->addWidget(local_history_button_);
-
     status_label_ = new QLabel(card);
     status_label_->setWordWrap(true);
     status_label_->setMinimumHeight(32);
@@ -176,8 +168,6 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     connect(login_button_, &QPushButton::clicked, this, &LoginPage::submitPrimary);
     connect(register_button_, &QPushButton::clicked, this, &LoginPage::toggleRegisterMode);
     connect(cancel_button_, &QPushButton::clicked, this, &LoginPage::cancelRequested);
-    connect(local_history_button_, &QPushButton::clicked, this,
-            &LoginPage::viewLocalHistoryRequested);
     connect(password_edit_, &QLineEdit::returnPressed, this, &LoginPage::submitPrimary);
     connect(nickname_edit_, &QLineEdit::returnPressed, this, &LoginPage::submitPrimary);
     connect(auto_login_check_, &QCheckBox::toggled, this, [](bool checked) {
@@ -235,22 +225,6 @@ void LoginPage::setServerSettings(const QString& host, quint16 port, bool tls) {
     tls_check_->setChecked(tls);
 }
 
-// 本地记录入口：可用时显示按钮并带上账号昵称，不可用时彻底隐藏。
-void LoginPage::setLocalHistoryAvailable(bool available, const QString& nickname) {
-    if (local_history_button_ == nullptr) {
-        return;
-    }
-    const QString name = nickname.trimmed();
-    local_history_button_->setText(name.isEmpty()
-                                       ? QString("查看本地记录")
-                                       : QString("查看本地记录（%1）").arg(name));
-    if (available) {
-        local_history_button_->show();
-    } else {
-        local_history_button_->hide();
-    }
-}
-
 void LoginPage::setRegisterMode(bool enabled) {
     register_mode_ = enabled;
     nickname_label_->setVisible(enabled);
@@ -262,8 +236,22 @@ void LoginPage::setRegisterMode(bool enabled) {
     }
 }
 
+void LoginPage::reloadSavedCredentials() {
+    if (!remember_password_check_->isChecked()) {
+        return;
+    }
+    QString saved_username;
+    QString saved_password;
+    if (!chatbox::client::loadSavedCredentials(&saved_username, &saved_password)) {
+        return;
+    }
+    username_edit_->setText(saved_username);
+    password_edit_->setText(saved_password);
+}
+
 void LoginPage::resetToLogin() {
     setRegisterMode(false);
+    reloadSavedCredentials();
 }
 
 void LoginPage::toggleRegisterMode() {

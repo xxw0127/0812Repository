@@ -178,10 +178,11 @@ private slots:
     void conversationOpensFromLocalHistoryFirst();
     void incomingPushesArePersistedForOtherConversations();
     void recallPushUpdatesBackgroundHistory();
-    void loginPageOffersLocalHistory();
+    void loginPageHasNoLocalHistoryEntry();
     void loginPageHidesServerFieldsBehindMoreDots();
     void loginPageShowsNicknameOnlyInRegisterMode();
     void loginPageHasAutoLoginAndRememberPasswordOptions();
+    void loginPageReloadsRememberedPasswordAfterLogout();
     void credentialStoreEncryptsSavedPassword();
     void settingsDialogDefaultsToPublicServer();
     void offlineModeIsReadOnlyAndLocal();
@@ -1684,8 +1685,10 @@ void TestClientCore::headerUsesAvatarAndMoreMenu() {
              "message search moved out of the composer");
     QVERIFY2(source.contains(QStringLiteral("more_button_->setPopupMode(QToolButton::InstantPopup)")),
              "the header owns an instant-popup menu button");
-    QVERIFY2(source.contains(QStringLiteral("more_button_->setText(QStringLiteral(\"⋯\"))")),
-             "the header more control uses three horizontal dots");
+    QVERIFY2(source.contains(QStringLiteral("more_button_->setIcon(chatbox::client::moreDotsIcon())")),
+             "the header more control uses three filled dots");
+    QVERIFY2(!source.contains(QStringLiteral("more_button_->setText")),
+             "the header more control must not render thin text dots");
     QVERIFY2(source.contains(QStringLiteral("menu-indicator")),
              "the header more control must hide the menu indicator arrow");
     QVERIFY2(source.contains(QStringLiteral("消息搜索")) &&
@@ -2136,21 +2139,10 @@ void TestClientCore::recallPushUpdatesBackgroundHistory() {
     QVERIFY(recall.contains(QStringLiteral("ChatContext::kPrivate")));
 }
 
-// 登录页在没有网络时也要给出「查看本地记录」入口：
-// 按钮默认隐藏，只有本机确实存过该账号的聊天记录时才出现。
-void TestClientCore::loginPageOffersLocalHistory() {
+// 登录页不再保留「查看本地记录」行：无网络时由主窗口自动进入只读离线模式。
+void TestClientCore::loginPageHasNoLocalHistoryEntry() {
     LoginPage page;
-    auto* button = page.findChild<QPushButton*>(QStringLiteral("LocalHistoryButton"));
-    QVERIFY(button != nullptr);
-    QVERIFY(button->isHidden());  // isVisible() is false while the page is not shown
-    page.setLocalHistoryAvailable(true, QStringLiteral("alice"));
-    QVERIFY(!button->isHidden());
-    QVERIFY(button->text().contains(QStringLiteral("alice")));
-    QSignalSpy spy(&page, &LoginPage::viewLocalHistoryRequested);
-    button->click();
-    QCOMPARE(spy.count(), 1);
-    page.setLocalHistoryAvailable(false);
-    QVERIFY(button->isHidden());
+    QVERIFY(page.findChild<QPushButton*>(QStringLiteral("LocalHistoryButton")) == nullptr);
 }
 
 // 服务器/端口/TLS 不是每次登录都要填：默认收在登录卡片的横向三点入口里，
@@ -2165,7 +2157,9 @@ void TestClientCore::loginPageHidesServerFieldsBehindMoreDots() {
     auto* panel = page.findChild<QWidget*>(QStringLiteral("AdvancedOptionsPanel"));
     QVERIFY(toggle != nullptr);
     QVERIFY(panel != nullptr);
-    QCOMPARE(toggle->text(), QStringLiteral("⋯"));
+    QVERIFY(toggle->text().isEmpty());
+    QVERIFY(!toggle->icon().isNull());
+    QVERIFY(toggle->iconSize().width() >= 24);
     QVERIFY(panel->isHidden());
 
     auto* host = page.findChild<QLineEdit*>(QStringLiteral("ServerHostEdit"));
@@ -2223,6 +2217,34 @@ void TestClientCore::loginPageHasAutoLoginAndRememberPasswordOptions() {
     QVERIFY(!remember->isChecked());
 }
 
+void TestClientCore::loginPageReloadsRememberedPasswordAfterLogout() {
+    QSettings settings;
+    settings.remove(QStringLiteral("login"));
+    settings.sync();
+    settings.setValue(QStringLiteral("login/remember_password"), true);
+    settings.sync();
+    QVERIFY(chatbox::client::saveSavedCredentials(QStringLiteral("alice"),
+                                                   QStringLiteral("Secret123")));
+
+    LoginPage page;
+    auto* username = page.findChild<QLineEdit*>(QStringLiteral("UsernameEdit"));
+    auto* password = page.findChild<QLineEdit*>(QStringLiteral("PasswordEdit"));
+    QVERIFY(username != nullptr);
+    QVERIFY(password != nullptr);
+    QCOMPARE(username->text(), QStringLiteral("alice"));
+    QCOMPARE(password->text(), QStringLiteral("Secret123"));
+
+    page.clearPassword();
+    QVERIFY(password->text().isEmpty());
+    page.resetToLogin();
+    QCOMPARE(username->text(), QStringLiteral("alice"));
+    QCOMPARE(password->text(), QStringLiteral("Secret123"));
+
+    chatbox::client::clearSavedCredentials();
+    settings.remove(QStringLiteral("login"));
+    settings.sync();
+}
+
 void TestClientCore::credentialStoreEncryptsSavedPassword() {
     QSettings settings;
     settings.remove(QStringLiteral("login"));
@@ -2266,12 +2288,14 @@ void TestClientCore::settingsDialogDefaultsToPublicServer() {
 }
 
 // 离线模式必须是只读的本地视图：所有写操作都要被挡住，
-// 搜索与翻页改走本地历史库，退出登录时保留本地记录入口。
+// 搜索与翻页改走本地历史库；断网时自动进入，不再保留手动入口。
 void TestClientCore::offlineModeIsReadOnlyAndLocal() {
     const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
     QVERIFY(source.contains(QStringLiteral("enterOfflineMode(")));
+    QVERIFY(source.contains(QStringLiteral("enterOfflineMode(true)")));
     QVERIFY(source.contains(QStringLiteral("离线模式 · 仅显示本地记录")));
-    QVERIFY(source.contains(QStringLiteral("viewLocalHistoryRequested")));
+    QVERIFY(!source.contains(QStringLiteral("LocalHistoryButton")));
+    QVERIFY(!source.contains(QStringLiteral("openLocalHistory")));
     const QString recall = functionSection(source, QStringLiteral("void MainWindow::sendRecall("));
     QVERIFY(recall.contains(QStringLiteral("!online_")));
     const QString search = functionSection(source,
