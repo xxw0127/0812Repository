@@ -285,7 +285,7 @@ QCheckBox::indicator:checked {
     image: url(:/icons/check.png);
 }
 
-QCheckBox:focus::indicator {
+QCheckBox::indicator:focus {
     border: 2px solid #0052FF;
 }
 

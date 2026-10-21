@@ -1632,7 +1632,7 @@ void TestClientCore::styleSheetHasVisibleKeyboardFocus() {
         QStringLiteral("QPushButton:focus"),
         QStringLiteral("QPushButton#PrimaryButton:focus"),
         QStringLiteral("QPushButton#SendButton:focus"),
-        QStringLiteral("QCheckBox:focus::indicator"),
+        QStringLiteral("QCheckBox::indicator:focus"),
         QStringLiteral("QToolButton:focus"),
     };
     for (const QString& selector : selectors) {

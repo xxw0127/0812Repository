@@ -218,6 +218,7 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     QWidget::setTabOrder(port_spin_, tls_check_);
     QWidget::setTabOrder(tls_check_, login_button_);
     QWidget::setTabOrder(login_button_, register_button_);
+    username_edit_->setFocus();
 }
 
 void LoginPage::setStatus(const QString& text, bool error) {
@@ -271,6 +272,7 @@ void LoginPage::reloadSavedCredentials() {
 void LoginPage::resetToLogin() {
     setRegisterMode(false);
     reloadSavedCredentials();
+    username_edit_->setFocus();
 }
 
 void LoginPage::toggleRegisterMode() {
