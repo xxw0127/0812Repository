@@ -1,0 +1,9 @@
+[Unit]
+Description=ChatBox MySQL backup
+After=mysql.service
+Requires=mysql.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/chatbox-backup.sh
+User=root
