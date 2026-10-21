@@ -29,6 +29,12 @@ struct MessageActions {
 MessageActions messageActions(const ChatMessage& message, quint64 self_user_id,
                               const QDateTime& now_utc = QDateTime::currentDateTimeUtc());
 
+// Renders one message (and optionally its date separator). The full renderer
+// uses this same function so the whole conversation and incremental appends
+// produce identical markup.
+QString renderMessageFragment(const ChatMessage& message, quint64 self_user_id,
+                              bool include_date_header, const QString& date_label);
+
 // Renders the whole conversation as rich text. When rendered_messages is not
 // null it receives one key per rendered bubble in document order, so the view
 // can map mouse positions back to messages.

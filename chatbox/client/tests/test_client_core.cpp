@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QColor>
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QGraphicsDropShadowEffect>
 #include <QIcon>
@@ -25,6 +26,7 @@
 #include <QTemporaryDir>
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QTextDocument>
 #include <QTextFragment>
 #include <QToolButton>
 #include <QVector>
@@ -121,11 +123,15 @@ private slots:
     void rendererEscapesHtml();
     void rendererShowsRetryOnlyWhenFailed();
     void rendererAddsDateSeparator();
+    void rendererFragmentMatchesFullRender();
     void rendererAlignsOwnMessages();
     void rendererQuoteBlockWithoutInlineActions();
     void messageActionsAvailability();
     void messageActionsRecallWindow();
     void chatViewMapsMessagesToIds();
+    void chatViewAppendsFragmentsWithoutResettingDocument();
+    void chatViewAppendStaysUnderBudget();
+    void chatViewStylesAppendedRetryLink();
     void chatViewStylesRetryLink();
     void chatViewHoverReentersSameMessage();
     void contactStorePersistsAndUpdates();
@@ -184,6 +190,7 @@ private slots:
     void loginPageHasAutoLoginAndRememberPasswordOptions();
     void loginPageReloadsRememberedPasswordAfterLogout();
     void credentialStoreEncryptsSavedPassword();
+    void mainWindowUsesIncrementalAppendForIncomingMessages();
     void settingsDialogDefaultsToPublicServer();
     void offlineModeIsReadOnlyAndLocal();
     void settingsDialogShowsHistoryInfo();
@@ -505,6 +512,31 @@ void TestClientCore::rendererAddsDateSeparator() {
     QVERIFY(html.contains("2026-10-19"));
 }
 
+void TestClientCore::rendererFragmentMatchesFullRender() {
+    const QDateTime first_local(QDate(2026, 10, 18), QTime(10, 0), Qt::LocalTime);
+    const QDateTime second_local(QDate(2026, 10, 19), QTime(10, 0), Qt::LocalTime);
+
+    chatbox::client::ChatMessage first;
+    first.message_id = 1;
+    first.sender_name = "Bob";
+    first.content = "day one";
+    first.created_at_utc = first_local.toUTC();
+    chatbox::client::ChatMessage second;
+    second.message_id = 2;
+    second.sender_name = "Bob";
+    second.content = "day two";
+    second.created_at_utc = second_local.toUTC();
+
+    const QString expected =
+        QStringLiteral("<html><body style=\"font-family: 'Microsoft YaHei', sans-serif;\">") +
+        chatbox::client::renderMessageFragment(
+            first, 1, true, chatbox::client::formatLocalDate(first.created_at_utc)) +
+        chatbox::client::renderMessageFragment(
+            second, 1, true, chatbox::client::formatLocalDate(second.created_at_utc)) +
+        QStringLiteral("</body></html>");
+    QCOMPARE(chatbox::client::renderConversationHtml({first, second}, 1), expected);
+}
+
 void TestClientCore::rendererAlignsOwnMessages() {
     const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
     chatbox::client::ChatMessage own;
@@ -754,6 +786,174 @@ void TestClientCore::chatViewMapsMessagesToIds() {
     QVERIFY(second_content.y() >= 0);
     QVERIFY(second_content.y() < view.viewport()->height());
     QVERIFY(view.messageBubbleRect(22).contains(second_content));
+}
+
+void TestClientCore::chatViewAppendsFragmentsWithoutResettingDocument() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage first;
+    first.message_id = 11;
+    first.sender_id = 2;
+    first.sender_name = "Bob";
+    first.content = "first body";
+    first.created_at_utc = created;
+    chatbox::client::ChatMessage second;
+    second.message_id = 22;
+    second.sender_id = 1;
+    second.sender_name = "Me";
+    second.content = "second body";
+    second.created_at_utc = created;
+    second.outgoing = true;
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html = chatbox::client::renderConversationHtml({first, second}, 1, &keys);
+    ChatView view;
+    view.resize(640, 480);
+    view.show();
+    QTest::qWait(50);
+    view.setConversationHtml(html, keys);
+    QTextDocument* document = view.document();
+    int resets = 0;
+    QObject::connect(document, &QTextDocument::contentsChange,
+                     [&resets](int position, int removed, int) {
+                         if (position == 0 && removed > 0) {
+                             ++resets;
+                         }
+                     });
+
+    for (int i = 0; i < 50; ++i) {
+        chatbox::client::ChatMessage appended;
+        appended.message_id = 100 + static_cast<quint64>(i);
+        appended.sender_id = 2;
+        appended.sender_name = "Bob";
+        appended.content = QStringLiteral("append %1").arg(i);
+        appended.created_at_utc = created.addSecs(i);
+        chatbox::client::MessageKey key;
+        key.message_id = appended.message_id;
+        view.appendFragment(chatbox::client::renderMessageFragment(appended, 1, false,
+                                                                    QString()),
+                            key);
+    }
+
+    QCOMPARE(view.document(), document);
+    QCOMPARE(resets, 0);
+    QVERIFY(!document->find("first body").isNull());
+    QVERIFY(!view.messageAnchorRect(11).isNull());
+    QVERIFY(!view.messageAnchorRect(149).isNull());
+
+    QScrollBar* scroll = view.verticalScrollBar();
+    scroll->setValue(scroll->maximum());
+    QTest::qWait(50);
+    const QTextCursor last = document->find("append 49");
+    QVERIFY(!last.isNull());
+    const QPoint last_pos = view.cursorRect(last).center();
+    QCOMPARE(view.messageIdAt(last_pos), quint64(149));
+    QVERIFY(view.messageBubbleRect(149).contains(last_pos));
+
+    view.clearConversation();
+    QVERIFY(view.messageAnchorRect(11).isNull());
+    QVERIFY(view.document()->find("first body").isNull());
+}
+
+void TestClientCore::chatViewAppendStaysUnderBudget() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    for (int count : {100, 500, 1000}) {
+        QVector<chatbox::client::ChatMessage> messages;
+        messages.reserve(count);
+        for (int i = 0; i < count; ++i) {
+            chatbox::client::ChatMessage message;
+            message.message_id = static_cast<quint64>(i + 1);
+            message.sender_id = 2;
+            message.sender_name = "Bob";
+            message.content = QStringLiteral("message %1").arg(i);
+            message.created_at_utc = created.addSecs(i);
+            messages.append(message);
+        }
+
+        QVector<chatbox::client::MessageKey> keys;
+        const QString html = chatbox::client::renderConversationHtml(messages, 1, &keys);
+        ChatView view;
+        view.resize(640, 480);
+        view.show();
+        QTest::qWait(50);
+        QElapsedTimer full_timer;
+        full_timer.start();
+        view.setConversationHtml(html, keys);
+        QTest::qWait(200);
+        // Force the initial document layout before measuring the incremental
+        // append; otherwise the timer would include the first full layout.
+        view.document()->size();
+        view.verticalScrollBar()->maximum();
+        const qint64 full_ms = full_timer.elapsed();
+
+        chatbox::client::ChatMessage extra;
+        extra.message_id = 2000;
+        extra.sender_id = 2;
+        extra.sender_name = "Bob";
+        extra.content = "one more";
+        extra.created_at_utc = created.addSecs(count);
+        chatbox::client::MessageKey key;
+        key.message_id = extra.message_id;
+        const QString fragment =
+            chatbox::client::renderMessageFragment(extra, 1, false, QString());
+
+        QElapsedTimer timer;
+        timer.start();
+        view.appendFragment(fragment, key);
+        const qint64 elapsed_ms = timer.elapsed();
+        qInfo("messages=%d full=%lldms append=%lldms", count,
+              static_cast<long long>(full_ms), static_cast<long long>(elapsed_ms));
+        QVERIFY(!view.document()->find("one more").isNull());
+        QVERIFY(!view.messageAnchorRect(2000).isNull());
+        QVERIFY2(elapsed_ms < 5,
+                 qPrintable(QStringLiteral("append after %1 messages took %2 ms")
+                                .arg(count)
+                                .arg(elapsed_ms)));
+    }
+}
+
+void TestClientCore::chatViewStylesAppendedRetryLink() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage base;
+    base.message_id = 1;
+    base.content = "base";
+    base.created_at_utc = created;
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html = chatbox::client::renderConversationHtml({base}, 1, &keys);
+    ChatView view;
+    view.resize(640, 480);
+    view.show();
+    QTest::qWait(50);
+    view.setConversationHtml(html, keys);
+
+    chatbox::client::ChatMessage failed;
+    failed.client_msg_id = "p2";
+    failed.content = "append failed";
+    failed.created_at_utc = created;
+    failed.outgoing = true;
+    failed.status = chatbox::client::MessageStatus::kFailed;
+    chatbox::client::MessageKey key;
+    key.client_msg_id = failed.client_msg_id;
+    view.appendFragment(chatbox::client::renderMessageFragment(failed, 1, false, QString()),
+                        key);
+
+    bool inspected = false;
+    for (QTextBlock block = view.document()->begin(); block.isValid();
+         block = block.next()) {
+        for (QTextBlock::iterator it = block.begin(); !it.atEnd(); ++it) {
+            const QTextFragment fragment = it.fragment();
+            if (!fragment.isValid() || !fragment.text().contains(QString::fromUtf8("重发"))) {
+                continue;
+            }
+            const QTextCharFormat format = fragment.charFormat();
+            QVERIFY(format.isAnchor());
+            QVERIFY(!format.fontUnderline());
+            QCOMPARE(format.foreground().color(),
+                     QColor(chatbox::client::theme::kAccent));
+            inspected = true;
+        }
+    }
+    QVERIFY(inspected);
 }
 
 void TestClientCore::chatViewStylesRetryLink() {
@@ -2269,6 +2469,17 @@ void TestClientCore::credentialStoreEncryptsSavedPassword() {
 
     chatbox::client::clearSavedCredentials();
     QVERIFY(!chatbox::client::loadSavedCredentials(&username, &password));
+}
+
+void TestClientCore::mainWindowUsesIncrementalAppendForIncomingMessages() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    const QString add = functionSection(
+        source, QStringLiteral("void MainWindow::addIncomingMessage("));
+    QVERIFY(add.contains(QStringLiteral("renderMessageFragment(")));
+    QVERIFY(add.contains(QStringLiteral("appendFragment(")));
+    QVERIFY(add.contains(QStringLiteral("formatLocalDate(")));
+    QVERIFY(add.contains(QStringLiteral("bar->value() >= bar->maximum() - 8")));
 }
 
 void TestClientCore::settingsDialogDefaultsToPublicServer() {

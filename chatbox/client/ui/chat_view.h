@@ -23,6 +23,13 @@ public:
     void setConversationHtml(const QString& html,
                              const QVector<chatbox::client::MessageKey>& message_keys);
 
+    // Appends one rendered message at the end without rebuilding the document.
+    // Existing ranges keep their positions because nothing before them moves.
+    void appendFragment(const QString& html, const chatbox::client::MessageKey& key);
+
+    // Clears the document and all message ranges.
+    void clearConversation();
+
     // Server message id at a viewport position, or 0 when the position is
     // not inside a mapped message bubble or the bubble has no server id yet.
     quint64 messageIdAt(const QPoint& viewport_pos) const;
@@ -69,6 +76,7 @@ private:
 
     void buildMessageRanges(const QVector<chatbox::client::MessageKey>& message_keys);
     void styleAnchors();
+    void styleAnchorsInRange(int start, int end);
 
     QVector<MessageRange> message_ranges_;
     quint64 hovered_id_ = 0;

@@ -21,7 +21,8 @@ public:
     void reset(ChatContext context, quint64 target_id);
     void replaceHistory(const QVector<ChatMessage>& history);
     void prependHistory(const QVector<ChatMessage>& history);
-    void appendIncoming(const ChatMessage& message);
+    // Returns false for a duplicate message that was already stored.
+    bool appendIncoming(const ChatMessage& message);
     void addPending(const ChatMessage& message);
 
     bool markSending(const QString& client_msg_id);

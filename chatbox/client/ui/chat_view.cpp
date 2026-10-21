@@ -45,6 +45,51 @@ void ChatView::setConversationHtml(
     hovered_id_ = 0;
 }
 
+void ChatView::appendFragment(const QString& html,
+                              const chatbox::client::MessageKey& key) {
+    QTextDocument* doc = document();
+    if (doc == nullptr || html.isEmpty()) {
+        return;
+    }
+
+    // Appending at the document end cannot move any existing range: all old
+    // positions stay before the insertion point. This is the safety property
+    // that lets the incremental path skip buildMessageRanges().
+    QTextCursor cursor(doc);
+    cursor.movePosition(QTextCursor::End);
+    const int start = cursor.position();
+    cursor.insertHtml(html);
+    const int end = cursor.position();
+
+    styleAnchorsInRange(start, end);
+
+    QTextTable* table = nullptr;
+    const QTextFrame* root = doc->rootFrame();
+    if (root != nullptr) {
+        for (QTextFrame::iterator it = root->begin(); !it.atEnd(); ++it) {
+            auto* candidate = qobject_cast<QTextTable*>(it.currentFrame());
+            if (candidate != nullptr && candidate->lastPosition() > start) {
+                table = candidate;
+            }
+        }
+    }
+    if (table != nullptr) {
+        MessageRange range;
+        range.first = table->firstPosition();
+        range.last = table->lastPosition();
+        range.key = key;
+        range.frame = table;
+        message_ranges_.append(range);
+    }
+    hovered_id_ = 0;
+}
+
+void ChatView::clearConversation() {
+    clear();
+    message_ranges_.clear();
+    hovered_id_ = 0;
+}
+
 quint64 ChatView::messageIdAt(const QPoint& viewport_pos) const {
     chatbox::client::MessageKey key;
     if (!messageKeyAt(viewport_pos, &key)) {
@@ -220,12 +265,22 @@ void ChatView::styleAnchors() {
     if (doc == nullptr) {
         return;
     }
+    styleAnchorsInRange(0, doc->characterCount());
+}
+
+void ChatView::styleAnchorsInRange(int start, int end) {
+    QTextDocument* doc = document();
+    if (doc == nullptr || start >= end) {
+        return;
+    }
     // Collect first: merging formats invalidates block/fragment iterators.
     QVector<QPair<int, int>> ranges;
-    for (QTextBlock block = doc->begin(); block.isValid(); block = block.next()) {
+    for (QTextBlock block = doc->findBlock(qMax(0, start));
+         block.isValid() && block.position() < end; block = block.next()) {
         for (QTextBlock::iterator it = block.begin(); !it.atEnd(); ++it) {
             const QTextFragment fragment = it.fragment();
-            if (fragment.isValid() && fragment.charFormat().isAnchor()) {
+            if (fragment.isValid() && fragment.position() >= start &&
+                fragment.position() < end && fragment.charFormat().isAnchor()) {
                 ranges.append(qMakePair(fragment.position(), fragment.length()));
             }
         }

@@ -4802,7 +4802,22 @@ void MainWindow::addIncomingMessage(const chatbox::client::ChatMessage& message)
     }
     QScrollBar* bar = chat_view_->verticalScrollBar();
     const bool at_bottom = bar->value() >= bar->maximum() - 8;
-    message_store_.appendIncoming(message);
+    const QVector<chatbox::client::ChatMessage>& messages = message_store_.messages();
+    const bool same_day =
+        !messages.isEmpty() &&
+        chatbox::client::formatLocalDate(messages.last().created_at_utc) ==
+            chatbox::client::formatLocalDate(message.created_at_utc);
+    const bool appended = message_store_.appendIncoming(message);
+    if (appended && at_bottom && same_day) {
+        chatbox::client::MessageKey key;
+        key.message_id = message.message_id;
+        key.client_msg_id = message.client_msg_id;
+        chat_view_->appendFragment(
+            chatbox::client::renderMessageFragment(message, user_id_, false, QString()),
+            key);
+        bar->setValue(bar->maximum());
+        return;
+    }
     renderCurrentConversation(at_bottom ? ScrollMode::kBottom : ScrollMode::kPreserve);
 }
 

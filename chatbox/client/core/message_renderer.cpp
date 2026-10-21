@@ -56,6 +56,61 @@ MessageActions messageActions(const ChatMessage& message, quint64 self_user_id,
     return actions;
 }
 
+QString renderMessageFragment(const ChatMessage& message, quint64 self_user_id,
+                              bool include_date_header, const QString& date_label) {
+    QString html;
+    if (include_date_header) {
+        html += "<div align=\"center\" style=\"color: " +
+                QString::fromLatin1(theme::kMuted) +
+                "; font-size: 12px; margin: 12px 0;\">" +
+                date_label.toHtmlEscaped() + "</div>";
+    }
+
+    const bool outgoing =
+        message.outgoing || (message.sender_id != 0 && message.sender_id == self_user_id);
+    const QString alignment = outgoing ? "right" : "left";
+    const QString background = outgoing ? QString::fromLatin1(theme::kBubbleOwn)
+                                        : QString::fromLatin1(theme::kBubbleOther);
+
+    QString content = message.recalled ? "消息已撤回" : message.content.toHtmlEscaped();
+    content.replace("\n", "<br>");
+
+    html += "<table width=\"100%\" cellspacing=\"0\" cellpadding=\"4\"><tr><td align=\"" +
+            alignment + "\">";
+    html += "<table cellspacing=\"0\" cellpadding=\"8\" bgcolor=\"" + background +
+            "\"><tr><td>";
+    if (!outgoing) {
+        html += "<div style=\"color: " + QString::fromLatin1(theme::kBody) +
+                "; font-size: 12px;\">" + senderLabel(message).toHtmlEscaped() + "</div>";
+    }
+    if (message.reply_to_id != 0) {
+        QString quote = message.reply_content.toHtmlEscaped();
+        quote.replace("\n", "<br>");
+        if (quote.isEmpty()) {
+            quote = "消息已撤回";
+        }
+        html += "<div style=\"border-left: 3px solid " +
+                QString::fromLatin1(theme::kHairline) +
+                "; padding-left: 6px; color: " + QString::fromLatin1(theme::kMuted) +
+                "; font-size: 12px; margin-bottom: 4px;\">回复 " +
+                (message.reply_sender_name.isEmpty()
+                     ? QString()
+                     : message.reply_sender_name.toHtmlEscaped() + ": ") +
+                quote + "</div>";
+    }
+    if (message.recalled) {
+        html += "<div style=\"font-size: 14px; color: " +
+                QString::fromLatin1(theme::kMutedSoft) + ";\"><i>" + content +
+                "</i></div>";
+    } else {
+        html += "<div style=\"font-size: 14px;\">" + content + "</div>";
+    }
+    html += "<div style=\"color: " + QString::fromLatin1(theme::kMutedSoft) +
+            "; font-size: 11px; text-align: right;\">" + messageMeta(message) + "</div>";
+    html += "</td></tr></table></td></tr></table>";
+    return html;
+}
+
 QString renderConversationHtml(const QVector<ChatMessage>& messages,
                                quint64 self_user_id,
                                QVector<MessageKey>* rendered_messages) {
@@ -74,60 +129,11 @@ QString renderConversationHtml(const QVector<ChatMessage>& messages,
             rendered_messages->append(key);
         }
         const QString date = formatLocalDate(message.created_at_utc);
-        if (date != current_date) {
+        const bool include_date_header = date != current_date;
+        if (include_date_header) {
             current_date = date;
-            html << "<div align=\"center\" style=\"color: " +
-                        QString::fromLatin1(theme::kMuted) +
-                        "; font-size: 12px; margin: 12px 0;\">"
-                 << date.toHtmlEscaped() << "</div>";
         }
-
-        const bool outgoing =
-            message.outgoing || (message.sender_id != 0 && message.sender_id == self_user_id);
-        const QString alignment = outgoing ? "right" : "left";
-        const QString background = outgoing ? QString::fromLatin1(theme::kBubbleOwn)
-                                            : QString::fromLatin1(theme::kBubbleOther);
-
-        QString content = message.recalled ? "消息已撤回"
-                                           : message.content.toHtmlEscaped();
-        content.replace("\n", "<br>");
-
-        html << "<table width=\"100%\" cellspacing=\"0\" cellpadding=\"4\"><tr><td align=\""
-             << alignment << "\">";
-        html << "<table cellspacing=\"0\" cellpadding=\"8\" bgcolor=\"" << background
-             << "\"><tr><td>";
-        if (!outgoing) {
-            html << "<div style=\"color: " + QString::fromLatin1(theme::kBody) +
-                        "; font-size: 12px;\">"
-                 << senderLabel(message).toHtmlEscaped() << "</div>";
-        }
-        if (message.reply_to_id != 0) {
-            QString quote = message.reply_content.toHtmlEscaped();
-            quote.replace("\n", "<br>");
-            if (quote.isEmpty()) {
-                quote = "消息已撤回";
-            }
-            html << "<div style=\"border-left: 3px solid " +
-                        QString::fromLatin1(theme::kHairline) +
-                        "; padding-left: 6px; color: " +
-                        QString::fromLatin1(theme::kMuted) +
-                        "; font-size: 12px; margin-bottom: 4px;\">回复 "
-                 << (message.reply_sender_name.isEmpty()
-                         ? QString()
-                         : message.reply_sender_name.toHtmlEscaped() + ": ")
-                 << quote << "</div>";
-        }
-        if (message.recalled) {
-            html << "<div style=\"font-size: 14px; color: " +
-                        QString::fromLatin1(theme::kMutedSoft) + ";\"><i>"
-                 << content << "</i></div>";
-        } else {
-            html << "<div style=\"font-size: 14px;\">" << content << "</div>";
-        }
-        html << "<div style=\"color: " + QString::fromLatin1(theme::kMutedSoft) +
-                    "; font-size: 11px; text-align: right;\">"
-             << messageMeta(message) << "</div>";
-        html << "</td></tr></table></td></tr></table>";
+        html << renderMessageFragment(message, self_user_id, include_date_header, date);
     }
 
     html << "</body></html>";
