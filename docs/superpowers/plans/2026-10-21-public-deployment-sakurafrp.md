@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 通过 SakuraFrp 免费 TCP 隧道把 ChatBox 暴露到 `frp-oil.com:15318`，同时保留局域网 `192.168.2.240:9443`，并加入真实 IP 限流、TLS、UFW、备份和 24 小时运行配置。
+**Goal:** 通过 SakuraFrp 免费 TCP 隧道把 ChatBox 暴露到 `frp-oil.com:15318`，同时保留局域网 `192.168.2.240:9443`，并加入真实 IP 限流、TLS、备份和服务开机自启；不改 UFW、合盖睡眠或 Wi-Fi 省电。
 
 **Architecture:** 公网客户端连 SakuraFrp 节点，节点把带 PROXY v2 头的 TCP 流转给服务器本机 `127.0.0.1:9444` 的 nginx；nginx 终止 TLS 后转发到 `127.0.0.1:9100` 的 chatbox。局域网仍走 `9443`。服务端在解析 PROXY v2 后按真实 IP 做连接限流，注册限流在 AuthService 内按 IP + 全局窗口计数。
 
@@ -23,6 +23,7 @@
 - 服务器源码路径为 `/home/xxw/桌面/0917/chatbox`；Windows 仓库路径为 `D:\OpenCode_WorkSpace`。
 - 线上服务在测试通过前不重启；构建测试使用独立 `build-test/`，不覆盖正在运行的 `build/chatbox_server`。
 - 免费额度约 5 GiB/月、10 Mbps；超额和宿舍断电/断网是已知外部故障，不伪装成高可用。
+- 用户上课也要使用同一台笔记本：**不启用/修改 UFW，不改 logind 合盖策略，不改 NetworkManager/Wi-Fi 省电**；只启用服务开机自启。合盖/睡眠时公网断开是明确接受的行为。
 
 ## Review Focus
 
@@ -739,112 +740,44 @@ git commit -m "feat(deploy): run SakuraFrp frpc as a systemd service"
 
 ---
 
-### Task 6: UFW、合盖不睡眠、Wi-Fi 不休眠与开机自启
+### Task 6: 服务开机自启（不改电源、Wi-Fi、防火墙）
 
 **Files:**
-- Create: `chatbox/deploy/ufw-chatbox.sh`
-- Create: `chatbox/deploy/logind-chatbox.conf`
-- Create: `chatbox/deploy/NetworkManager-chatbox.conf`
-- Server: `/etc/ufw`, `/etc/systemd/logind.conf.d`, `/etc/NetworkManager/conf.d`
+- No repository files; verification and `systemctl enable` only.
 
 **Interfaces:**
-- Produces: UFW deny incoming except LAN SSH/9443; sleep targets masked; Wi-Fi power save off; all services enabled.
+- Consumes: `sakurafrp.service` from Task 5.
+- Produces: `chatbox/nginx/mysql/sakurafrp` enabled at boot; UFW/logind/NetworkManager untouched.
 
 **Steps:**
 
-- [ ] **Step 1: 写 UFW 脚本**
+- [ ] **Step 1: 记录当前电源/网络/防火墙状态，不做修改**
 
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
-ufw default deny incoming
-ufw default allow outgoing
-ufw allow from 192.168.2.0/24 to any port 22 proto tcp
-ufw allow from 192.168.2.0/24 to any port 9443 proto tcp
-ufw --force enable
-ufw status verbose
+ssh chatroom-dev "systemctl is-enabled chatbox nginx mysql 2>&1; systemctl is-active chatbox nginx mysql; sudo ufw status verbose 2>&1; loginctl show -p HandleLidSwitch 2>&1; iw dev wlp58s0 get power_save 2>&1"
 ```
 
-脚本不重置已有规则；只添加上述规则。不要放行 `80/9100/3306/9444`。
+Expected: 记录当前值。**不要**执行 `ufw enable`、不要改 `logind`、不要改 NetworkManager 或 Wi-Fi 省电；用户上课还要使用这台笔记本。
 
-- [ ] **Step 2: 执行 UFW 并保留回退会话**
-
-把脚本复制到服务器，以 root 执行；同时保留一个已认证的 SSH 会话不关闭：
-
-```bash
-scp chatbox/deploy/ufw-chatbox.sh chatroom-dev:/tmp/ufw-chatbox.sh
-ssh chatroom-dev "sudo bash /tmp/ufw-chatbox.sh"
-```
-
-然后从 Windows 开第二个 SSH：
-
-```bash
-ssh -o BatchMode=yes -o ConnectTimeout=5 chatroom-dev "sudo ufw status verbose; ss -ltnp | grep -E ':(22|9443|9444|9100|3306)\b'"
-```
-
-Expected: 第二个 SSH 成功；UFW 只显示 `22/tcp`、`9443/tcp` 的 `192.168.2.0/24` 规则；公网端口没有监听。若第二个 SSH 失败，立即在保留会话中执行 `sudo ufw allow from 192.168.2.0/24 to any port 22 proto tcp`。
-
-- [ ] **Step 3: 合盖不睡眠**
-
-`logind-chatbox.conf`：
-
-```ini
-[Login]
-HandleLidSwitch=ignore
-HandleLidSwitchExternalPower=ignore
-HandleLidSwitchDocked=ignore
-HandleSuspendKey=ignore
-HandleHibernateKey=ignore
-IdleAction=ignore
-```
-
-部署：
-
-```bash
-scp chatbox/deploy/logind-chatbox.conf chatroom-dev:/tmp/logind-chatbox.conf
-ssh chatroom-dev "sudo install -D -m 644 /tmp/logind-chatbox.conf /etc/systemd/logind.conf.d/99-chatbox.conf && sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target && sudo systemctl restart systemd-logind && loginctl show -p HandleLidSwitch && systemctl is-enabled sleep.target 2>&1 || true"
-```
-
-Expected: `HandleLidSwitch=ignore`；`sleep.target` 为 masked（或 `masked` 提示）。这会让笔记本不再因合盖/空闲睡眠。
-
-- [ ] **Step 4: 关闭 Wi-Fi 省电**
-
-`NetworkManager-chatbox.conf`：
-
-```ini
-[connection]
-wifi.powersave = 2
-```
-
-部署并验证：
-
-```bash
-scp chatbox/deploy/NetworkManager-chatbox.conf chatroom-dev:/tmp/NetworkManager-chatbox.conf
-ssh chatroom-dev "sudo install -D -m 644 /tmp/NetworkManager-chatbox.conf /etc/NetworkManager/conf.d/99-chatbox-powersave.conf && sudo systemctl restart NetworkManager"
-```
-
-重启 NetworkManager 可能短暂断开 SSH；等待 10 秒后重连，执行：
-
-```bash
-ssh chatroom-dev "iw dev wlp58s0 get power_save; nmcli -t -f NAME,DEVICE connection show --active"
-```
-
-Expected: `Power save: off`；活动连接仍为宿舍 Wi-Fi。若网卡名不是 `wlp58s0`，用 `iw dev` 查实际名后替换，不能改错网卡。
-
-- [ ] **Step 5: 启用所有服务并验证**
+- [ ] **Step 2: 只启用服务开机自启**
 
 ```bash
 ssh chatroom-dev "sudo systemctl enable chatbox nginx mysql sakurafrp && systemctl is-enabled chatbox nginx mysql sakurafrp && systemctl is-active chatbox nginx mysql sakurafrp"
 ```
 
-Expected: 四个服务均 `enabled`、`active`。
+Expected: 四个服务均 `enabled`、`active`。若 `sakurafrp` 尚未安装，先完成 Task 5，再执行本步。
 
-- [ ] **Step 6: 提交**
+- [ ] **Step 3: 确认没有改动系统电源/网络设置**
 
 ```bash
-git add chatbox/deploy/ufw-chatbox.sh chatbox/deploy/logind-chatbox.conf chatbox/deploy/NetworkManager-chatbox.conf
-git commit -m "chore(deploy): harden firewall and keep the laptop awake"
+ssh chatroom-dev "sudo ufw status 2>&1; loginctl show -p HandleLidSwitch; iw dev wlp58s0 get power_save 2>&1"
 ```
+
+Expected: UFW 仍为 `inactive`（或保持原状态）；`HandleLidSwitch` 和 Wi-Fi 省电与 Step 1 记录一致。**合盖/睡眠时公网会断开，这是用户明确接受的行为。**
+
+- [ ] **Step 4: 不提交代码**
+
+本任务不产生仓库文件；不创建 UFW/logind/NetworkManager 配置。把“未启用 UFW、未修改睡眠/Wi-Fi”写入 Task 8 的运维文档。
 
 ---
 
@@ -1026,7 +959,8 @@ IP:192.168.2.240、DNS:chatbox.local、DNS:frp-oil.com
 50 条连接。共享校园网出口按一个 IP 计。
 
 SakuraFrp 免费额度约 5 GiB/月、10 Mbps；额度耗尽或节点维护时公网
-不可用，局域网不受影响。不要分享 token、隧道 ID 或 CA 私钥。
+不可用，局域网不受影响。笔记本合盖或睡眠时公网断开，唤醒后自动重连；
+服务器不承诺 24 小时在线。不要分享 token、隧道 ID 或 CA 私钥。
 ```
 
 - [ ] **Step 4: 说明备份和运维**
@@ -1035,10 +969,10 @@ SakuraFrp 免费额度约 5 GiB/月、10 Mbps；额度耗尽或节点维护时�
 
 - `systemctl status chatbox nginx mysql sakurafrp`
 - `journalctl -u sakurafrp`
-- `ufw status verbose`
+- `ss -ltnp | grep -E ':(9443|9444|9100|3306)\b'`
 - `/var/backups/chatbox/` 与恢复命令
 - SakuraFrp 流量面板
-- 断电/断网/合盖不是高可用
+- **UFW 未启用、合盖/睡眠/Wi-Fi 省电未修改**；合盖或睡眠时公网断开，服务只在笔记本醒着时可用
 
 - [ ] **Step 5: 检查并提交**
 
@@ -1052,7 +986,7 @@ Expected: README 不再出现“经过 nginx 时设为 0”的旧指引；公网
 
 ---
 
-### Task 9: 端到端验收与 24 小时观察
+### Task 9: 端到端验收与醒着窗口观察
 
 **Files:**
 - No production code changes; run verification only.
@@ -1062,10 +996,10 @@ Expected: README 不再出现“经过 nginx 时设为 0”的旧指引；公网
 - [ ] **Step 1: 服务与监听**
 
 ```bash
-ssh chatroom-dev "systemctl is-active chatbox nginx mysql sakurafrp; ss -ltnp | grep -E ':(9443|9444|9100|3306)\b'; sudo ufw status verbose"
+ssh chatroom-dev "systemctl is-active chatbox nginx mysql sakurafrp; ss -ltnp | grep -E ':(9443|9444|9100|3306)\b'; sudo ufw status 2>&1; loginctl show -p HandleLidSwitch"
 ```
 
-Expected: 四个服务 active；`9444` 仅 127.0.0.1；`9443` 对局域网；UFW 只放行 LAN 22/9443。
+Expected: 四个服务 active；`9444` 仅 127.0.0.1；`9443` 对局域网；UFW 保持未启用/原状态；合盖策略保持原值。这里不要求 UFW 规则。
 
 - [ ] **Step 2: 证书与公网 TLS**
 
@@ -1099,17 +1033,17 @@ Expected: `BACKUP_GZIP_OK`，备份文件存在；Task 7 已做过临时库恢�
 ssh chatroom-dev "sudo reboot"
 ```
 
-等待 2-3 分钟，重新连接，执行 Step 1 和 Step 2。Expected: 四个服务自动启动，公网和局域网都恢复。若没有恢复，查 `journalctl -b -u chatbox -u nginx -u sakurafrp`，不要反复重启。
+等待 2-3 分钟，重新连接，执行 Step 1 和 Step 2。Expected: 笔记本醒着时四个服务自动启动，公网和局域网都恢复；若合盖/睡眠，公网断开是预期行为，唤醒后重连。若没有恢复，查 `journalctl -b -u chatbox -u nginx -u sakurafrp`，不要反复重启。
 
-- [ ] **Step 6: 24 小时观察**
+- [ ] **Step 6: 醒着窗口观察**
 
-记录开始时间，24 小时后执行：
+用户上课会合盖/睡眠，不做 24 小时常开承诺。选一个笔记本保持醒着的 2 小时窗口，记录开始时间，结束后执行：
 
 ```bash
-ssh chatroom-dev "uptime; systemctl is-active chatbox nginx mysql sakurafrp; df -h /; free -h; sudo journalctl -u sakurafrp --since '24 hours ago' --no-pager | tail -40; sudo tail -n 20 /var/log/nginx/chatbox-stream.log"
+ssh chatroom-dev "uptime; systemctl is-active chatbox nginx mysql sakurafrp; df -h /; free -h; sudo journalctl -u sakurafrp --since '2 hours ago' --no-pager | tail -40; sudo tail -n 20 /var/log/nginx/chatbox-stream.log"
 ```
 
-Expected: 服务仍 active；磁盘/内存无异常增长；没有持续重连/崩溃。记录断线次数和 SakuraFrp 面板流量；接近 5 GiB/月时提前决定限流、升级或停公网。断电/断网导致的中断如实记录，不声称高可用。
+Expected: 服务仍 active；磁盘/内存无异常增长；没有持续重连/崩溃。记录断线次数和 SakuraFrp 面板流量；接近 5 GiB/月时提前决定限流、升级或停公网。合盖/睡眠导致的中断是预期行为，如实记录，不声称高可用。
 
 - [ ] **Step 7: 记录撤销公网路径**
 
@@ -1125,7 +1059,7 @@ ssh chatroom-dev "sudo systemctl disable --now sakurafrp"
 
 ## Plan Self-Review
 
-- **Spec coverage:** 设计中的隧道、TLS/CA、真实 IP、注册限流、连接限流、UFW、备份、合盖/电源、客户端文档、验收均有对应任务。
+- **Spec coverage:** 设计中的隧道、TLS/CA、真实 IP、注册限流、连接限流、备份、开机自启、客户端文档、验收均有对应任务；UFW/合盖/电源/Wi-Fi 明确不修改，睡眠时公网断开的限制已写入文档和验收。
 - **Step scan:** 每个任务都有独立可验证的交付物；测试步骤给出断言，部署步骤给出 expected 输出。
 - **Type consistency:** `RegistrationRateLimiter::allow(ip, now)`、`ConnectionLimiter::rekey(id, ip, error)`、`AuthService` 新构造参数、`IoThread::ProxyRekeyHandler` 在后续任务中保持同名同签名。
 - **Review Focus tests:** 分片 PROXY v2、LOCAL、注册窗口边界、连接释放、SAN/loopback 分别在 Task 2、Task 1、Task 2、Task 4/9 有测试或验收。
