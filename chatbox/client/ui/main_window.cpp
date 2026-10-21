@@ -3690,6 +3690,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                 item->setSizeHint(QSize(0, 48));
                 item->setData(Qt::UserRole, static_cast<uint>(id));
                 item->setData(Qt::UserRole + 1, name);
+                item->setData(Qt::UserRole + 2, max_members);
             }
             if (context_type_ == ContextType::None && room_list_->count() > 0) {
                 QListWidgetItem* first = room_list_->item(0);
@@ -3717,6 +3718,23 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             if (!reader.getU32(room_id) || !reader.getU16(count)) {
                 setStatus("成员列表格式错误", true);
                 return;
+            }
+            // The left room row is driven by ROOM_LIST, but presence pushes can
+            // arrive without a new room-list response. Keep its count in sync
+            // with the authoritative member snapshot.
+            for (int i = 0; i < room_list_->count(); ++i) {
+                QListWidgetItem* room_item = room_list_->item(i);
+                if (room_item->data(Qt::UserRole).toUInt() != room_id) {
+                    continue;
+                }
+                const QString room_name = room_item->data(Qt::UserRole + 1).toString();
+                const uint max_members =
+                    room_item->data(Qt::UserRole + 2).toUInt();
+                room_item->setText(QString("%1  (%2/%3)")
+                                       .arg(room_name)
+                                       .arg(count)
+                                       .arg(max_members));
+                break;
             }
             if (context_type_ != ContextType::Room ||
                 room_id != static_cast<uint32_t>(current_room_id_)) {

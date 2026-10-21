@@ -121,15 +121,16 @@ void RoomManager::updateNickname(uint64_t user_id, const std::string& nickname) 
     }
 }
 
-void RoomManager::removeConnection(uint64_t connection_id) {
+std::vector<int> RoomManager::removeConnection(uint64_t connection_id) {
     std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<int> changed_rooms;
     auto index_it = connection_rooms_.find(connection_id);
     if (index_it == connection_rooms_.end()) {
-        return;
+        return changed_rooms;
     }
-    const std::vector<int> room_ids = index_it->second;
+    changed_rooms = index_it->second;
     connection_rooms_.erase(index_it);
-    for (const int room_id : room_ids) {
+    for (const int room_id : changed_rooms) {
         auto room_it = rooms_.find(room_id);
         if (room_it == rooms_.end()) {
             continue;
@@ -143,6 +144,7 @@ void RoomManager::removeConnection(uint64_t connection_id) {
             }
         }
     }
+    return changed_rooms;
 }
 
 void RoomManager::removeRoomFromConnection(uint64_t connection_id, int room_id) {

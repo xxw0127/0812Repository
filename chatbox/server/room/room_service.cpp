@@ -1,5 +1,6 @@
 #include "server/room/room_service.h"
 
+#include <algorithm>
 #include <cctype>
 #include <ctime>
 #include <limits>
@@ -68,6 +69,22 @@ std::string utcNow() {
 RoomService::RoomService(MysqlConnection& database, RoomManager& rooms)
     : database_(database), rooms_(rooms) {}
 
+Frame makeRoomMembersFrame(int room_id, const std::vector<RoomMember>& members) {
+    Frame frame;
+    frame.header.flags = kFlagResponse;
+    frame.header.cmd = kCmdRoomMembers;
+    ByteWriter writer;
+    writer.putU32(static_cast<uint32_t>(room_id));
+    const std::size_t count = std::min<std::size_t>(members.size(), 0xFFFF);
+    writer.putU16(static_cast<uint16_t>(count));
+    for (std::size_t i = 0; i < count; ++i) {
+        writer.putU64(members[i].user_id);
+        writer.putString(members[i].nickname);
+    }
+    frame.body = writer.data();
+    return frame;
+}
+
 RoomResult RoomService::handle(const Frame& request, const RoomMember& caller) {
     if (caller.user_id == 0) {
         return RoomResult{makeError(request.header.seq, 1002, "not authenticated")};
@@ -125,6 +142,12 @@ RoomResult RoomService::handleJoinRoom(const Frame& request, const RoomMember& c
 
     RoomResult result;
     result.response = makeSuccess(kCmdJoinRoom, request.header.seq);
+    std::vector<RoomMember> members;
+    if (rooms_.snapshot(room_id, members)) {
+        result.broadcast = true;
+        result.targets = members;
+        result.broadcast_frame = encodeFrame(makeRoomMembersFrame(room_id, members));
+    }
     return result;
 }
 
@@ -140,6 +163,12 @@ RoomResult RoomService::handleLeaveRoom(const Frame& request, const RoomMember& 
 
     RoomResult result;
     result.response = makeSuccess(kCmdLeaveRoom, request.header.seq);
+    std::vector<RoomMember> members;
+    if (rooms_.snapshot(room_id, members) && !members.empty()) {
+        result.broadcast = true;
+        result.targets = members;
+        result.broadcast_frame = encodeFrame(makeRoomMembersFrame(room_id, members));
+    }
     return result;
 }
 
@@ -155,20 +184,9 @@ RoomResult RoomService::handleRoomMembers(const Frame& request, const RoomMember
     if (!rooms_.snapshot(room_id, members)) {
         return RoomResult{makeError(request.header.seq, 1006, "room not found")};
     }
-    if (members.size() > 0xFFFF) {
-        members.resize(0xFFFF);
-    }
-
     RoomResult result;
-    result.response = makeSuccess(kCmdRoomMembers, request.header.seq);
-    ByteWriter writer;
-    writer.putU32(static_cast<uint32_t>(room_id));
-    writer.putU16(static_cast<uint16_t>(members.size()));
-    for (const RoomMember& member : members) {
-        writer.putU64(member.user_id);
-        writer.putString(member.nickname);
-    }
-    result.response.body = writer.data();
+    result.response = makeRoomMembersFrame(room_id, members);
+    result.response.header.seq = request.header.seq;
     return result;
 }
 

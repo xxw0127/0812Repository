@@ -18,6 +18,7 @@
 #include "server/net/connection_limiter.h"
 #include "server/net/io_thread.h"
 #include "server/room/room_manager.h"
+#include "server/room/room_service.h"
 #include "server/util/logging.h"
 #include "server/util/metrics.h"
 
@@ -38,6 +39,33 @@ Frame makeErrorResponse(uint32_t seq, uint16_t code, const std::string& message)
     writer.putString(message);
     response.body = writer.data();
     return response;
+}
+
+// A user can disappear through an explicit LOGOUT or a raw connection close.
+// Both paths must push the remaining member list; otherwise every other client
+// keeps a stale presence row until it happens to re-enter the room.
+void broadcastChangedRoomMembers(
+    chatbox::RoomManager& rooms,
+    const std::vector<chatbox::IoThread*>& io_threads,
+    const std::vector<int>& room_ids) {
+    for (const int room_id : room_ids) {
+        std::vector<chatbox::RoomMember> members;
+        if (!rooms.snapshot(room_id, members) || members.empty()) {
+            continue;
+        }
+        const Frame frame = chatbox::makeRoomMembersFrame(room_id, members);
+        const std::string encoded = chatbox::encodeFrame(frame);
+        std::unordered_map<int, std::vector<uint64_t>> groups;
+        for (const chatbox::RoomMember& member : members) {
+            if (member.io_thread_id >= 0 &&
+                member.io_thread_id < static_cast<int>(io_threads.size())) {
+                groups[member.io_thread_id].push_back(member.connection_id);
+            }
+        }
+        for (const auto& group : groups) {
+            io_threads[group.first]->postMulticast(group.second, encoded);
+        }
+    }
 }
 
 }  // namespace
@@ -244,7 +272,10 @@ int main(int argc, char** argv) {
                             result.old_binding.connection_id, 1010, message, reason);
                     }
                     if (result.clear_session) {
-                        room_manager.removeConnection(connection_id);
+                        const std::vector<int> changed_rooms =
+                            room_manager.removeConnection(connection_id);
+                        broadcastChangedRoomMembers(room_manager, io_thread_refs,
+                                                    changed_rooms);
                     }
 
                     if (io_thread_id < 0 ||
@@ -421,8 +452,12 @@ int main(int argc, char** argv) {
     for (int i = 0; i < config.io_threads; ++i) {
         auto io_thread = std::make_unique<chatbox::IoThread>(
             i, frame_handler, config.idle_timeout_sec,
-            [&room_manager, &sessions, &connection_limiter](uint64_t connection_id) {
-                room_manager.removeConnection(connection_id);
+            [&room_manager, &sessions, &connection_limiter, &io_thread_refs](
+                uint64_t connection_id) {
+                const std::vector<int> changed_rooms =
+                    room_manager.removeConnection(connection_id);
+                broadcastChangedRoomMembers(room_manager, io_thread_refs,
+                                            changed_rooms);
                 sessions.unbindByConnection(connection_id);
                 connection_limiter.release(connection_id);
             },
