@@ -25,21 +25,24 @@ MessageActionBar::MessageActionBar(QWidget* parent) : QFrame(parent) {
     layout->setSpacing(2);
 
     reply_button_ = new QPushButton(QString::fromUtf8("回复"), this);
-    reply_button_->setObjectName("MessageActionButton");
+    reply_button_->setObjectName("MessageActionReplyButton");
     reply_button_->setCursor(Qt::PointingHandCursor);
-    reply_button_->setFocusPolicy(Qt::NoFocus);
+    reply_button_->setFocusPolicy(Qt::TabFocus);
+    reply_button_->setAccessibleName(QString::fromUtf8("回复此消息"));
     connect(reply_button_, &QPushButton::clicked, this,
             &MessageActionBar::replyRequested);
 
     recall_button_ = new QPushButton(QString::fromUtf8("撤回"), this);
-    recall_button_->setObjectName("MessageActionButton");
+    recall_button_->setObjectName("MessageActionRecallButton");
     recall_button_->setCursor(Qt::PointingHandCursor);
-    recall_button_->setFocusPolicy(Qt::NoFocus);
+    recall_button_->setFocusPolicy(Qt::TabFocus);
+    recall_button_->setAccessibleName(QString::fromUtf8("撤回此消息"));
     connect(recall_button_, &QPushButton::clicked, this,
             &MessageActionBar::recallRequested);
 
     layout->addWidget(reply_button_);
     layout->addWidget(recall_button_);
+    QWidget::setTabOrder(reply_button_, recall_button_);
 }
 
 void MessageActionBar::setActions(bool can_reply, bool can_recall) {

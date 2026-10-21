@@ -7,6 +7,7 @@
 
 #include "core/chat_message.h"
 
+class QKeyEvent;
 class QTextTable;
 
 // Read-only conversation view. Besides rendering the conversation it maps
@@ -65,6 +66,7 @@ protected:
     void leaveEvent(QEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
     void contextMenuEvent(QContextMenuEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
 
 private:
     struct MessageRange {
@@ -75,6 +77,8 @@ private:
     };
 
     void buildMessageRanges(const QVector<chatbox::client::MessageKey>& message_keys);
+    bool messageKeyAtPosition(int position,
+                              chatbox::client::MessageKey* key) const;
     void styleAnchors();
     void styleAnchorsInRange(int start, int end);
 

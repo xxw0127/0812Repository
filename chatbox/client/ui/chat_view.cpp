@@ -4,6 +4,7 @@
 #include <QColor>
 #include <QContextMenuEvent>
 #include <QEvent>
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QResizeEvent>
 #include <QScrollBar>
@@ -18,6 +19,9 @@
 namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
 ChatView::ChatView(QWidget* parent) : QTextBrowser(parent) {
+    // QTextBrowser defaults to ClickFocus; keyboard users need to reach the
+    // message menu through the normal Tab chain.
+    setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
     if (viewport() != nullptr) {
         viewport()->setMouseTracking(true);
@@ -103,7 +107,11 @@ bool ChatView::messageKeyAt(const QPoint& viewport_pos,
     if (message_ranges_.isEmpty()) {
         return false;
     }
-    const int position = cursorForPosition(viewport_pos).position();
+    return messageKeyAtPosition(cursorForPosition(viewport_pos).position(), key);
+}
+
+bool ChatView::messageKeyAtPosition(int position,
+                                    chatbox::client::MessageKey* key) const {
     for (const MessageRange& range : message_ranges_) {
         if (position >= range.first && position < range.last) {
             if (key != nullptr) {
@@ -215,6 +223,26 @@ void ChatView::resizeEvent(QResizeEvent* event) {
     // the same message can show it again at the new position.
     clearHoverState();
     emit hoverCleared();
+}
+
+void ChatView::keyPressEvent(QKeyEvent* event) {
+    if (event->key() == Qt::Key_F10 || event->key() == Qt::Key_Menu) {
+        const QTextCursor cursor = textCursor();
+        if (cursor.hasSelection()) {
+            chatbox::client::MessageKey key;
+            if (messageKeyAtPosition(cursor.position(), &key)) {
+                QRect anchor = messageAnchorRect(key.message_id);
+                if (anchor.isNull()) {
+                    anchor = cursorRect(cursor);
+                }
+                const QPoint global_pos = viewport()->mapToGlobal(anchor.center());
+                emit messageMenuRequested(key.message_id, key.client_msg_id, global_pos);
+                event->accept();
+                return;
+            }
+        }
+    }
+    QTextBrowser::keyPressEvent(event);
 }
 
 void ChatView::contextMenuEvent(QContextMenuEvent* event) {

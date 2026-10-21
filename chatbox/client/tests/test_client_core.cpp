@@ -132,6 +132,7 @@ private slots:
     void chatViewMapsMessagesToIds();
     void chatViewAppendsFragmentsWithoutResettingDocument();
     void chatViewAppendStaysUnderBudget();
+    void chatViewOpensMessageMenuWithKeyboard();
     void chatViewStylesAppendedRetryLink();
     void chatViewStylesRetryLink();
     void chatViewHoverReentersSameMessage();
@@ -149,6 +150,7 @@ private slots:
     void themeTokensMatchContrastSpec();
     void themeTokensMatchStyleSheet();
     void messageActionBarHasSingleSoftShadow();
+    void messageActionBarIsKeyboardReachable();
     void brandAppIconExposesSizes();
     void roomAvatarIsBrandBadge();
     void trayIconUsesBrandIcon();
@@ -915,6 +917,37 @@ void TestClientCore::chatViewAppendStaysUnderBudget() {
     }
 }
 
+void TestClientCore::chatViewOpensMessageMenuWithKeyboard() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage message;
+    message.message_id = 77;
+    message.sender_id = 2;
+    message.sender_name = "Bob";
+    message.content = "keyboard body";
+    message.created_at_utc = created;
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html = chatbox::client::renderConversationHtml({message}, 1, &keys);
+    ChatView view;
+    view.resize(640, 480);
+    view.show();
+    QTest::qWait(50);
+    view.setConversationHtml(html, keys);
+    QCOMPARE(view.focusPolicy(), Qt::StrongFocus);
+
+    QTextCursor cursor = view.document()->find("keyboard body");
+    QVERIFY(!cursor.isNull());
+    cursor.select(QTextCursor::WordUnderCursor);
+    view.setTextCursor(cursor);
+    view.setFocus();
+    QTest::qWait(20);
+
+    QSignalSpy spy(&view, &ChatView::messageMenuRequested);
+    QTest::keyClick(&view, Qt::Key_F10);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.at(0).at(0).toULongLong(), quint64(77));
+}
+
 void TestClientCore::chatViewStylesAppendedRetryLink() {
     const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
     chatbox::client::ChatMessage base;
@@ -1642,6 +1675,22 @@ void TestClientCore::themeTokensMatchStyleSheet() {
 
 // the Coinbase elevation is a single soft drop (0 4px 12px rgba(0,0,0,0.04));
 // QSS cannot express box-shadow, so the action bar carries the effect instead.
+void TestClientCore::messageActionBarIsKeyboardReachable() {
+    MessageActionBar bar;
+    auto* reply = bar.findChild<QPushButton*>(QStringLiteral("MessageActionReplyButton"));
+    auto* recall = bar.findChild<QPushButton*>(QStringLiteral("MessageActionRecallButton"));
+    QVERIFY(reply != nullptr);
+    QVERIFY(recall != nullptr);
+    QCOMPARE(reply->focusPolicy(), Qt::TabFocus);
+    QCOMPARE(recall->focusPolicy(), Qt::TabFocus);
+    QCOMPARE(reply->accessibleName(), QStringLiteral("回复此消息"));
+    QCOMPARE(recall->accessibleName(), QStringLiteral("撤回此消息"));
+
+    const QString qss = readClientSource(QStringLiteral("resources/style.qss"));
+    QVERIFY(qss.contains(
+        QStringLiteral("QFrame#MessageActionBar QPushButton:focus")));
+}
+
 void TestClientCore::messageActionBarHasSingleSoftShadow() {
     MessageActionBar bar;
     auto* effect = qobject_cast<QGraphicsDropShadowEffect*>(bar.graphicsEffect());

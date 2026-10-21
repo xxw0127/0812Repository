@@ -180,6 +180,10 @@ QFrame#MessageActionBar QPushButton:hover {
     background: #F7F7F7;
 }
 
+QFrame#MessageActionBar QPushButton:focus {
+    border: 1px solid #0052FF;
+}
+
 QFrame#MessageActionBar QPushButton:pressed {
     background: #EEF0F3;
 }
