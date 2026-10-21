@@ -159,6 +159,7 @@ private slots:
     void rendererCapsWideBubbleWidth();
     void rendererQuoteBubbleStaysNarrow();
     void messageBubblesHaveRoundedCorners();
+    void messageBubblesDrawRightEdge();
     void messageActionsAvailability();
     void messageActionsRecallWindow();
     void chatViewMapsMessagesToIds();
@@ -852,6 +853,53 @@ void TestClientCore::messageBubblesHaveRoundedCorners() {
                             .arg(canvas.blue())));
     QVERIFY2(border_on_top_edge,
              "the overlay must draw the rounded bubble border, not just mask corners");
+}
+
+void TestClientCore::messageBubblesDrawRightEdge() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage message;
+    message.message_id = 44;
+    message.sender_id = 1;
+    message.content = "?";
+    message.created_at_utc = created;
+    message.outgoing = true;
+
+    QFile style(QStringLiteral(":/style.qss"));
+    QVERIFY(style.open(QIODevice::ReadOnly | QIODevice::Text));
+    const QString previous_style = qApp->styleSheet();
+    qApp->setStyleSheet(QString::fromUtf8(style.readAll()));
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html =
+        chatbox::client::renderConversationHtml({message}, 1, &keys);
+    ChatView view;
+    view.resize(560, 400);
+    view.show();
+    QTest::qWait(50);
+    view.setConversationHtml(html, keys);
+    QTest::qWait(50);
+
+    const QRect bubble = view.messageOuterBubbleRect(44);
+    QVERIFY(!bubble.isNull());
+    QWidget* overlay =
+        view.findChild<QWidget*>(QStringLiteral("BubbleOverlay"));
+    QVERIFY(overlay != nullptr);
+    const QImage image = overlay->grab().toImage();
+    const QColor border(chatbox::client::theme::kBubbleBorder);
+    bool found = false;
+    for (int x = bubble.right() - 2; x <= bubble.right() + 2; ++x) {
+        for (int y = bubble.top() + 2; y <= bubble.bottom() - 2; ++y) {
+            if (x >= 0 && x < image.width() && y >= 0 && y < image.height() &&
+                image.pixelColor(x, y) == border) {
+                found = true;
+            }
+        }
+    }
+    const QColor edge = image.pixelColor(image.width() - 1, bubble.center().y());
+    qApp->setStyleSheet(previous_style);
+    QVERIFY2(found, "outgoing bubbles must paint the right border");
+    QVERIFY2(edge == QColor(chatbox::client::theme::kSurfaceSoft),
+             "the clipped table sliver at the viewport edge must be canvas");
 }
 
 void TestClientCore::messageActionsAvailability() {

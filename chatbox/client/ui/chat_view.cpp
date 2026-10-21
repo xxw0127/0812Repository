@@ -213,9 +213,16 @@ void ChatView::paintRoundedBubbleCorners(QPainter& painter) {
         if (range.bubble_color.isEmpty()) {
             continue;
         }
-        const QRect rect = outerBubbleRect(range);
+        QRect rect = outerBubbleRect(range);
         if (rect.isEmpty() || !rect.intersects(viewport_rect)) {
             continue;
+        }
+        // A right-aligned table sits exactly on the document's right edge;
+        // its 1px border is then clipped by the viewport. Pull the painted
+        // rect in by one pixel so the right stroke remains visible.
+        const bool clipped_right = rect.right() > viewport_rect.right();
+        if (clipped_right) {
+            rect.setRight(viewport_rect.right() - 1);
         }
 
         // Qt's rich-text tables are square. Erase the four corner wedges with
@@ -233,6 +240,13 @@ void ChatView::paintRoundedBubbleCorners(QPainter& painter) {
         painter.setBrush(Qt::NoBrush);
         painter.drawRoundedRect(QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5),
                                 kRadius, kRadius);
+        if (clipped_right) {
+            // Remove the 1px table-fill sliver that would otherwise sit to
+            // the right of the new border at the viewport edge.
+            painter.fillRect(QRect(viewport_rect.right(), rect.top(), 1,
+                                   rect.height()),
+                             canvas);
+        }
     }
     painter.restore();
 }
