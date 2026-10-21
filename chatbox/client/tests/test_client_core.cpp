@@ -36,6 +36,7 @@
 #include "core/autostart.h"
 #include "core/client_policy.h"
 #include "core/credential_store.h"
+#include "core/focus_ring.h"
 #include "core/avatar_cache.h"
 #include "core/avatar_utils.h"
 #include "core/contact_store.h"
@@ -149,6 +150,8 @@ private slots:
     void contrastTokensMeetAa();
     void themeTokensMatchContrastSpec();
     void styleSheetHasVisibleKeyboardFocus();
+    void keyboardFocusReasonIsKeyboardOnly();
+    void focusRingFilterHonoursKeyboardAndMouse();
     void mainWindowExposesKeyboardShortcuts();
     void mainWindowAccessibilityLabels();
     void friendItemsExposeAccessibleText();
@@ -1628,16 +1631,45 @@ void TestClientCore::styleSheetHasVisibleKeyboardFocus() {
     QVERIFY2(!qss.isEmpty(), "resources/style.qss must be readable");
     QVERIFY(!qss.contains(QStringLiteral("outline: 0")));
     const QStringList selectors = {
-        QStringLiteral("QListWidget:focus"),
-        QStringLiteral("QPushButton:focus"),
-        QStringLiteral("QPushButton#PrimaryButton:focus"),
-        QStringLiteral("QPushButton#SendButton:focus"),
-        QStringLiteral("QCheckBox::indicator:focus"),
-        QStringLiteral("QToolButton:focus"),
+        QStringLiteral("QListWidget[keyboardFocus=\"true\"]:focus"),
+        QStringLiteral("QPushButton[keyboardFocus=\"true\"]:focus"),
+        QStringLiteral("QPushButton#PrimaryButton[keyboardFocus=\"true\"]:focus"),
+        QStringLiteral("QPushButton#SendButton[keyboardFocus=\"true\"]:focus"),
+        QStringLiteral("QCheckBox[keyboardFocus=\"true\"]::indicator:focus"),
+        QStringLiteral("QToolButton[keyboardFocus=\"true\"]:focus"),
     };
     for (const QString& selector : selectors) {
         QVERIFY2(qss.contains(selector), qPrintable(selector));
     }
+}
+
+void TestClientCore::keyboardFocusReasonIsKeyboardOnly() {
+    QVERIFY(chatbox::client::isKeyboardFocusReason(Qt::TabFocusReason));
+    QVERIFY(chatbox::client::isKeyboardFocusReason(Qt::BacktabFocusReason));
+    QVERIFY(chatbox::client::isKeyboardFocusReason(Qt::ShortcutFocusReason));
+    QVERIFY(!chatbox::client::isKeyboardFocusReason(Qt::MouseFocusReason));
+    QVERIFY(!chatbox::client::isKeyboardFocusReason(Qt::ActiveWindowFocusReason));
+    QVERIFY(!chatbox::client::isKeyboardFocusReason(Qt::OtherFocusReason));
+}
+
+void TestClientCore::focusRingFilterHonoursKeyboardAndMouse() {
+    QWidget widget;
+    chatbox::client::FocusRingFilter filter;
+    widget.installEventFilter(&filter);
+
+    QFocusEvent keyboard_focus(QEvent::FocusIn, Qt::TabFocusReason);
+    QApplication::sendEvent(&widget, &keyboard_focus);
+    QVERIFY(widget.property("keyboardFocus").toBool());
+
+    QMouseEvent press(QEvent::MouseButtonPress, QPointF(1, 1),
+                      QPointF(1, 1), Qt::LeftButton, Qt::LeftButton,
+                      Qt::NoModifier);
+    QApplication::sendEvent(&widget, &press);
+    QVERIFY(!widget.property("keyboardFocus").toBool());
+
+    QFocusEvent mouse_focus(QEvent::FocusIn, Qt::MouseFocusReason);
+    QApplication::sendEvent(&widget, &mouse_focus);
+    QVERIFY(!widget.property("keyboardFocus").toBool());
 }
 
 void TestClientCore::mainWindowExposesKeyboardShortcuts() {
@@ -1742,8 +1774,8 @@ void TestClientCore::messageActionBarIsKeyboardReachable() {
     QCOMPARE(recall->accessibleName(), QStringLiteral("撤回此消息"));
 
     const QString qss = readClientSource(QStringLiteral("resources/style.qss"));
-    QVERIFY(qss.contains(
-        QStringLiteral("QFrame#MessageActionBar QPushButton:focus")));
+    QVERIFY(qss.contains(QStringLiteral(
+        "QFrame#MessageActionBar QPushButton[keyboardFocus=\"true\"]:focus")));
 }
 
 void TestClientCore::messageActionBarHasSingleSoftShadow() {

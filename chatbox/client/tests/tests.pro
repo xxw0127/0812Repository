@@ -12,6 +12,7 @@ SOURCES += \
     ../core/autostart.cpp \
     ../core/client_policy.cpp \
     ../core/credential_store.cpp \
+    ../core/focus_ring.cpp \
     ../core/client_log.cpp \
     ../core/message_time.cpp \
     ../core/message_store.cpp \
@@ -32,6 +33,7 @@ HEADERS += \
     ../core/autostart.h \
     ../core/client_policy.h \
     ../core/credential_store.h \
+    ../core/focus_ring.h \
     ../core/client_log.h \
     ../core/chat_message.h \
     ../core/message_time.h \

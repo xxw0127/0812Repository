@@ -80,7 +80,7 @@ QPushButton {
     padding: 8px 12px;
 }
 
-QPushButton:focus {
+QPushButton[keyboardFocus="true"]:focus {
     border: 2px solid #0052FF;
     padding: 6px 10px;
 }
@@ -108,7 +108,7 @@ QPushButton#PrimaryButton:hover {
     background: #0046DD;
 }
 
-QPushButton#PrimaryButton:focus {
+QPushButton#PrimaryButton[keyboardFocus="true"]:focus {
     border: 2px solid #0052FF;
     padding: 6px 10px;
 }
@@ -133,7 +133,7 @@ QPushButton#SendButton:hover {
     background: #0046DD;
 }
 
-QPushButton#SendButton:focus {
+QPushButton#SendButton[keyboardFocus="true"]:focus {
     border: 2px solid #0052FF;
     padding: 6px 12px;
 }
@@ -195,7 +195,7 @@ QFrame#MessageActionBar QPushButton:hover {
     background: #F7F7F7;
 }
 
-QFrame#MessageActionBar QPushButton:focus {
+QFrame#MessageActionBar QPushButton[keyboardFocus="true"]:focus {
     border: 1px solid #0052FF;
 }
 
@@ -224,7 +224,7 @@ QListWidget {
     padding: 0;
 }
 
-QListWidget:focus {
+QListWidget[keyboardFocus="true"]:focus {
     border: 2px solid #0052FF;
     border-radius: 10px;
 }
@@ -285,7 +285,7 @@ QCheckBox::indicator:checked {
     image: url(:/icons/check.png);
 }
 
-QCheckBox::indicator:focus {
+QCheckBox[keyboardFocus="true"]::indicator:focus {
     border: 2px solid #0052FF;
 }
 
@@ -323,13 +323,14 @@ QToolButton#MoreButton, QToolButton#AdvancedOptionsButton {
     padding: 0px;
 }
 
-QToolButton:focus {
+QToolButton[keyboardFocus="true"]:focus {
     background: #E6E8EC;
     border: 2px solid #0052FF;
     border-radius: 8px;
 }
 
-QToolButton#MoreButton:focus, QToolButton#AdvancedOptionsButton:focus {
+QToolButton#MoreButton[keyboardFocus="true"]:focus,
+QToolButton#AdvancedOptionsButton[keyboardFocus="true"]:focus {
     background: #E6E8EC;
     border: 2px solid #0052FF;
     border-radius: 12px;

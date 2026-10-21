@@ -25,6 +25,7 @@ SOURCES += \
     core/autostart.cpp \
     core/client_policy.cpp \
     core/credential_store.cpp \
+    core/focus_ring.cpp \
     core/socket_compat.cpp \
     core/protocol_qt.cpp \
     core/network_thread.cpp \
@@ -55,6 +56,7 @@ HEADERS += \
     core/autostart.h \
     core/client_policy.h \
     core/credential_store.h \
+    core/focus_ring.h \
     core/socket_compat.h \
     core/protocol_qt.h \
     core/network_thread.h \

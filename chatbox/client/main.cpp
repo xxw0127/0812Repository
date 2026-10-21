@@ -1,6 +1,7 @@
 #include "core/app_settings.h"
 #include "core/client_log.h"
 #include "core/client_policy.h"
+#include "core/focus_ring.h"
 #include "core/socket_compat.h"
 
 #include <QApplication>
@@ -24,6 +25,7 @@ int main(int argc, char** argv) {
     QCoreApplication::setOrganizationName("ChatBox");
     QCoreApplication::setApplicationName("ChatBox");
     QCoreApplication::setApplicationVersion("0.2.0");
+    new chatbox::client::FocusRingFilter(&application);
 
     // One instance only: two clients would race on the same settings store and
     // (from the history batch on) the same local database. A crashed instance
