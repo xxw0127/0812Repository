@@ -18,6 +18,15 @@ QFrame#LoginCard {
     border-radius: 16px;
 }
 
+/* 品牌字母标：原本是 Qt 内联样式，切主题时不会重算，故收进 QSS。 */
+QLabel#AppLogo {
+    background: #0052FF;
+    color: #FFFFFF;
+    border-radius: 28px;
+    font-size: 28px;
+    font-weight: 600;
+}
+
 QLabel#AppTitle {
     font-size: 26px;
     font-weight: 600;
@@ -25,12 +34,35 @@ QLabel#AppTitle {
 }
 
 QLabel#AppSubtitle {
-    color: #7C828A;
+    color: #616877;
     font-size: 12px;
 }
 
+QLabel#EmptyStateTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0A0B0D;
+}
+
+QLabel#EmptyStateDescription {
+    font-size: 13px;
+    color: #616877;
+}
+
+QPushButton#EmptyStateAction {
+    background: transparent;
+    border: none;
+    color: #0052FF;
+    font-size: 13px;
+    padding: 6px 8px;
+}
+
+QPushButton#EmptyStateAction:hover {
+    color: #0046DD;
+}
+
 QLabel#SectionLabel {
-    color: #7C828A;
+    color: #616877;
     font-size: 11px;
     font-weight: 600;
     padding: 8px 6px 4px 6px;
@@ -43,8 +75,31 @@ QLabel#ContextTitle {
 }
 
 QLabel#MutedLabel {
-    color: #7C828A;
+    color: #616877;
     font-size: 12px;
+}
+
+QLabel#ProfileNameLabel {
+    font-size: 22px;
+    font-weight: 600;
+    color: #0A0B0D;
+}
+
+QLabel#SettingsIdLabel {
+    font-weight: 600;
+    color: #0A0B0D;
+}
+
+QLabel#SettingsCaption {
+    color: #616877;
+}
+
+QLabel#HistoryPathLabel {
+    color: #5B616E;
+}
+
+QLabel#SettingsVersion {
+    color: #616877;
 }
 
 QLineEdit, QSpinBox {
@@ -61,16 +116,20 @@ QLineEdit:focus, QSpinBox:focus {
     border: 1px solid #0052FF;
 }
 
-QLineEdit#MessageInput {
+QTextEdit#MessageInput {
     background: #EEF0F3;
     border: 1px solid transparent;
-    border-radius: 18px;
-    padding: 9px 14px;
+    border-radius: 12px;
+    padding: 8px 12px;
 }
 
-QLineEdit#MessageInput:focus {
+QTextEdit#MessageInput:focus {
     background: #FFFFFF;
     border: 1px solid #0052FF;
+}
+
+QLabel#MessageByteCounter {
+    font-size: 11px;
 }
 
 QPushButton {
@@ -78,6 +137,11 @@ QPushButton {
     border: none;
     border-radius: 8px;
     padding: 8px 12px;
+}
+
+QPushButton[keyboardFocus="true"]:focus {
+    border: 2px solid #0052FF;
+    padding: 6px 10px;
 }
 
 QPushButton:hover {
@@ -89,7 +153,7 @@ QPushButton:pressed {
 }
 
 QPushButton:disabled {
-    color: #A8ACB3;
+    color: #676D76;
     background: #F7F7F7;
 }
 
@@ -103,13 +167,18 @@ QPushButton#PrimaryButton:hover {
     background: #0046DD;
 }
 
+QPushButton#PrimaryButton[keyboardFocus="true"]:focus {
+    border: 2px solid #0052FF;
+    padding: 6px 10px;
+}
+
 QPushButton#PrimaryButton:pressed {
     background: #003ECC;
 }
 
 QPushButton#PrimaryButton:disabled {
-    background: #A8B8CC;
-    color: #FFFFFF;
+    background: #E6E8EC;
+    color: #6B7280;
 }
 
 QPushButton#SendButton {
@@ -123,12 +192,79 @@ QPushButton#SendButton:hover {
     background: #0046DD;
 }
 
+QPushButton#SendButton[keyboardFocus="true"]:focus {
+    border: 2px solid #0052FF;
+    padding: 6px 12px;
+}
+
 QPushButton#SendButton:pressed {
     background: #003ECC;
 }
 
 QPushButton#IconButton {
     padding: 7px;
+}
+
+QPushButton#MyProfileButton {
+    background: #FFFFFF;
+    border: none;
+    border-top: 1px solid #DEE1E6;
+    border-radius: 0;
+    padding: 4px 2px;
+}
+
+QPushButton#MyProfileButton:hover {
+    background: #F7F7F7;
+}
+
+QPushButton#MyProfileButton:pressed {
+    background: #EEF0F3;
+}
+
+QLabel#MyProfileName {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0A0B0D;
+}
+
+QLabel#MyProfileUid {
+    font-size: 11px;
+    color: #616877;
+}
+
+QPushButton#SidebarAction, QPushButton#FooterAction {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 0 8px;
+    color: #0A0B0D;
+    font-size: 13px;
+    text-align: left;
+}
+
+QPushButton#SidebarAction:hover, QPushButton#FooterAction:hover {
+    background: #F7F7F7;
+}
+
+QPushButton#DangerFooterAction {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 0 8px;
+    color: #B42318;
+    font-size: 13px;
+}
+
+QPushButton#DangerFooterAction:hover {
+    background: #F7F7F7;
+}
+
+QLabel#FriendRequestBadge {
+    background: #0052FF;
+    color: #FFFFFF;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
 }
 
 QWidget#Sidebar {
@@ -180,6 +316,10 @@ QFrame#MessageActionBar QPushButton:hover {
     background: #F7F7F7;
 }
 
+QFrame#MessageActionBar QPushButton[keyboardFocus="true"]:focus {
+    border: 1px solid #0052FF;
+}
+
 QFrame#MessageActionBar QPushButton:pressed {
     background: #EEF0F3;
 }
@@ -191,19 +331,23 @@ QStackedWidget {
 QStatusBar {
     background: #FFFFFF;
     border-top: 1px solid #DEE1E6;
-    color: #7C828A;
+    color: #616877;
 }
 
 QStatusBar QLabel {
-    color: #7C828A;
+    color: #616877;
     padding-left: 6px;
 }
 
 QListWidget {
     background: transparent;
     border: none;
-    outline: 0;
     padding: 0;
+}
+
+QListWidget[keyboardFocus="true"]:focus {
+    border: 2px solid #0052FF;
+    border-radius: 10px;
 }
 
 QListWidget::item {
@@ -214,10 +358,14 @@ QListWidget::item {
 
 QListWidget::item:hover {
     background: #F7F7F7;
+    border: 1px solid transparent;
 }
 
+/* 选中态必须同时区别于行底色（白）和悬停底色（#F7F7F7）。
+   纯灰 #EEF0F3 对悬停只有 1.09:1，等于看不出选中，故改用淡蓝 + 描边。 */
 QListWidget::item:selected {
-    background: #EEF0F3;
+    background: #CCDCFF;
+    border: 1px solid #A9C1F0;
     color: #0A0B0D;
 }
 
@@ -228,13 +376,13 @@ QScrollBar:vertical {
 }
 
 QScrollBar::handle:vertical {
-    background: #A8ACB3;
+    background: #676D76;
     border-radius: 4px;
     min-height: 24px;
 }
 
 QScrollBar::handle:vertical:hover {
-    background: #7C828A;
+    background: #616877;
 }
 
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
@@ -252,7 +400,7 @@ QCheckBox::indicator {
     width: 18px;
     height: 18px;
     border-radius: 4px;
-    border: 1px solid #A8ACB3;
+    border: 1px solid #676D76;
     background: #FFFFFF;
 }
 
@@ -260,6 +408,109 @@ QCheckBox::indicator:checked {
     background: #0052FF;
     border: 1px solid #0052FF;
     image: url(:/icons/check.png);
+}
+
+QCheckBox[keyboardFocus="true"]::indicator:focus {
+    border: 2px solid #0052FF;
+}
+
+/* 下拉框、单选、分组框原先没有任何规则，在深色主题里会回落到系统控件外观。
+   不覆盖 ::down-arrow / ::drop-down：图标资源里没有 chevron，
+   交给 Qt 用当前 palette 绘制反而在明暗两套下都可见。 */
+QComboBox {
+    background: #EEF0F3;
+    border: 1px solid #DEE1E6;
+    border-radius: 8px;
+    padding: 6px 10px;
+    min-height: 20px;
+}
+
+QComboBox:hover {
+    background: #E6E8EC;
+}
+
+QComboBox:focus {
+    background: #FFFFFF;
+    border: 1px solid #0052FF;
+}
+
+QComboBox:disabled {
+    background: #F7F7F7;
+    color: #676D76;
+}
+
+/* ::drop-down 保留原生箭头，但必须清掉它的边框和底色，
+   否则 QComboBox 本体的圆角会被这一块方角盖住。 */
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 20px;
+    border: none;
+    background: transparent;
+}
+
+/* 清空 ::drop-down 后原生箭头不再绘制，必须自带一张；
+   没有箭头用户看不出这个控件可以展开。 */
+QComboBox::down-arrow {
+    image: url(:/icons/chevron-light.png);
+    width: 10px;
+    height: 10px;
+}
+
+QComboBox QAbstractItemView {
+    background: #FFFFFF;
+    border: 1px solid #DEE1E6;
+    border-radius: 8px;
+    padding: 4px;
+    outline: none;
+    selection-background-color: #CCDCFF;
+    selection-color: #0A0B0D;
+}
+
+QRadioButton {
+    spacing: 8px;
+}
+
+QRadioButton::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    border: 1px solid #676D76;
+    background: #FFFFFF;
+}
+
+/* 选中不能靠加粗 border 实现：border 会把 indicator 从 18px 撑到 28px，
+   9px 圆角就不再是圆。用径向渐变画「蓝点 + 白环」，整体仍是 18px。 */
+QRadioButton::indicator:checked {
+    border: 1px solid #0052FF;
+    background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+                                stop:0 #0052FF, stop:0.45 #0052FF,
+                                stop:0.55 #FFFFFF, stop:1 #FFFFFF);
+}
+
+QRadioButton::indicator:disabled {
+    border-color: #DEE1E6;
+}
+
+QRadioButton[keyboardFocus="true"]::indicator:focus {
+    border: 2px solid #0052FF;
+}
+
+QGroupBox {
+    border: 1px solid #DEE1E6;
+    border-radius: 12px;
+    margin-top: 10px;
+    padding: 14px 12px 10px 12px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 12px;
+    padding: 0 4px;
+    color: #616877;
+    font-size: 11px;
+    font-weight: 600;
 }
 
 QDialogButtonBox QPushButton {
@@ -292,8 +543,21 @@ QToolTip {
 QToolButton#MoreButton, QToolButton#AdvancedOptionsButton {
     background: transparent;
     border: none;
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 0px;
+}
+
+QToolButton[keyboardFocus="true"]:focus {
+    background: #E6E8EC;
+    border: 2px solid #0052FF;
+    border-radius: 8px;
+}
+
+QToolButton#MoreButton[keyboardFocus="true"]:focus,
+QToolButton#AdvancedOptionsButton[keyboardFocus="true"]:focus {
+    background: #E6E8EC;
+    border: 2px solid #0052FF;
+    border-radius: 8px;
 }
 
 QToolButton#MoreButton:hover, QToolButton#AdvancedOptionsButton:hover {

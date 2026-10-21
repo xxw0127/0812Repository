@@ -4,11 +4,13 @@
 #include <QDialog>
 #include <QVector>
 
+class EmptyState;
 class QLabel;
 class QLineEdit;
 class QListWidget;
 class QListWidgetItem;
 class QPushButton;
+class QStackedWidget;
 
 struct UserSearchResult {
     quint64 user_id = 0;
@@ -45,8 +47,11 @@ private:
     QLineEdit* search_edit_ = nullptr;
     QPushButton* search_button_ = nullptr;
     QPushButton* profile_button_ = nullptr;
+    QStackedWidget* result_stack_ = nullptr;
     QListWidget* result_list_ = nullptr;
+    EmptyState* empty_state_ = nullptr;
     QLabel* status_label_ = nullptr;
+    QString last_keyword_;
 };
 
 #endif  // CHATBOX_CLIENT_UI_USER_SEARCH_DIALOG_H

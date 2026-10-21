@@ -1,16 +1,22 @@
 #include <QtTest>
 #include <algorithm>
+#include <cmath>
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QDialogButtonBox>
 #include <QDir>
 #include <QColor>
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QFile>
+#include <QFrame>
 #include <QGraphicsDropShadowEffect>
 #include <QIcon>
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QPlainTextEdit>
 #include <QPixmap>
@@ -25,6 +31,7 @@
 #include <QTemporaryDir>
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QTextDocument>
 #include <QTextFragment>
 #include <QToolButton>
 #include <QVector>
@@ -33,6 +40,7 @@
 #include "core/autostart.h"
 #include "core/client_policy.h"
 #include "core/credential_store.h"
+#include "core/focus_ring.h"
 #include "core/avatar_cache.h"
 #include "core/avatar_utils.h"
 #include "core/contact_store.h"
@@ -45,7 +53,9 @@
 #include "core/ui_theme.h"
 #include "core/user_profile.h"
 #include "ui/chat_view.h"
+#include "ui/empty_state.h"
 #include "ui/login_page.h"
+#include "ui/message_input.h"
 #include "ui/message_action_bar.h"
 #include "ui/profile_dialog.h"
 #include "ui/settings_dialog.h"
@@ -63,6 +73,24 @@ QString readClientSource(const QString& relative) {
         return QString();
     }
     return QString::fromUtf8(file.readAll());
+}
+
+QString readMainWindowSource() {
+    const QStringList files = {
+        QStringLiteral("ui/main_window.cpp"),
+        QStringLiteral("ui/main_window_chat.cpp"),
+        QStringLiteral("ui/main_window_contacts.cpp"),
+        QStringLiteral("ui/main_window_profile.cpp"),
+        QStringLiteral("ui/main_window_tray.cpp"),
+        QStringLiteral("ui/main_window_net.cpp"),
+        QStringLiteral("ui/main_window_support.h"),
+    };
+    QString source;
+    for (const QString& file : files) {
+        source += readClientSource(file);
+        source += QLatin1Char('\n');
+    }
+    return source;
 }
 
 QString sourceSection(const QString& source, const QString& marker,
@@ -121,11 +149,24 @@ private slots:
     void rendererEscapesHtml();
     void rendererShowsRetryOnlyWhenFailed();
     void rendererAddsDateSeparator();
+    void rendererBubbleSpecUsesBorderAndExternalTimestamp();
+    void rendererSuppressesRepeatedSenderName();
+    void rendererQuoteBlockUsesQuoteSurface();
+    void rendererRecalledBubbleHasNoSenderName();
+    void rendererFragmentMatchesFullRender();
     void rendererAlignsOwnMessages();
     void rendererQuoteBlockWithoutInlineActions();
+    void rendererCapsWideBubbleWidth();
+    void rendererQuoteBubbleStaysNarrow();
+    void messageBubblesHaveRoundedCorners();
+    void messageBubblesDrawRightEdge();
     void messageActionsAvailability();
     void messageActionsRecallWindow();
     void chatViewMapsMessagesToIds();
+    void chatViewAppendsFragmentsWithoutResettingDocument();
+    void chatViewAppendStaysUnderBudget();
+    void chatViewOpensMessageMenuWithKeyboard();
+    void chatViewStylesAppendedRetryLink();
     void chatViewStylesRetryLink();
     void chatViewHoverReentersSameMessage();
     void contactStorePersistsAndUpdates();
@@ -138,8 +179,23 @@ private slots:
     void profileDialogSelfMode();
     void profileDialogViewModeActions();
     void messageBubbleColoursComeFromTheme();
+    void contrastTokensMeetAa();
+    void darkSurfaceContrastMeetsAa();
+    void primaryButtonContrastMeetsAa();
+    void bubbleBoundaryMeetsNonTextContrast();
+    void darkPaletteMatchesSpec();
+    void themeTokensMatchContrastSpec();
+    void styleSheetHasVisibleKeyboardFocus();
+    void keyboardFocusReasonIsKeyboardOnly();
+    void focusRingFilterHonoursKeyboardAndMouse();
+    void mainWindowExposesKeyboardShortcuts();
+    void mainWindowAccessibilityLabels();
+    void friendItemsExposeAccessibleText();
+    void mainWindowOmitsJoinRoomStatusNoise();
+    void friendListAvoidsDuplicateGroupLabels();
     void themeTokensMatchStyleSheet();
     void messageActionBarHasSingleSoftShadow();
+    void messageActionBarIsKeyboardReachable();
     void brandAppIconExposesSizes();
     void roomAvatarIsBrandBadge();
     void trayIconUsesBrandIcon();
@@ -157,6 +213,7 @@ private slots:
     void autostartCommandCarriesMinimizedFlag();
     void autostartSettingWritesAndRemovesRunValue();
     void startupHonoursMinimizedAndSingleInstance();
+    void startupSupportsIsolatedProfile();
     void startupPolicyRequiresUsableTray();
     void unreadBadgesHonourAlertsSwitch();
     void historyStoreCreatesSchema();
@@ -180,10 +237,22 @@ private slots:
     void recallPushUpdatesBackgroundHistory();
     void loginPageHasNoLocalHistoryEntry();
     void loginPageHidesServerFieldsBehindMoreDots();
+    void layoutWeightsFollowAudit();
+    void adaptiveLayoutUsesSplitter();
+    void textNeverSmallerThanElevenPixels();
+    void emptyStateShowsConfiguredCopy();
+    void emptyStatesAreWired();
+    void messageInputHandlesKeyboardAndPlainPaste();
+    void messageInputHidesEmptyScrollbar();
+    void messageComposerUsesByteCounter();
+    void dangerousActionsUseChineseDialogs();
     void loginPageShowsNicknameOnlyInRegisterMode();
     void loginPageHasAutoLoginAndRememberPasswordOptions();
+    void loginPageAccessibleNames();
+    void loginPageClearsFieldFocusOnBlankClick();
     void loginPageReloadsRememberedPasswordAfterLogout();
     void credentialStoreEncryptsSavedPassword();
+    void mainWindowUsesIncrementalAppendForIncomingMessages();
     void settingsDialogDefaultsToPublicServer();
     void offlineModeIsReadOnlyAndLocal();
     void settingsDialogShowsHistoryInfo();
@@ -505,6 +574,118 @@ void TestClientCore::rendererAddsDateSeparator() {
     QVERIFY(html.contains("2026-10-19"));
 }
 
+void TestClientCore::rendererBubbleSpecUsesBorderAndExternalTimestamp() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage message;
+    message.message_id = 1;
+    message.sender_name = "Bob";
+    message.content = "bubble body";
+    message.created_at_utc = created;
+
+    const QString html = chatbox::client::renderConversationHtml({message}, 1);
+    QVERIFY(html.contains(QStringLiteral("cellpadding=\"1\"")));
+    QVERIFY(html.contains(QStringLiteral("cellpadding=\"12\"")));
+    // The outer cell is a canvas-coloured gap; ChatView owns the visible
+    // rounded border, so the HTML must not paint a square border underneath it.
+    QVERIFY(html.contains(QStringLiteral("bgcolor=\"%1\"")
+                              .arg(QString::fromLatin1(
+                                  chatbox::client::theme::kSurfaceSoft))));
+    QVERIFY(!html.contains(QStringLiteral("bgcolor=\"%1\"")
+                               .arg(QString::fromLatin1(
+                                   chatbox::client::theme::kBubbleBorder))));
+    QVERIFY(html.contains(QStringLiteral("line-height: 150%")));
+    const QString local_time = chatbox::client::formatLocalTime(created);
+    const int timestamp = html.indexOf(local_time);
+    const int bubble_close = html.indexOf(QStringLiteral("</table></td></tr></table>"));
+    QVERIFY(timestamp > 0);
+    QVERIFY(bubble_close > 0);
+    QVERIFY(timestamp > bubble_close);
+}
+
+void TestClientCore::rendererSuppressesRepeatedSenderName() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage first;
+    first.message_id = 1;
+    first.sender_id = 2;
+    first.sender_name = "RepeatOnly";
+    first.content = "first";
+    first.created_at_utc = created;
+    chatbox::client::ChatMessage second = first;
+    second.message_id = 2;
+    second.content = "second";
+    second.created_at_utc = created.addSecs(30);
+    chatbox::client::ChatMessage third = first;
+    third.message_id = 3;
+    third.content = "third";
+    third.created_at_utc = created.addSecs(60);
+
+    const QString html =
+        chatbox::client::renderConversationHtml({first, second, third}, 1);
+    QCOMPARE(html.count(QStringLiteral("RepeatOnly")), 1);
+    QVERIFY(!chatbox::client::shouldShowSenderName(&first, second));
+    QVERIFY(!chatbox::client::shouldShowSenderName(&second, third));
+    const QString fragment = chatbox::client::renderMessageFragment(
+        third, 1, false, QString(), false);
+    QVERIFY(!fragment.contains(QStringLiteral("RepeatOnly")));
+}
+
+void TestClientCore::rendererQuoteBlockUsesQuoteSurface() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage quoted;
+    quoted.message_id = 7;
+    quoted.sender_name = "Bob";
+    quoted.content = "quoted body";
+    quoted.created_at_utc = created;
+    quoted.reply_to_id = 5;
+    quoted.reply_sender_name = "Alice";
+    quoted.reply_content = "original text";
+
+    const QString html = chatbox::client::renderConversationHtml({quoted}, 1);
+    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kQuoteBg)));
+    QVERIFY(!html.contains(QStringLiteral("border-left")));
+    QVERIFY(html.contains(QStringLiteral("回复 Alice: original text")));
+}
+
+void TestClientCore::rendererRecalledBubbleHasNoSenderName() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage recalled;
+    recalled.message_id = 8;
+    recalled.sender_name = "SenderOnly";
+    recalled.content = "secret";
+    recalled.created_at_utc = created;
+    recalled.recalled = true;
+
+    const QString html = chatbox::client::renderConversationHtml({recalled}, 1);
+    QVERIFY(html.contains(QStringLiteral("消息已撤回")));
+    QVERIFY(!html.contains(QStringLiteral("SenderOnly")));
+    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kSurfaceStrong)));
+}
+
+void TestClientCore::rendererFragmentMatchesFullRender() {
+    const QDateTime first_local(QDate(2026, 10, 18), QTime(10, 0), Qt::LocalTime);
+    const QDateTime second_local(QDate(2026, 10, 19), QTime(10, 0), Qt::LocalTime);
+
+    chatbox::client::ChatMessage first;
+    first.message_id = 1;
+    first.sender_name = "Bob";
+    first.content = "day one";
+    first.created_at_utc = first_local.toUTC();
+    chatbox::client::ChatMessage second;
+    second.message_id = 2;
+    second.sender_name = "Bob";
+    second.content = "day two";
+    second.created_at_utc = second_local.toUTC();
+
+    const QString expected =
+        QStringLiteral("<html><body style=\"font-family: 'Microsoft YaHei', sans-serif;\">") +
+        chatbox::client::renderMessageFragment(
+            first, 1, true, chatbox::client::formatLocalDate(first.created_at_utc)) +
+        chatbox::client::renderMessageFragment(
+            second, 1, true, chatbox::client::formatLocalDate(second.created_at_utc)) +
+        QStringLiteral("</body></html>");
+    QCOMPARE(chatbox::client::renderConversationHtml({first, second}, 1), expected);
+}
+
 void TestClientCore::rendererAlignsOwnMessages() {
     const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
     chatbox::client::ChatMessage own;
@@ -561,6 +742,164 @@ void TestClientCore::rendererQuoteBlockWithoutInlineActions() {
     own.outgoing = true;
     html = chatbox::client::renderConversationHtml({own}, 1);
     QVERIFY(!html.contains("recall:9"));
+}
+
+void TestClientCore::rendererCapsWideBubbleWidth() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage message;
+    message.message_id = 41;
+    message.sender_name = "Bob";
+    message.content = QString(300, QChar('x'));
+    message.created_at_utc = created;
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html =
+        chatbox::client::renderConversationHtml({message}, 1, &keys);
+    ChatView view;
+    view.resize(560, 600);
+    view.show();
+    QTest::qWait(30);
+    view.setConversationHtml(html, keys);
+
+    const QRect bubble = view.messageBubbleRect(41);
+    QVERIFY(!bubble.isNull());
+    const int limit = static_cast<int>(view.viewport()->width() * 0.8);
+    QVERIFY2(bubble.width() <= limit,
+             qPrintable(QStringLiteral("bubble %1 > limit %2")
+                            .arg(bubble.width())
+                            .arg(limit)));
+}
+
+void TestClientCore::rendererQuoteBubbleStaysNarrow() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage quoted;
+    quoted.message_id = 42;
+    quoted.sender_name = "Bob";
+    quoted.content = "reply";
+    quoted.created_at_utc = created;
+    quoted.reply_to_id = 5;
+    quoted.reply_sender_name = "Alice";
+    quoted.reply_content =
+        QStringLiteral("room original 32-Chinese-character "
+                       "859d8d66-5453-4675-aa97-3d418f31f17e");
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html =
+        chatbox::client::renderConversationHtml({quoted}, 1, &keys);
+    ChatView view;
+    view.resize(560, 600);
+    view.show();
+    QTest::qWait(30);
+    view.setConversationHtml(html, keys);
+
+    const QRect bubble = view.messageBubbleRect(42);
+    QVERIFY(!bubble.isNull());
+    const int limit = static_cast<int>(view.viewport()->width() * 0.8);
+    QVERIFY2(bubble.width() <= limit,
+             qPrintable(QStringLiteral("quote bubble %1 > limit %2")
+                            .arg(bubble.width())
+                            .arg(limit)));
+}
+
+void TestClientCore::messageBubblesHaveRoundedCorners() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage message;
+    message.message_id = 43;
+    message.sender_id = 9;
+    message.sender_name = "Bob";
+    message.content = "rounded corner";
+    message.created_at_utc = created;
+
+    QFile style(QStringLiteral(":/style.qss"));
+    QVERIFY(style.open(QIODevice::ReadOnly | QIODevice::Text));
+    const QString previous_style = qApp->styleSheet();
+    qApp->setStyleSheet(QString::fromUtf8(style.readAll()));
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html =
+        chatbox::client::renderConversationHtml({message}, 1, &keys);
+    ChatView view;
+    view.resize(560, 400);
+    view.show();
+    QTest::qWait(50);
+    view.setConversationHtml(html, keys);
+    QTest::qWait(50);
+    const QRect bubble = view.messageOuterBubbleRect(43);
+    QVERIFY(!bubble.isNull());
+    QWidget* overlay =
+        view.findChild<QWidget*>(QStringLiteral("BubbleOverlay"));
+    QVERIFY(overlay != nullptr);
+    const QImage image = overlay->grab().toImage();
+    const QColor canvas(chatbox::client::theme::kSurfaceSoft);
+    const QColor border(chatbox::client::theme::kBubbleBorder);
+    const QColor corner = image.pixelColor(bubble.left() + 2, bubble.top() + 2);
+    bool border_on_top_edge = false;
+    for (int y = bubble.top(); y <= bubble.top() + 2; ++y) {
+        if (image.pixelColor(bubble.center().x(), y) == border) {
+            border_on_top_edge = true;
+        }
+    }
+    qApp->setStyleSheet(previous_style);
+
+    QVERIFY2(qAbs(corner.red() - canvas.red()) <= 4 &&
+                 qAbs(corner.green() - canvas.green()) <= 4 &&
+                 qAbs(corner.blue() - canvas.blue()) <= 4,
+             qPrintable(QStringLiteral("corner colour %1,%2,%3 should be canvas %4,%5,%6")
+                            .arg(corner.red())
+                            .arg(corner.green())
+                            .arg(corner.blue())
+                            .arg(canvas.red())
+                            .arg(canvas.green())
+                            .arg(canvas.blue())));
+    QVERIFY2(border_on_top_edge,
+             "the overlay must draw the rounded bubble border, not just mask corners");
+}
+
+void TestClientCore::messageBubblesDrawRightEdge() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage message;
+    message.message_id = 44;
+    message.sender_id = 1;
+    message.content = "?";
+    message.created_at_utc = created;
+    message.outgoing = true;
+
+    QFile style(QStringLiteral(":/style.qss"));
+    QVERIFY(style.open(QIODevice::ReadOnly | QIODevice::Text));
+    const QString previous_style = qApp->styleSheet();
+    qApp->setStyleSheet(QString::fromUtf8(style.readAll()));
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html =
+        chatbox::client::renderConversationHtml({message}, 1, &keys);
+    ChatView view;
+    view.resize(560, 400);
+    view.show();
+    QTest::qWait(50);
+    view.setConversationHtml(html, keys);
+    QTest::qWait(50);
+
+    const QRect bubble = view.messageOuterBubbleRect(44);
+    QVERIFY(!bubble.isNull());
+    QWidget* overlay =
+        view.findChild<QWidget*>(QStringLiteral("BubbleOverlay"));
+    QVERIFY(overlay != nullptr);
+    const QImage image = overlay->grab().toImage();
+    const QColor border(chatbox::client::theme::kBubbleBorder);
+    bool found = false;
+    for (int x = bubble.right() - 2; x <= bubble.right() + 2; ++x) {
+        for (int y = bubble.top() + 2; y <= bubble.bottom() - 2; ++y) {
+            if (x >= 0 && x < image.width() && y >= 0 && y < image.height() &&
+                image.pixelColor(x, y) == border) {
+                found = true;
+            }
+        }
+    }
+    const QColor edge = image.pixelColor(image.width() - 1, bubble.center().y());
+    qApp->setStyleSheet(previous_style);
+    QVERIFY2(found, "outgoing bubbles must paint the right border");
+    QVERIFY2(edge == QColor(chatbox::client::theme::kSurfaceSoft),
+             "the clipped table sliver at the viewport edge must be canvas");
 }
 
 void TestClientCore::messageActionsAvailability() {
@@ -754,6 +1093,205 @@ void TestClientCore::chatViewMapsMessagesToIds() {
     QVERIFY(second_content.y() >= 0);
     QVERIFY(second_content.y() < view.viewport()->height());
     QVERIFY(view.messageBubbleRect(22).contains(second_content));
+}
+
+void TestClientCore::chatViewAppendsFragmentsWithoutResettingDocument() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage first;
+    first.message_id = 11;
+    first.sender_id = 2;
+    first.sender_name = "Bob";
+    first.content = "first body";
+    first.created_at_utc = created;
+    chatbox::client::ChatMessage second;
+    second.message_id = 22;
+    second.sender_id = 1;
+    second.sender_name = "Me";
+    second.content = "second body";
+    second.created_at_utc = created;
+    second.outgoing = true;
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html = chatbox::client::renderConversationHtml({first, second}, 1, &keys);
+    ChatView view;
+    view.resize(640, 480);
+    view.show();
+    QTest::qWait(50);
+    view.setConversationHtml(html, keys);
+    QTextDocument* document = view.document();
+    int resets = 0;
+    QObject::connect(document, &QTextDocument::contentsChange,
+                     [&resets](int position, int removed, int) {
+                         if (position == 0 && removed > 0) {
+                             ++resets;
+                         }
+                     });
+
+    for (int i = 0; i < 50; ++i) {
+        chatbox::client::ChatMessage appended;
+        appended.message_id = 100 + static_cast<quint64>(i);
+        appended.sender_id = 2;
+        appended.sender_name = "Bob";
+        appended.content = QStringLiteral("append %1").arg(i);
+        appended.created_at_utc = created.addSecs(i);
+        chatbox::client::MessageKey key;
+        key.message_id = appended.message_id;
+        view.appendFragment(chatbox::client::renderMessageFragment(appended, 1, false,
+                                                                    QString()),
+                            key);
+    }
+
+    QCOMPARE(view.document(), document);
+    QCOMPARE(resets, 0);
+    QVERIFY(!document->find("first body").isNull());
+    QVERIFY(!view.messageAnchorRect(11).isNull());
+    QVERIFY(!view.messageAnchorRect(149).isNull());
+
+    QScrollBar* scroll = view.verticalScrollBar();
+    scroll->setValue(scroll->maximum());
+    QTest::qWait(50);
+    const QTextCursor last = document->find("append 49");
+    QVERIFY(!last.isNull());
+    const QPoint last_pos = view.cursorRect(last).center();
+    QCOMPARE(view.messageIdAt(last_pos), quint64(149));
+    QVERIFY(view.messageBubbleRect(149).contains(last_pos));
+
+    view.clearConversation();
+    QVERIFY(view.messageAnchorRect(11).isNull());
+    QVERIFY(view.document()->find("first body").isNull());
+}
+
+void TestClientCore::chatViewAppendStaysUnderBudget() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    for (int count : {100, 500, 1000}) {
+        QVector<chatbox::client::ChatMessage> messages;
+        messages.reserve(count);
+        for (int i = 0; i < count; ++i) {
+            chatbox::client::ChatMessage message;
+            message.message_id = static_cast<quint64>(i + 1);
+            message.sender_id = 2;
+            message.sender_name = "Bob";
+            message.content = QStringLiteral("message %1").arg(i);
+            message.created_at_utc = created.addSecs(i);
+            messages.append(message);
+        }
+
+        QVector<chatbox::client::MessageKey> keys;
+        const QString html = chatbox::client::renderConversationHtml(messages, 1, &keys);
+        ChatView view;
+        view.resize(640, 480);
+        view.show();
+        QTest::qWait(50);
+        QElapsedTimer full_timer;
+        full_timer.start();
+        view.setConversationHtml(html, keys);
+        QTest::qWait(200);
+        // Force the initial document layout before measuring the incremental
+        // append; otherwise the timer would include the first full layout.
+        view.document()->size();
+        view.verticalScrollBar()->maximum();
+        const qint64 full_ms = full_timer.elapsed();
+
+        chatbox::client::ChatMessage extra;
+        extra.message_id = 2000;
+        extra.sender_id = 2;
+        extra.sender_name = "Bob";
+        extra.content = "one more";
+        extra.created_at_utc = created.addSecs(count);
+        chatbox::client::MessageKey key;
+        key.message_id = extra.message_id;
+        const QString fragment =
+            chatbox::client::renderMessageFragment(extra, 1, false, QString());
+
+        QElapsedTimer timer;
+        timer.start();
+        view.appendFragment(fragment, key);
+        const qint64 elapsed_us = timer.nsecsElapsed() / 1000;
+        qInfo("messages=%d full=%lldms append=%.2fms", count,
+              static_cast<long long>(full_ms), elapsed_us / 1000.0);
+        QVERIFY(!view.document()->find("one more").isNull());
+        QVERIFY(!view.messageAnchorRect(2000).isNull());
+        QVERIFY2(elapsed_us < 5000,
+                 qPrintable(QStringLiteral("append after %1 messages took %2 us")
+                                .arg(count)
+                                .arg(elapsed_us)));
+    }
+}
+
+void TestClientCore::chatViewOpensMessageMenuWithKeyboard() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage message;
+    message.message_id = 77;
+    message.sender_id = 2;
+    message.sender_name = "Bob";
+    message.content = "keyboard body";
+    message.created_at_utc = created;
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html = chatbox::client::renderConversationHtml({message}, 1, &keys);
+    ChatView view;
+    view.resize(640, 480);
+    view.show();
+    QTest::qWait(50);
+    view.setConversationHtml(html, keys);
+    QCOMPARE(view.focusPolicy(), Qt::StrongFocus);
+
+    QTextCursor cursor = view.document()->find("keyboard body");
+    QVERIFY(!cursor.isNull());
+    cursor.select(QTextCursor::WordUnderCursor);
+    view.setTextCursor(cursor);
+    view.setFocus();
+    QTest::qWait(20);
+
+    QSignalSpy spy(&view, &ChatView::messageMenuRequested);
+    QTest::keyClick(&view, Qt::Key_F10);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.at(0).at(0).toULongLong(), quint64(77));
+}
+
+void TestClientCore::chatViewStylesAppendedRetryLink() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage base;
+    base.message_id = 1;
+    base.content = "base";
+    base.created_at_utc = created;
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html = chatbox::client::renderConversationHtml({base}, 1, &keys);
+    ChatView view;
+    view.resize(640, 480);
+    view.show();
+    QTest::qWait(50);
+    view.setConversationHtml(html, keys);
+
+    chatbox::client::ChatMessage failed;
+    failed.client_msg_id = "p2";
+    failed.content = "append failed";
+    failed.created_at_utc = created;
+    failed.outgoing = true;
+    failed.status = chatbox::client::MessageStatus::kFailed;
+    chatbox::client::MessageKey key;
+    key.client_msg_id = failed.client_msg_id;
+    view.appendFragment(chatbox::client::renderMessageFragment(failed, 1, false, QString()),
+                        key);
+
+    bool inspected = false;
+    for (QTextBlock block = view.document()->begin(); block.isValid();
+         block = block.next()) {
+        for (QTextBlock::iterator it = block.begin(); !it.atEnd(); ++it) {
+            const QTextFragment fragment = it.fragment();
+            if (!fragment.isValid() || !fragment.text().contains(QString::fromUtf8("重发"))) {
+                continue;
+            }
+            const QTextCharFormat format = fragment.charFormat();
+            QVERIFY(format.isAnchor());
+            QVERIFY(!format.fontUnderline());
+            QCOMPARE(format.foreground().color(),
+                     QColor(chatbox::client::theme::kAccent));
+            inspected = true;
+        }
+    }
+    QVERIFY(inspected);
 }
 
 void TestClientCore::chatViewStylesRetryLink() {
@@ -1331,6 +1869,243 @@ void TestClientCore::messageBubbleColoursComeFromTheme() {
 // guards the palette in resources/style.qss (embedded as :/style.qss at build
 // time) against drifting from core/ui_theme.h; bubble, banner and semantic
 // colours live in C++/HTML only and are not asserted here.
+double contrastRatio(const QColor& foreground, const QColor& background) {
+    const auto luminance = [](const QColor& color) {
+        const auto channel = [](double value) {
+            return value <= 0.03928 ? value / 12.92
+                                    : std::pow((value + 0.055) / 1.055, 2.4);
+        };
+        return 0.2126 * channel(color.redF()) + 0.7152 * channel(color.greenF()) +
+               0.0722 * channel(color.blueF());
+    };
+    const double a = luminance(foreground);
+    const double b = luminance(background);
+    return (std::max(a, b) + 0.05) / (std::min(a, b) + 0.05);
+}
+
+void TestClientCore::contrastTokensMeetAa() {
+    const auto& palette = chatbox::client::theme::lightPalette();
+    const QColor white(palette.canvas);
+    const QColor soft(palette.surfaceSoft);
+    const QColor own(palette.bubbleOwn);
+    const QColor muted(palette.muted);
+    const QColor muted_soft(palette.mutedSoft);
+
+    const QVector<QPair<QString, double>> checks = {
+        {QStringLiteral("kMuted on canvas"), contrastRatio(muted, white)},
+        {QStringLiteral("kMuted on soft"), contrastRatio(muted, soft)},
+        {QStringLiteral("kMutedSoft on canvas"), contrastRatio(muted_soft, white)},
+        {QStringLiteral("kMutedSoft on bubble"), contrastRatio(muted_soft, own)},
+    };
+    for (const auto& check : checks) {
+        QVERIFY2(check.second >= 4.5,
+                 qPrintable(QStringLiteral("%1 = %2").arg(check.first).arg(check.second)));
+    }
+}
+
+void TestClientCore::darkSurfaceContrastMeetsAa() {
+    const auto& dark = chatbox::client::theme::darkPalette();
+    const QColor muted_soft(dark.mutedSoft);
+    const QColor own(dark.bubbleOwn);
+    const QColor other(dark.bubbleOther);
+    const QColor canvas(dark.canvas);
+    const QColor strong(dark.surfaceStrong);
+
+    const QVector<QPair<QString, double>> checks = {
+        {QStringLiteral("kMutedSoft on dark own bubble"),
+         contrastRatio(muted_soft, own)},
+        {QStringLiteral("kMutedSoft on dark other bubble"),
+         contrastRatio(muted_soft, other)},
+        {QStringLiteral("kMutedSoft on dark canvas"),
+         contrastRatio(muted_soft, canvas)},
+        {QStringLiteral("kMutedSoft on dark recalled surface"),
+         contrastRatio(muted_soft, strong)},
+    };
+    for (const auto& check : checks) {
+        QVERIFY2(check.second >= 4.5,
+                 qPrintable(QStringLiteral("%1 = %2")
+                                .arg(check.first)
+                                .arg(check.second, 0, 'f', 2)));
+    }
+}
+
+void TestClientCore::primaryButtonContrastMeetsAa() {
+    const auto check = [](const chatbox::client::theme::ThemePalette& palette,
+                          const QString& label) {
+        const QColor text(palette.onPrimary);
+        const QVector<QPair<QString, QColor>> surfaces = {
+            {QStringLiteral("primary"), QColor(palette.primary)},
+            {QStringLiteral("primary hover"), QColor(palette.primaryHover)},
+            {QStringLiteral("primary active"), QColor(palette.primaryActive)},
+        };
+        for (const auto& surface : surfaces) {
+            const double ratio = contrastRatio(text, surface.second);
+            QVERIFY2(ratio >= 4.5,
+                     qPrintable(QStringLiteral("%1 %2 = %3")
+                                    .arg(label, surface.first)
+                                    .arg(ratio, 0, 'f', 2)));
+        }
+    };
+    check(chatbox::client::theme::lightPalette(), QStringLiteral("light"));
+    check(chatbox::client::theme::darkPalette(), QStringLiteral("dark"));
+}
+
+void TestClientCore::bubbleBoundaryMeetsNonTextContrast() {
+    const auto check = [](const chatbox::client::theme::ThemePalette& palette,
+                          const QString& label) {
+        const double ratio =
+            contrastRatio(QColor(palette.bubbleBorder), QColor(palette.canvas));
+        QVERIFY2(ratio >= 3.0,
+                 qPrintable(QStringLiteral("%1 bubble border = %2")
+                                .arg(label)
+                                .arg(ratio, 0, 'f', 2)));
+        const double other_ratio =
+            contrastRatio(QColor(palette.bubbleBorder), QColor(palette.bubbleOther));
+        QVERIFY2(other_ratio >= 3.0,
+                 qPrintable(QStringLiteral("%1 border on other bubble = %2")
+                                .arg(label)
+                                .arg(other_ratio, 0, 'f', 2)));
+        QVERIFY2(QColor(palette.surfaceStrong) != QColor(palette.canvas),
+                 qPrintable(QStringLiteral("%1 recalled surface equals canvas")
+                                .arg(label)));
+    };
+    check(chatbox::client::theme::lightPalette(), QStringLiteral("light"));
+    check(chatbox::client::theme::darkPalette(), QStringLiteral("dark"));
+}
+
+void TestClientCore::darkPaletteMatchesSpec() {
+    const auto& dark = chatbox::client::theme::darkPalette();
+    QCOMPARE(QString::fromLatin1(dark.canvas), QStringLiteral("#0F1419"));
+    QCOMPARE(QString::fromLatin1(dark.surfaceSoft), QStringLiteral("#1A2027"));
+    QCOMPARE(QString::fromLatin1(dark.ink), QStringLiteral("#F2F4F7"));
+    QCOMPARE(QString::fromLatin1(dark.accent), QStringLiteral("#4D8DFF"));
+    QCOMPARE(QString::fromLatin1(dark.bubbleOther), QStringLiteral("#1A2027"));
+
+    QFile style(QStringLiteral(":/style-dark.qss"));
+    QVERIFY2(style.open(QIODevice::ReadOnly | QIODevice::Text),
+             "style-dark.qss must be embedded in the resource file");
+    const QString css = QString::fromUtf8(style.readAll());
+    QVERIFY(css.contains(QStringLiteral("#0F1419")));
+    QVERIFY(css.contains(QStringLiteral("#4D8DFF")));
+}
+
+void TestClientCore::themeTokensMatchContrastSpec() {
+    const QString source = readClientSource(QStringLiteral("core/ui_theme.cpp"));
+    QVERIFY2(!source.isEmpty(), "core/ui_theme.h must be readable");
+    QVERIFY(source.contains(QStringLiteral("#616877")));
+    QVERIFY(source.contains(QStringLiteral("#676D76")));
+    QVERIFY(source.contains(QStringLiteral("kSemanticUpText")));
+    QVERIFY(source.contains(QStringLiteral("#027A48")));
+    QVERIFY(source.contains(QStringLiteral("kOnlineDot")));
+    QVERIFY(source.contains(QStringLiteral("#038A52")));
+    QVERIFY(source.contains(QStringLiteral("kQuoteBg")));
+    QVERIFY(source.contains(QStringLiteral("#F4F6F8")));
+    QVERIFY(source.contains(QStringLiteral("kDangerText")));
+    QVERIFY(source.contains(QStringLiteral("#B42318")));
+    QVERIFY(source.contains(QStringLiteral("kDisabledText")));
+    QVERIFY(source.contains(QStringLiteral("#6B7280")));
+}
+
+void TestClientCore::styleSheetHasVisibleKeyboardFocus() {
+    const QString qss = readClientSource(QStringLiteral("resources/style.qss"));
+    QVERIFY2(!qss.isEmpty(), "resources/style.qss must be readable");
+    QVERIFY(!qss.contains(QStringLiteral("outline: 0")));
+    const QStringList selectors = {
+        QStringLiteral("QListWidget[keyboardFocus=\"true\"]:focus"),
+        QStringLiteral("QPushButton[keyboardFocus=\"true\"]:focus"),
+        QStringLiteral("QPushButton#PrimaryButton[keyboardFocus=\"true\"]:focus"),
+        QStringLiteral("QPushButton#SendButton[keyboardFocus=\"true\"]:focus"),
+        QStringLiteral("QCheckBox[keyboardFocus=\"true\"]::indicator:focus"),
+        QStringLiteral("QToolButton[keyboardFocus=\"true\"]:focus"),
+    };
+    for (const QString& selector : selectors) {
+        QVERIFY2(qss.contains(selector), qPrintable(selector));
+    }
+}
+
+void TestClientCore::keyboardFocusReasonIsKeyboardOnly() {
+    QVERIFY(chatbox::client::isKeyboardFocusReason(Qt::TabFocusReason));
+    QVERIFY(chatbox::client::isKeyboardFocusReason(Qt::BacktabFocusReason));
+    QVERIFY(chatbox::client::isKeyboardFocusReason(Qt::ShortcutFocusReason));
+    QVERIFY(!chatbox::client::isKeyboardFocusReason(Qt::MouseFocusReason));
+    QVERIFY(!chatbox::client::isKeyboardFocusReason(Qt::ActiveWindowFocusReason));
+    QVERIFY(!chatbox::client::isKeyboardFocusReason(Qt::OtherFocusReason));
+}
+
+void TestClientCore::focusRingFilterHonoursKeyboardAndMouse() {
+    QWidget widget;
+    chatbox::client::FocusRingFilter filter;
+    widget.installEventFilter(&filter);
+
+    QFocusEvent keyboard_focus(QEvent::FocusIn, Qt::TabFocusReason);
+    QApplication::sendEvent(&widget, &keyboard_focus);
+    QVERIFY(widget.property("keyboardFocus").toBool());
+
+    QMouseEvent press(QEvent::MouseButtonPress, QPointF(1, 1),
+                      QPointF(1, 1), Qt::LeftButton, Qt::LeftButton,
+                      Qt::NoModifier);
+    QApplication::sendEvent(&widget, &press);
+    QVERIFY(!widget.property("keyboardFocus").toBool());
+
+    QFocusEvent mouse_focus(QEvent::FocusIn, Qt::MouseFocusReason);
+    QApplication::sendEvent(&widget, &mouse_focus);
+    QVERIFY(!widget.property("keyboardFocus").toBool());
+}
+
+void TestClientCore::mainWindowExposesKeyboardShortcuts() {
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("Ctrl+F")));
+    QVERIFY(source.contains(QStringLiteral("Ctrl+Shift+F")));
+    QVERIFY(source.contains(QStringLiteral("Ctrl+,")));
+    QVERIFY(source.contains(QStringLiteral("Alt+Up")));
+    QVERIFY(source.contains(QStringLiteral("Alt+Down")));
+    QVERIFY(source.contains(QStringLiteral("Qt::Key_Escape")));
+    QVERIFY(source.contains(QStringLiteral("clearReply()")));
+}
+
+void TestClientCore::mainWindowAccessibilityLabels() {
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("more_button_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("send_button_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("mention_button_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("context_avatar_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("my_profile_avatar_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("context_avatar_->setAccessibleDescription")));
+    QVERIFY(source.contains(QStringLiteral("my_profile_avatar_->setAccessibleDescription")));
+    QVERIFY(source.contains(QStringLiteral("room_list_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("conversation_list_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("member_list_->setAccessibleName")));
+}
+
+void TestClientCore::friendItemsExposeAccessibleText() {
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("Qt::AccessibleTextRole")));
+}
+
+void TestClientCore::mainWindowOmitsJoinRoomStatusNoise() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window_net.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window_net.cpp must be readable");
+    QVERIFY(!source.contains(QStringLiteral("已加入房间")));
+    const QString chat_source =
+        readClientSource(QStringLiteral("ui/main_window_chat.cpp"));
+    QVERIFY2(!chat_source.isEmpty(), "ui/main_window_chat.cpp must be readable");
+    QVERIFY(!chat_source.contains(QStringLiteral("正在进入房间")));
+}
+
+void TestClientCore::friendListAvoidsDuplicateGroupLabels() {
+    const QString source =
+        readClientSource(QStringLiteral("ui/main_window_contacts.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window_contacts.cpp must be readable");
+    const QString section =
+        functionSection(source, QStringLiteral("void MainWindow::refreshFriendListView()"));
+    QVERIFY(!section.isEmpty());
+    QVERIFY2(section.contains(QStringLiteral("show_group_headers")),
+             "only render 在线/离线 headers when both groups are non-empty");
+}
+
 void TestClientCore::themeTokensMatchStyleSheet() {
     // resolve relative to the test binary first so the guard also works when
     // the binary is launched outside tests/ (Qt Creator, CI, ...)
@@ -1347,19 +2122,24 @@ void TestClientCore::themeTokensMatchStyleSheet() {
     // QSS 负责的颜色（App 从 :/style.qss 加载同一文件，构建时嵌入）。
     // 注意：kBody/kBubbleOwn/kBubbleOther/kSemanticUp/kSemanticDown/kBanner*
     // 只出现在 C++/HTML 里，不在 QSS，故不在此列表。
+    const auto& light = chatbox::client::theme::lightPalette();
     const QStringList required = {
-        chatbox::client::theme::kAccent,
-        chatbox::client::theme::kAccentHover,
-        chatbox::client::theme::kAccentActive,
-        chatbox::client::theme::kAccentDisabled,
-        chatbox::client::theme::kCanvas,
-        chatbox::client::theme::kSurfaceSoft,
-        chatbox::client::theme::kSurfaceStrong,
-        chatbox::client::theme::kSurfaceStrongHover,
-        chatbox::client::theme::kHairline,
-        chatbox::client::theme::kInk,
-        chatbox::client::theme::kMuted,
-        chatbox::client::theme::kMutedSoft,
+        light.accent,
+        light.accentHover,
+        light.accentActive,
+        light.canvas,
+        light.surfaceSoft,
+        light.surfaceStrong,
+        light.surfaceStrongHover,
+        light.hairline,
+        light.ink,
+        light.body,
+        light.muted,
+        light.mutedSoft,
+        light.disabledText,
+        light.dangerText,
+        light.selectionBg,
+        light.selectionBorder,
     };
     QStringList allowed;
     for (const QString& token : required) {
@@ -1388,6 +2168,22 @@ void TestClientCore::themeTokensMatchStyleSheet() {
 
 // the Coinbase elevation is a single soft drop (0 4px 12px rgba(0,0,0,0.04));
 // QSS cannot express box-shadow, so the action bar carries the effect instead.
+void TestClientCore::messageActionBarIsKeyboardReachable() {
+    MessageActionBar bar;
+    auto* reply = bar.findChild<QPushButton*>(QStringLiteral("MessageActionReplyButton"));
+    auto* recall = bar.findChild<QPushButton*>(QStringLiteral("MessageActionRecallButton"));
+    QVERIFY(reply != nullptr);
+    QVERIFY(recall != nullptr);
+    QCOMPARE(reply->focusPolicy(), Qt::TabFocus);
+    QCOMPARE(recall->focusPolicy(), Qt::TabFocus);
+    QCOMPARE(reply->accessibleName(), QStringLiteral("回复此消息"));
+    QCOMPARE(recall->accessibleName(), QStringLiteral("撤回此消息"));
+
+    const QString qss = readClientSource(QStringLiteral("resources/style.qss"));
+    QVERIFY(qss.contains(QStringLiteral(
+        "QFrame#MessageActionBar QPushButton[keyboardFocus=\"true\"]:focus")));
+}
+
 void TestClientCore::messageActionBarHasSingleSoftShadow() {
     MessageActionBar bar;
     auto* effect = qobject_cast<QGraphicsDropShadowEffect*>(bar.graphicsEffect());
@@ -1425,15 +2221,8 @@ void TestClientCore::roomAvatarIsBrandBadge() {
 // The tray must show the brand mark, not Qt's stock information icon. The
 // wiring itself needs a live system tray, so this is a source guard.
 void TestClientCore::trayIconUsesBrandIcon() {
-    QString source_path = QCoreApplication::applicationDirPath() +
-                          QStringLiteral("/../../ui/main_window.cpp");
-    if (!QFile::exists(source_path)) {
-        source_path = QStringLiteral("../ui/main_window.cpp");
-    }
-    QFile source_file(source_path);
-    QVERIFY2(source_file.open(QIODevice::ReadOnly | QIODevice::Text),
-             qPrintable(source_path + ": " + source_file.errorString()));
-    const QString source = QString::fromUtf8(source_file.readAll());
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "main window sources must be readable");
     QVERIFY2(!source.contains(QStringLiteral("SP_MessageBoxInformation")),
              "tray must not fall back to the stock Qt information icon");
     QVERIFY2(source.contains(QStringLiteral(":/app.ico")),
@@ -1446,15 +2235,8 @@ void TestClientCore::trayIconUsesBrandIcon() {
 // version 0" path used for other peers, and repaint when an avatar arrives.
 // The list needs a live connection, so this is a source guard.
 void TestClientCore::memberListShowsAvatarFromCache() {
-    QString source_path = QCoreApplication::applicationDirPath() +
-                          QStringLiteral("/../../ui/main_window.cpp");
-    if (!QFile::exists(source_path)) {
-        source_path = QStringLiteral("../ui/main_window.cpp");
-    }
-    QFile source_file(source_path);
-    QVERIFY2(source_file.open(QIODevice::ReadOnly | QIODevice::Text),
-             qPrintable(source_path + ": " + source_file.errorString()));
-    const QString source = QString::fromUtf8(source_file.readAll());
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "main window sources must be readable");
     QVERIFY2(source.contains(QStringLiteral("QIcon MainWindow::memberAvatarIcon(")),
              "member list must resolve icons through the cache-aware helper");
     QVERIFY2(source.contains(QStringLiteral("item->setIcon(memberAvatarIcon(")),
@@ -1474,15 +2256,8 @@ void TestClientCore::memberListShowsAvatarFromCache() {
 // (483 -> #E8684A), so the same user showed two different colours.
 // The rendering needs widgets, so this is a source guard.
 void TestClientCore::fallbackAvatarPaletteIsSingleSource() {
-    QString source_path = QCoreApplication::applicationDirPath() +
-                          QStringLiteral("/../../ui/main_window.cpp");
-    if (!QFile::exists(source_path)) {
-        source_path = QStringLiteral("../ui/main_window.cpp");
-    }
-    QFile source_file(source_path);
-    QVERIFY2(source_file.open(QIODevice::ReadOnly | QIODevice::Text),
-             qPrintable(source_path + ": " + source_file.errorString()));
-    const QString source = QString::fromUtf8(source_file.readAll());
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "main window sources must be readable");
     QVERIFY2(!source.contains(QStringLiteral("#9B59B6")) &&
                  !source.contains(QStringLiteral("#4CAF50")) &&
                  !source.contains(QStringLiteral("#F5A623")),
@@ -1496,20 +2271,8 @@ void TestClientCore::fallbackAvatarPaletteIsSingleSource() {
 // string must not come back. Rendering needs widgets, so this is a source
 // guard; brandIdentifiersAreUnified covers the internal identifiers.
 void TestClientCore::appTitleUsesBrandName() {
-    const auto read_source = [](const QString& relative) -> QString {
-        QString path = QCoreApplication::applicationDirPath() +
-                       QStringLiteral("/../../") + relative;
-        if (!QFile::exists(path)) {
-            path = QStringLiteral("../") + relative;
-        }
-        QFile file(path);
-        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            return QString();
-        }
-        return QString::fromUtf8(file.readAll());
-    };
-    const QString window = read_source(QStringLiteral("ui/main_window.cpp"));
-    QVERIFY2(!window.isEmpty(), "ui/main_window.cpp must be readable");
+    const QString window = readMainWindowSource();
+    QVERIFY2(!window.isEmpty(), "main window sources must be readable");
     QVERIFY2(!window.contains(QStringLiteral("ChatBox Client")),
              "the old product name must not come back");
     QVERIFY2(window.contains(QStringLiteral("setWindowTitle(\"ChatBox\"")),
@@ -1519,7 +2282,7 @@ void TestClientCore::appTitleUsesBrandName() {
     QVERIFY2(window.contains(QStringLiteral("ChatBox (%1)")),
              "unread-count title must use the ChatBox brand");
 
-    const QString login = read_source(QStringLiteral("ui/login_page.cpp"));
+    const QString login = readClientSource(QStringLiteral("ui/login_page.cpp"));
     QVERIFY2(!login.isEmpty(), "ui/login_page.cpp must be readable");
     QVERIFY2(login.contains(QStringLiteral("QLabel(\"ChatBox\"")),
              "login card title must use the ChatBox brand");
@@ -1647,7 +2410,7 @@ void TestClientCore::installerTemplateTargetsChatboxExe() {
 
 // 私聊不提供 @ 功能：输入区的 @ 按钮只在房间出现，私聊消息不再触发“有人@你”。
 void TestClientCore::privateChatHasNoMentionEntry() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     const QString private_section = functionSection(
         source, QStringLiteral("void MainWindow::selectPrivate("));
@@ -1660,7 +2423,7 @@ void TestClientCore::privateChatHasNoMentionEntry() {
 }
 
 void TestClientCore::privatePushSkipsMentionNotification() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     const QString private_push = caseSection(
         source, QStringLiteral("case chatbox::kCmdPrivatePush:"));
@@ -1675,7 +2438,7 @@ void TestClientCore::privatePushSkipsMentionNotification() {
 
 // 头部只留 头像 + 标题 + ⋯；资料入口是头像，消息搜索在 ⋯ 菜单里。
 void TestClientCore::headerUsesAvatarAndMoreMenu() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY2(!source.contains(QStringLiteral("context_profile_button_")),
              "the header must not keep a separate profile button");
@@ -1685,11 +2448,15 @@ void TestClientCore::headerUsesAvatarAndMoreMenu() {
              "message search moved out of the composer");
     QVERIFY2(source.contains(QStringLiteral("more_button_->setPopupMode(QToolButton::InstantPopup)")),
              "the header owns an instant-popup menu button");
-    QVERIFY2(source.contains(QStringLiteral("more_button_->setIcon(chatbox::client::moreDotsIcon())")),
+    QVERIFY2(source.contains(QStringLiteral("more_button_->setIcon(chatbox::client::moreDotsIcon(")),
              "the header more control uses three filled dots");
     QVERIFY2(!source.contains(QStringLiteral("more_button_->setText")),
              "the header more control must not render thin text dots");
-    QVERIFY2(source.contains(QStringLiteral("menu-indicator")),
+    // The indicator rule moved from an inline setStyleSheet into style.qss so
+    // it follows the theme; assert against the stylesheet that actually
+    // carries it now.
+    const QString qss = readClientSource(QStringLiteral("resources/style.qss"));
+    QVERIFY2(qss.contains(QStringLiteral("QToolButton#MoreButton::menu-indicator")),
              "the header more control must hide the menu indicator arrow");
     QVERIFY2(source.contains(QStringLiteral("消息搜索")) &&
                  source.contains(QStringLiteral("加载更早消息")),
@@ -1720,7 +2487,7 @@ void TestClientCore::headerUsesAvatarAndMoreMenu() {
 
 // 系统弹窗是独立开关：关掉后仍保留任务栏闪烁，但不再调用托盘气泡。
 void TestClientCore::systemPopupNotificationIsOptional() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY2(source.contains(QStringLiteral("settings/system_popup")),
              "the system-popup preference must be persisted");
@@ -1777,6 +2544,17 @@ void TestClientCore::startupHonoursMinimizedAndSingleInstance() {
              "a crashed instance must not block startup forever");
 }
 
+// Acceptance testing needs two clients for two accounts. A separate profile
+// gets its own lock and INI settings without changing the production default.
+void TestClientCore::startupSupportsIsolatedProfile() {
+    const QString source = readClientSource(QStringLiteral("main.cpp"));
+    QVERIFY2(!source.isEmpty(), "main.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("--profile")));
+    QVERIFY(source.contains(QStringLiteral("QSettings::setDefaultFormat(QSettings::IniFormat)")));
+    QVERIFY(source.contains(QStringLiteral("QSettings::setPath(")));
+    QVERIFY(source.contains(QStringLiteral("profile_lock")));
+}
+
 // Qt's Windows platform plugin reports a system tray unconditionally, so the
 // shell check is separate and the visibility decision is a pure policy.
 void TestClientCore::startupPolicyRequiresUsableTray() {
@@ -1792,7 +2570,7 @@ void TestClientCore::unreadBadgesHonourAlertsSwitch() {
     QCOMPARE(chatbox::client::displayedUnread(true, 5), 5);
     QCOMPARE(chatbox::client::displayedUnread(false, 5), 0);
     QCOMPARE(chatbox::client::displayedUnread(true, -1), 0);
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     const QString refresh = functionSection(
         source, QStringLiteral("void MainWindow::refreshFriendListView("));
     QVERIFY2(refresh.contains(QStringLiteral("displayedUnread(notifications_enabled_")),
@@ -2106,7 +2884,7 @@ void TestClientCore::buildScriptShipsSqlDriver() {
 // 两个选择入口都必须先 loadInitialHistory()，
 // 预渲染本身只读本地库并把结果交给 replaceHistory()。
 void TestClientCore::conversationOpensFromLocalHistoryFirst() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     const QString room = functionSection(source, QStringLiteral("void MainWindow::selectRoom("));
     const QString priv = functionSection(source, QStringLiteral("void MainWindow::selectPrivate("));
@@ -2120,7 +2898,7 @@ void TestClientCore::conversationOpensFromLocalHistoryFirst() {
 // 后台会话收到的推送同样要落本地库（不论是不是当前会话），
 // 私聊推送还要补一条会话摘要，便于离线侧栏显示。
 void TestClientCore::incomingPushesArePersistedForOtherConversations() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     const QString room_push = caseSection(source, QStringLiteral("case chatbox::kCmdChatPush:"));
     const QString private_push = caseSection(source, QStringLiteral("case chatbox::kCmdPrivatePush:"));
     QVERIFY(room_push.contains(QStringLiteral("history_store_.saveMessage(")));
@@ -2131,7 +2909,7 @@ void TestClientCore::incomingPushesArePersistedForOtherConversations() {
 // 后台会话的撤回推送同样要落到本地历史库：
 // 否则本地副本里还留着用户已经撤回的正文。
 void TestClientCore::recallPushUpdatesBackgroundHistory() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     const QString recall = caseSection(source, QStringLiteral("case chatbox::kCmdMessageRecall:"));
     QVERIFY(!recall.isEmpty());
     QVERIFY(recall.contains(QStringLiteral("history_store_.markRecalled(")));
@@ -2159,8 +2937,9 @@ void TestClientCore::loginPageHidesServerFieldsBehindMoreDots() {
     QVERIFY(panel != nullptr);
     QVERIFY(toggle->text().isEmpty());
     QVERIFY(!toggle->icon().isNull());
-    QVERIFY(toggle->iconSize().width() >= 24);
-    QCOMPARE(toggle->width(), toggle->height());
+    QCOMPARE(toggle->iconSize(), QSize(20, 20));
+    QCOMPARE(toggle->width(), 32);
+    QCOMPARE(toggle->height(), 32);
     QVERIFY(panel->isHidden());
 
     auto* host = page.findChild<QLineEdit*>(QStringLiteral("ServerHostEdit"));
@@ -2177,6 +2956,169 @@ void TestClientCore::loginPageHidesServerFieldsBehindMoreDots() {
     QVERIFY(!panel->isHidden());
     toggle->click();
     QVERIFY(panel->isHidden());
+}
+
+void TestClientCore::layoutWeightsFollowAudit() {
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(!source.contains(QStringLiteral("room_list_->setFixedHeight(58)")));
+    QVERIFY(source.contains(QStringLiteral("room_list_->setMinimumHeight(56)")));
+    QVERIFY(source.contains(QStringLiteral("room_list_->setMaximumHeight(160)")));
+    QVERIFY(source.contains(QStringLiteral("QSizePolicy::Maximum")));
+    QVERIFY(source.contains(QStringLiteral("friend_requests_badge_")));
+    QVERIFY(source.contains(QStringLiteral("FriendRequestBadge")));
+    QVERIFY(source.contains(QStringLiteral("member_count_label_")));
+    QVERIFY(source.contains(QStringLiteral("confirmDanger")));
+    QVERIFY(source.contains(QStringLiteral("more_button_->setFixedSize(32, 32)")));
+    QVERIFY(source.contains(QStringLiteral("friend_requests_button_->setText(\"好友申请\")")));
+}
+
+void TestClientCore::adaptiveLayoutUsesSplitter() {
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("setMinimumSize(880, 560)")));
+    QVERIFY(source.contains(QStringLiteral("QSplitter(Qt::Horizontal")));
+    QVERIFY(source.contains(QStringLiteral("setChildrenCollapsible(false)")));
+    QVERIFY(source.contains(QStringLiteral("setHandleWidth(0)")));
+    QVERIFY(source.contains(QStringLiteral("setMinimumWidth(240)")));
+    QVERIFY(source.contains(QStringLiteral("setMaximumWidth(360)")));
+    QVERIFY(source.contains(QStringLiteral("setMinimumWidth(180)")));
+    QVERIFY(source.contains(QStringLiteral("setMaximumWidth(280)")));
+    QVERIFY(source.contains(QStringLiteral("setStretchFactor(0, 0)")));
+    QVERIFY(source.contains(QStringLiteral("setStretchFactor(1, 1)")));
+    QVERIFY(source.contains(QStringLiteral("setStretchFactor(2, 0)")));
+}
+
+void TestClientCore::textNeverSmallerThanElevenPixels() {
+    const QString qss = readClientSource(QStringLiteral("resources/style.qss"));
+    QVERIFY2(!qss.isEmpty(), "resources/style.qss must be readable");
+    QVERIFY(!qss.contains(QStringLiteral("font-size: 10px")));
+    const QString delegate =
+        readClientSource(QStringLiteral("ui/friend_item_delegate.cpp"));
+    QVERIFY2(!delegate.isEmpty(), "ui/friend_item_delegate.cpp must be readable");
+    QVERIFY(!delegate.contains(QStringLiteral("setPixelSize(10)")));
+}
+
+void TestClientCore::emptyStateShowsConfiguredCopy() {
+    EmptyState state;
+    state.setIcon(QIcon(QStringLiteral(":/icons/message.png")));
+    state.setTitle(QStringLiteral("还没有消息"));
+    state.setDescription(QStringLiteral("发送第一条消息，打个招呼吧"));
+    state.setAction(QStringLiteral("开始"));
+
+    auto* icon = state.findChild<QLabel*>(QStringLiteral("EmptyStateIcon"));
+    auto* title = state.findChild<QLabel*>(QStringLiteral("EmptyStateTitle"));
+    auto* description =
+        state.findChild<QLabel*>(QStringLiteral("EmptyStateDescription"));
+    auto* action =
+        state.findChild<QPushButton*>(QStringLiteral("EmptyStateAction"));
+    QVERIFY(icon != nullptr);
+    QVERIFY(title != nullptr);
+    QVERIFY(description != nullptr);
+    QVERIFY(action != nullptr);
+    QVERIFY(icon->pixmap() != nullptr);
+    QCOMPARE(title->text(), QStringLiteral("还没有消息"));
+    QCOMPARE(description->text(), QStringLiteral("发送第一条消息，打个招呼吧"));
+    QCOMPARE(action->text(), QStringLiteral("开始"));
+    QVERIFY(!action->isHidden());
+}
+
+void TestClientCore::emptyStatesAreWired() {
+    const QString window = readMainWindowSource();
+    QVERIFY2(!window.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(window.contains(QStringLiteral("chat_empty_state_")));
+    QVERIFY(window.contains(QStringLiteral("friends_empty_state_")));
+    QVERIFY(window.contains(QStringLiteral("还没有消息")));
+    QVERIFY(window.contains(QStringLiteral("还没有好友")));
+
+    const QString search =
+        readClientSource(QStringLiteral("ui/user_search_dialog.cpp"));
+    QVERIFY2(!search.isEmpty(), "ui/user_search_dialog.cpp must be readable");
+    QVERIFY(search.contains(QStringLiteral("EmptyState")));
+    QVERIFY(search.contains(QStringLiteral("没有找到「")));
+}
+
+class ExposedMessageInput : public MessageInput {
+public:
+    using MessageInput::insertFromMimeData;
+};
+
+void TestClientCore::messageInputHandlesKeyboardAndPlainPaste() {
+    MessageInput input;
+    QCOMPARE(input.frameShape(), QFrame::NoFrame);
+    input.resize(400, 60);
+    input.show();
+    QTest::qWait(30);
+    QSignalSpy submitted(&input, &MessageInput::submitRequested);
+
+    QTest::keyClicks(&input, "hello");
+    QTest::keyClick(&input, Qt::Key_Return);
+    QCOMPARE(submitted.count(), 1);
+
+    input.clear();
+    QTest::keyClicks(&input, "line");
+    QTest::keyClick(&input, Qt::Key_Return, Qt::ShiftModifier);
+    QCOMPARE(submitted.count(), 1);
+    QVERIFY(input.toPlainText().contains('\n'));
+
+    input.clear();
+    QTest::keyClick(&input, Qt::Key_Return, Qt::ControlModifier);
+    QCOMPARE(submitted.count(), 2);
+
+    QMimeData mime;
+    mime.setHtml(QStringLiteral("<b>pasted</b>"));
+    mime.setText(QStringLiteral("pasted"));
+    ExposedMessageInput pasted;
+    pasted.insertFromMimeData(&mime);
+    QCOMPARE(pasted.toPlainText(), QStringLiteral("pasted"));
+
+    input.clear();
+    input.setPlainText(QString(1000, QChar('x')));
+    QTest::qWait(20);
+    QVERIFY(input.height() >= 40);
+    QVERIFY(input.height() <= 120);
+}
+
+void TestClientCore::messageInputHidesEmptyScrollbar() {
+    QFile style(QStringLiteral(":/style.qss"));
+    QVERIFY(style.open(QIODevice::ReadOnly | QIODevice::Text));
+    const QString previous_style = qApp->styleSheet();
+    qApp->setStyleSheet(QString::fromUtf8(style.readAll()));
+
+    MessageInput input;
+    input.setPlaceholderText("输入消息，回车发送，Shift + 回车换行");
+    input.resize(446, 40);
+    input.show();
+    input.setFocus();
+    QTest::qWait(100);
+    const bool fits =
+        input.document()->size().height() <= input.viewport()->height();
+    const bool visible = input.verticalScrollBar()->isVisible();
+    qApp->setStyleSheet(previous_style);
+    QVERIFY2(fits,
+             "empty composer document must fit inside the padded viewport");
+    QVERIFY2(!visible,
+             "an empty composer must not paint a scrollbar handle on its right edge");
+}
+
+void TestClientCore::messageComposerUsesByteCounter() {
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("MessageInput")));
+    QVERIFY(source.contains(QStringLiteral("MessageByteCounter")));
+    QVERIFY(source.contains(QStringLiteral("toPlainText()")));
+    QVERIFY(source.contains(QStringLiteral("2000")));
+    QVERIFY(source.contains(QStringLiteral("1800")));
+    QVERIFY(source.contains(QStringLiteral("已用 %1/2000 字节")));
+}
+
+void TestClientCore::dangerousActionsUseChineseDialogs() {
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("confirmDanger")));
+    QVERIFY(source.contains(QStringLiteral("撤回消息")));
+    QVERIFY(source.contains(QStringLiteral("退出登录")));
+    QVERIFY(!source.contains(QStringLiteral("QMessageBox::question")));
 }
 
 // 昵称只在注册时出现：登录态点“注册”进入注册态，
@@ -2216,6 +3158,41 @@ void TestClientCore::loginPageHasAutoLoginAndRememberPasswordOptions() {
     QVERIFY(remember != nullptr);
     QVERIFY(auto_login->isChecked());
     QVERIFY(!remember->isChecked());
+}
+
+void TestClientCore::loginPageAccessibleNames() {
+    LoginPage page;
+    auto* host = page.findChild<QLineEdit*>(QStringLiteral("ServerHostEdit"));
+    auto* port = page.findChild<QSpinBox*>(QStringLiteral("ServerPortSpin"));
+    auto* username = page.findChild<QLineEdit*>(QStringLiteral("UsernameEdit"));
+    auto* password = page.findChild<QLineEdit*>(QStringLiteral("PasswordEdit"));
+    auto* nickname = page.findChild<QLineEdit*>(QStringLiteral("NicknameEdit"));
+    QVERIFY(host != nullptr);
+    QVERIFY(port != nullptr);
+    QVERIFY(username != nullptr);
+    QVERIFY(password != nullptr);
+    QVERIFY(nickname != nullptr);
+    QCOMPARE(host->accessibleName(), QStringLiteral("服务器"));
+    QCOMPARE(port->accessibleName(), QStringLiteral("端口"));
+    QCOMPARE(username->accessibleName(), QStringLiteral("用户名"));
+    QCOMPARE(password->accessibleName(), QStringLiteral("密码"));
+    QCOMPARE(nickname->accessibleName(), QStringLiteral("昵称"));
+}
+
+void TestClientCore::loginPageClearsFieldFocusOnBlankClick() {
+    LoginPage page;
+    page.resize(640, 720);
+    page.show();
+    QTest::qWait(50);
+    auto* username = page.findChild<QLineEdit*>(QStringLiteral("UsernameEdit"));
+    QVERIFY(username != nullptr);
+    username->setFocus();
+    QTest::qWait(20);
+    QVERIFY(username->hasFocus());
+
+    QTest::mouseClick(&page, Qt::LeftButton, Qt::NoModifier, QPoint(8, 8));
+    QTest::qWait(20);
+    QVERIFY(!username->hasFocus());
 }
 
 void TestClientCore::loginPageReloadsRememberedPasswordAfterLogout() {
@@ -2271,6 +3248,17 @@ void TestClientCore::credentialStoreEncryptsSavedPassword() {
     QVERIFY(!chatbox::client::loadSavedCredentials(&username, &password));
 }
 
+void TestClientCore::mainWindowUsesIncrementalAppendForIncomingMessages() {
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    const QString add = functionSection(
+        source, QStringLiteral("void MainWindow::addIncomingMessage("));
+    QVERIFY(add.contains(QStringLiteral("renderMessageFragment(")));
+    QVERIFY(add.contains(QStringLiteral("appendFragment(")));
+    QVERIFY(add.contains(QStringLiteral("formatLocalDate(")));
+    QVERIFY(add.contains(QStringLiteral("bar->value() >= bar->maximum() - 8")));
+}
+
 void TestClientCore::settingsDialogDefaultsToPublicServer() {
     QSettings settings;
     settings.remove(QStringLiteral("server"));
@@ -2280,9 +3268,19 @@ void TestClientCore::settingsDialogDefaultsToPublicServer() {
     auto* host = dialog.findChild<QLineEdit*>(QStringLiteral("ServerHostEdit"));
     auto* port = dialog.findChild<QSpinBox*>(QStringLiteral("ServerPortSpin"));
     auto* tls = dialog.findChild<QCheckBox*>(QStringLiteral("ServerTlsCheck"));
+    auto* appearance =
+        dialog.findChild<QComboBox*>(QStringLiteral("AppearanceCombo"));
+    auto* buttons = dialog.findChild<QDialogButtonBox*>();
     QVERIFY(host != nullptr);
     QVERIFY(port != nullptr);
     QVERIFY(tls != nullptr);
+    QVERIFY(appearance != nullptr);
+    QVERIFY(buttons != nullptr);
+    QCOMPARE(appearance->count(), 3);
+    QCOMPARE(buttons->button(QDialogButtonBox::Save)->text(),
+             QStringLiteral("保存"));
+    QCOMPARE(buttons->button(QDialogButtonBox::Cancel)->text(),
+             QStringLiteral("取消"));
     QCOMPARE(host->text(), QStringLiteral("frp-oil.com"));
     QCOMPARE(port->value(), 15318);
     QVERIFY(tls->isChecked());
@@ -2291,7 +3289,7 @@ void TestClientCore::settingsDialogDefaultsToPublicServer() {
 // 离线模式必须是只读的本地视图：所有写操作都要被挡住，
 // 搜索与翻页改走本地历史库；断网时自动进入，不再保留手动入口。
 void TestClientCore::offlineModeIsReadOnlyAndLocal() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY(source.contains(QStringLiteral("enterOfflineMode(")));
     QVERIFY(source.contains(QStringLiteral("enterOfflineMode(true)")));
     QVERIFY(source.contains(QStringLiteral("离线模式 · 仅显示本地记录")));
@@ -2344,7 +3342,7 @@ void TestClientCore::settingsDialogExposesHistoryActions() {
     QVERIFY(dialog.contains(QStringLiteral("historyClearAllRequested")));
     QVERIFY(dialog.contains(QStringLiteral("historyClearOlderRequested")));
     QVERIFY(dialog.contains(QStringLiteral("不影响服务器历史")));
-    const QString window = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString window = readMainWindowSource();
     QVERIFY(window.contains(QStringLiteral("settings/history/path")));
     QVERIFY(window.contains(QStringLiteral("moveTo(")));
 }

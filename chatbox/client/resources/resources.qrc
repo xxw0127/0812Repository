@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>style.qss</file>
+        <file>style-dark.qss</file>
         <file>app.ico</file>
         <file>icons/search.png</file>
         <file>icons/settings.png</file>
@@ -10,5 +11,7 @@
         <file>icons/message.png</file>
         <file>icons/contact.png</file>
         <file>icons/check.png</file>
+        <file>icons/chevron-light.png</file>
+        <file>icons/chevron-dark.png</file>
     </qresource>
 </RCC>

@@ -1,7 +1,9 @@
 #include "core/app_settings.h"
 #include "core/client_log.h"
 #include "core/client_policy.h"
+#include "core/focus_ring.h"
 #include "core/socket_compat.h"
+#include "core/ui_theme.h"
 
 #include <QApplication>
 #include <QDir>
@@ -12,6 +14,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QStringList>
 #include <QStyleFactory>
 
 #include "ui/main_window.h"
@@ -23,14 +26,35 @@ int main(int argc, char** argv) {
     QCoreApplication::setOrganizationName("ChatBox");
     QCoreApplication::setApplicationName("ChatBox");
     QCoreApplication::setApplicationVersion("0.2.0");
+    new chatbox::client::FocusRingFilter(&application);
 
     // One instance only: two clients would race on the same settings store and
     // (from the history batch on) the same local database. A crashed instance
     // leaves a stale lock that expires instead of blocking forever.
-    const QString lock_directory =
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    // --profile <dir> is an explicit acceptance/testing escape hatch: it gets
+    // its own lock and INI settings, while normal starts keep the registry
+    // store and the default single-instance behaviour.
+    const QStringList arguments = QCoreApplication::arguments();
+    const int profile_index = arguments.indexOf(QStringLiteral("--profile"));
+    QString profile_directory;
+    if (profile_index >= 0 && profile_index + 1 < arguments.size()) {
+        profile_directory = QDir(arguments.at(profile_index + 1)).absolutePath();
+    }
+
+    QString lock_directory;
+    if (!profile_directory.isEmpty()) {
+        QDir().mkpath(profile_directory);
+        QSettings::setDefaultFormat(QSettings::IniFormat);
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                           profile_directory);
+        lock_directory = profile_directory;
+    } else {
+        lock_directory = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    }
     QDir().mkpath(lock_directory);
-    QLockFile instance_lock(QDir(lock_directory).filePath(QStringLiteral("chatbox.lock")));
+    const QString profile_lock =
+        QDir(lock_directory).filePath(QStringLiteral("chatbox.lock"));
+    QLockFile instance_lock(profile_lock);
     instance_lock.setStaleLockTime(30000);
     if (!instance_lock.tryLock(200)) {
         QMessageBox::information(nullptr, "ChatBox", "ChatBox 已在运行。");
@@ -39,10 +63,6 @@ int main(int argc, char** argv) {
 
     application.setStyle(QStyleFactory::create("Fusion"));
     application.setWindowIcon(QIcon(":/app.ico"));
-    QFile style_file(":/style.qss");
-    if (style_file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        application.setStyleSheet(QString::fromUtf8(style_file.readAll()));
-    }
     installClientLogging();
     qInfo("client starting version=%s", qPrintable(QCoreApplication::applicationVersion()));
 
@@ -57,6 +77,7 @@ int main(int argc, char** argv) {
             qInfo("settings migrated from the pre-ChatBox store");
         }
     }
+    chatbox::client::theme::applyThemeFromSettings(&application);
 
     std::string error;
     if (!chatbox::initializeSockets(error)) {
@@ -64,8 +85,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    const bool start_minimized =
-        QCoreApplication::arguments().contains(QStringLiteral("--minimized"));
+    const bool start_minimized = arguments.contains(QStringLiteral("--minimized"));
     MainWindow window;
     if (!chatbox::client::shouldStartHidden(
             start_minimized, chatbox::client::shellNotificationAreaAvailable())) {

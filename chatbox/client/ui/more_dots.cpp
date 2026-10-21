@@ -7,11 +7,11 @@
 namespace chatbox::client {
 
 QIcon moreDotsIcon(const QColor& color) {
-    const int canvas = 44;
-    const int dot = 10;
-    const int gap = 4;
-    const qreal corner = 2.5;
-    const int total = dot * 3 + gap * 2;
+    const int canvas = 20;
+    const qreal dot = 3;
+    const qreal gap = 1.6;
+    const qreal corner = 1.2;
+    const qreal total = dot * 3 + gap * 2;
 
     QPixmap pixmap(canvas, canvas);
     pixmap.fill(Qt::transparent);

@@ -24,7 +24,9 @@ class FriendListWidget;
 class NetworkThread;
 class ProfileDialog;
 class ChatView;
+class EmptyState;
 class MessageActionBar;
+class MessageInput;
 class QAction;
 class QCloseEvent;
 class QEvent;
@@ -68,6 +70,7 @@ private slots:
     void onSendClicked();
     void onRoomClicked(QListWidgetItem* item);
     void onConversationClicked(QListWidgetItem* item);
+    void selectAdjacentConversation(int delta);
     void onFriendAvatarClicked(QListWidgetItem* item);
     void openOwnProfile();
     void onProfileSaveRequested(const QString& nickname,
@@ -87,6 +90,9 @@ private:
     enum class ScrollMode { kBottom, kTop, kPreserve };
 
     void buildUi();
+    // Single entry point for colours baked into QPixmap/QIcon. Called on every
+    // appearance change; add new rasterised assets here, not one-off lambdas.
+    void refreshThemeDependentIcons();
     QWidget* buildChatPage();
     void startConnection();
     bool sendFrame(const chatbox::Frame& frame);
@@ -163,6 +169,8 @@ private:
     void refreshOfflineAfterClear();
     // 离线翻页：从本地历史库取更早的一页。
     void loadOlderFromLocal();
+    void updateChatEmptyState();
+    void updateMessageByteCounter();
     void resetContext();
     void renderCurrentConversation(ScrollMode mode);
     void addIncomingMessage(const chatbox::client::ChatMessage& message);
@@ -200,8 +208,11 @@ private:
     QWidget* chat_page_ = nullptr;
     QListWidget* room_list_ = nullptr;
     FriendListWidget* conversation_list_ = nullptr;
+    QStackedWidget* conversation_stack_ = nullptr;
+    EmptyState* friends_empty_state_ = nullptr;
     QListWidget* contact_list_ = nullptr;
-    QListWidget* member_list_ = nullptr;    QLabel* context_label_ = nullptr;
+    QListWidget* member_list_ = nullptr;
+    QLabel* context_label_ = nullptr;
     QLabel* context_avatar_ = nullptr;
     QToolButton* more_button_ = nullptr;
     QMenu* more_menu_ = nullptr;
@@ -213,12 +224,17 @@ private:
     QLabel* reply_label_ = nullptr;
     QPushButton* reply_cancel_button_ = nullptr;
     ChatView* chat_view_ = nullptr;
+    QStackedWidget* chat_stack_ = nullptr;
+    EmptyState* chat_empty_state_ = nullptr;
     MessageActionBar* message_action_bar_ = nullptr;
     quint64 action_bar_message_id_ = 0;
-    QLineEdit* input_edit_ = nullptr;
+    MessageInput* input_edit_ = nullptr;
+    QLabel* message_byte_counter_ = nullptr;
     QPushButton* mention_button_ = nullptr;
     QPushButton* send_button_ = nullptr;
     QPushButton* logout_button_ = nullptr;
+    QLabel* member_count_label_ = nullptr;
+    QLabel* friend_requests_badge_ = nullptr;
     QLabel* status_label_ = nullptr;
     QSystemTrayIcon* tray_ = nullptr;
     UserSearchDialog* user_search_dialog_ = nullptr;

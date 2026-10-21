@@ -4,7 +4,10 @@
 #include <QColor>
 #include <QContextMenuEvent>
 #include <QEvent>
+#include <QKeyEvent>
 #include <QMouseEvent>
+#include <QPainter>
+#include <QPainterPath>
 #include <QResizeEvent>
 #include <QScrollBar>
 #include <QTextBlock>
@@ -17,7 +20,34 @@
 
 namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
+// A transparent overlay above the viewport. It paints after the rich-text
+// document has rendered, so it can erase the square table corners without
+// fighting the QTextBrowser paint order.
+class BubbleOverlay : public QWidget {
+public:
+    explicit BubbleOverlay(ChatView* owner) : QWidget(owner), owner_(owner) {
+        setObjectName(QStringLiteral("BubbleOverlay"));
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+        setAttribute(Qt::WA_NoSystemBackground);
+        setAutoFillBackground(false);
+        setFocusPolicy(Qt::NoFocus);
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override {
+        QPainter painter(this);
+        owner_->paintRoundedBubbleCorners(painter);
+    }
+
+private:
+    ChatView* owner_ = nullptr;
+};
+
 ChatView::ChatView(QWidget* parent) : QTextBrowser(parent) {
+    // QTextBrowser defaults to ClickFocus; keyboard users need to reach the
+    // message menu through the normal Tab chain.
+    setFocusPolicy(Qt::StrongFocus);
+    setAccessibleName("聊天记录");
     setMouseTracking(true);
     if (viewport() != nullptr) {
         viewport()->setMouseTracking(true);
@@ -26,6 +56,14 @@ ChatView::ChatView(QWidget* parent) : QTextBrowser(parent) {
         // state when the pointer moves to the composer or another panel.
         viewport()->installEventFilter(this);
     }
+    bubble_overlay_ = new BubbleOverlay(this);
+    bubble_overlay_->setGeometry(viewport()->geometry());
+    bubble_overlay_->show();
+    bubble_overlay_->raise();
+    connect(verticalScrollBar(), &QScrollBar::valueChanged, bubble_overlay_,
+            [this] { bubble_overlay_->update(); });
+    connect(horizontalScrollBar(), &QScrollBar::valueChanged, bubble_overlay_,
+            [this] { bubble_overlay_->update(); });
 }
 
 bool ChatView::eventFilter(QObject* watched, QEvent* event) {
@@ -43,6 +81,61 @@ void ChatView::setConversationHtml(
     styleAnchors();
     buildMessageRanges(message_keys);
     hovered_id_ = 0;
+    if (bubble_overlay_ != nullptr) {
+        bubble_overlay_->update();
+    }
+}
+
+void ChatView::appendFragment(const QString& html,
+                              const chatbox::client::MessageKey& key) {
+    QTextDocument* doc = document();
+    if (doc == nullptr || html.isEmpty()) {
+        return;
+    }
+
+    // Appending at the document end cannot move any existing range: all old
+    // positions stay before the insertion point. This is the safety property
+    // that lets the incremental path skip buildMessageRanges().
+    QTextCursor cursor(doc);
+    cursor.movePosition(QTextCursor::End);
+    const int start = cursor.position();
+    cursor.insertHtml(html);
+    const int end = cursor.position();
+
+    styleAnchorsInRange(start, end);
+
+    QTextTable* table = nullptr;
+    const QTextFrame* root = doc->rootFrame();
+    if (root != nullptr) {
+        for (QTextFrame::iterator it = root->begin(); !it.atEnd(); ++it) {
+            auto* candidate = qobject_cast<QTextTable*>(it.currentFrame());
+            if (candidate != nullptr && candidate->lastPosition() > start) {
+                table = candidate;
+            }
+        }
+    }
+    if (table != nullptr) {
+        MessageRange range;
+        range.first = table->firstPosition();
+        range.last = table->lastPosition();
+        range.key = key;
+        range.frame = table;
+        range.bubble_color = key.bubble_color;
+        message_ranges_.append(range);
+    }
+    hovered_id_ = 0;
+    if (bubble_overlay_ != nullptr) {
+        bubble_overlay_->update();
+    }
+}
+
+void ChatView::clearConversation() {
+    clear();
+    message_ranges_.clear();
+    hovered_id_ = 0;
+    if (bubble_overlay_ != nullptr) {
+        bubble_overlay_->update();
+    }
 }
 
 quint64 ChatView::messageIdAt(const QPoint& viewport_pos) const {
@@ -58,7 +151,11 @@ bool ChatView::messageKeyAt(const QPoint& viewport_pos,
     if (message_ranges_.isEmpty()) {
         return false;
     }
-    const int position = cursorForPosition(viewport_pos).position();
+    return messageKeyAtPosition(cursorForPosition(viewport_pos).position(), key);
+}
+
+bool ChatView::messageKeyAtPosition(int position,
+                                    chatbox::client::MessageKey* key) const {
     for (const MessageRange& range : message_ranges_) {
         if (position >= range.first && position < range.last) {
             if (key != nullptr) {
@@ -86,6 +183,82 @@ QRect ChatView::messageAnchorRect(quint64 message_id) const {
         QTextCursor cursor(block);
         cursor.movePosition(QTextCursor::EndOfBlock);
         return cursorRect(cursor);
+    }
+    return QRect();
+}
+
+QRect ChatView::outerBubbleRect(const MessageRange& range) const {
+    if (range.frame == nullptr || document() == nullptr ||
+        document()->documentLayout() == nullptr) {
+        return QRect();
+    }
+    return document()->documentLayout()
+        ->frameBoundingRect(range.frame)
+        .toRect()
+        .translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
+}
+
+void ChatView::paintRoundedBubbleCorners(QPainter& painter) {
+    if (message_ranges_.isEmpty()) {
+        return;
+    }
+    constexpr qreal kRadius = 12.0;
+    const QColor canvas(theme::kSurfaceSoft);
+    const QColor border(theme::kBubbleBorder);
+    const QRect viewport_rect = viewport()->rect();
+
+    painter.save();
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    for (const MessageRange& range : message_ranges_) {
+        if (range.bubble_color.isEmpty()) {
+            continue;
+        }
+        QRect rect = outerBubbleRect(range);
+        if (rect.isEmpty() || !rect.intersects(viewport_rect)) {
+            continue;
+        }
+        // A right-aligned table sits exactly on the document's right edge;
+        // its 1px border is then clipped by the viewport. Pull the painted
+        // rect in by one pixel so the right stroke remains visible.
+        const bool clipped_right = rect.right() > viewport_rect.right();
+        if (clipped_right) {
+            rect.setRight(viewport_rect.right() - 1);
+        }
+
+        // Qt's rich-text tables are square. Erase the four corner wedges with
+        // the transcript background, then redraw the border as a rounded
+        // rectangle so the bubble reads as a chat bubble rather than a table.
+        QPainterPath square;
+        square.addRect(QRectF(rect));
+        QPainterPath rounded;
+        rounded.addRoundedRect(QRectF(rect), kRadius, kRadius);
+        painter.fillPath(square.subtracted(rounded), canvas);
+
+        QPen pen(border);
+        pen.setWidthF(1.0);
+        painter.setPen(pen);
+        painter.setBrush(Qt::NoBrush);
+        painter.drawRoundedRect(QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5),
+                                kRadius, kRadius);
+        if (clipped_right) {
+            // Remove the 1px table-fill sliver that would otherwise sit to
+            // the right of the new border at the viewport edge.
+            painter.fillRect(QRect(viewport_rect.right(), rect.top(), 1,
+                                   rect.height()),
+                             canvas);
+        }
+    }
+    painter.restore();
+}
+
+QRect ChatView::messageOuterBubbleRect(quint64 message_id) const {
+    if (message_id == 0) {
+        return QRect();
+    }
+    for (const MessageRange& range : message_ranges_) {
+        if (range.key.message_id == message_id) {
+            return outerBubbleRect(range);
+        }
     }
     return QRect();
 }
@@ -166,10 +339,34 @@ void ChatView::leaveEvent(QEvent* event) {
 
 void ChatView::resizeEvent(QResizeEvent* event) {
     QTextBrowser::resizeEvent(event);
+    if (bubble_overlay_ != nullptr) {
+        bubble_overlay_->setGeometry(viewport()->geometry());
+        bubble_overlay_->update();
+    }
     // The bar was positioned for the old geometry; reset the hover state so
     // the same message can show it again at the new position.
     clearHoverState();
     emit hoverCleared();
+}
+
+void ChatView::keyPressEvent(QKeyEvent* event) {
+    if (event->key() == Qt::Key_F10 || event->key() == Qt::Key_Menu) {
+        const QTextCursor cursor = textCursor();
+        if (cursor.hasSelection()) {
+            chatbox::client::MessageKey key;
+            if (messageKeyAtPosition(cursor.position(), &key)) {
+                QRect anchor = messageAnchorRect(key.message_id);
+                if (anchor.isNull()) {
+                    anchor = cursorRect(cursor);
+                }
+                const QPoint global_pos = viewport()->mapToGlobal(anchor.center());
+                emit messageMenuRequested(key.message_id, key.client_msg_id, global_pos);
+                event->accept();
+                return;
+            }
+        }
+    }
+    QTextBrowser::keyPressEvent(event);
 }
 
 void ChatView::contextMenuEvent(QContextMenuEvent* event) {
@@ -211,6 +408,7 @@ void ChatView::buildMessageRanges(
         range.last = frames.at(i)->lastPosition();
         range.key = message_keys.at(i);
         range.frame = frames.at(i);
+        range.bubble_color = message_keys.at(i).bubble_color;
         message_ranges_.append(range);
     }
 }
@@ -220,12 +418,22 @@ void ChatView::styleAnchors() {
     if (doc == nullptr) {
         return;
     }
+    styleAnchorsInRange(0, doc->characterCount());
+}
+
+void ChatView::styleAnchorsInRange(int start, int end) {
+    QTextDocument* doc = document();
+    if (doc == nullptr || start >= end) {
+        return;
+    }
     // Collect first: merging formats invalidates block/fragment iterators.
     QVector<QPair<int, int>> ranges;
-    for (QTextBlock block = doc->begin(); block.isValid(); block = block.next()) {
+    for (QTextBlock block = doc->findBlock(qMax(0, start));
+         block.isValid() && block.position() < end; block = block.next()) {
         for (QTextBlock::iterator it = block.begin(); !it.atEnd(); ++it) {
             const QTextFragment fragment = it.fragment();
-            if (fragment.isValid() && fragment.charFormat().isAnchor()) {
+            if (fragment.isValid() && fragment.position() >= start &&
+                fragment.position() < end && fragment.charFormat().isAnchor()) {
                 ranges.append(qMakePair(fragment.position(), fragment.length()));
             }
         }

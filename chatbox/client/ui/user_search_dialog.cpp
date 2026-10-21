@@ -1,15 +1,18 @@
 #include "ui/user_search_dialog.h"
 
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QPushButton>
+#include <QStackedWidget>
 #include <QVBoxLayout>
 
 #include "core/identity.h"
 #include "core/ui_theme.h"
+#include "ui/empty_state.h"
 
 namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
@@ -26,9 +29,15 @@ UserSearchDialog::UserSearchDialog(QWidget* parent) : QDialog(parent) {
     search_layout->addWidget(search_button_);
     layout->addLayout(search_layout);
 
-    result_list_ = new QListWidget(this);
+    result_stack_ = new QStackedWidget(this);
+    result_list_ = new QListWidget(result_stack_);
     result_list_->setSelectionMode(QAbstractItemView::SingleSelection);
-    layout->addWidget(result_list_, 1);
+    empty_state_ = new EmptyState(result_stack_);
+    empty_state_->setIcon(QIcon(":/icons/search.png"));
+    result_stack_->addWidget(result_list_);
+    result_stack_->addWidget(empty_state_);
+    result_stack_->setCurrentWidget(result_list_);
+    layout->addWidget(result_stack_, 1);
 
     auto* actions = new QHBoxLayout();
     actions->addStretch();
@@ -67,8 +76,15 @@ void UserSearchDialog::setResults(const QVector<UserSearchResult>& results) {
         item->setData(Qt::UserRole + 1, result.username);
         item->setData(Qt::UserRole + 2, result.nickname);
     }
-    if (!results.isEmpty()) {
+    if (results.isEmpty()) {
+        const QString keyword =
+            last_keyword_.isEmpty() ? QStringLiteral("用户") : last_keyword_;
+        empty_state_->setTitle(QString("没有找到「%1」").arg(keyword));
+        empty_state_->setDescription("试试完整的用户名，或对方的 U 开头 ID");
+        result_stack_->setCurrentWidget(empty_state_);
+    } else {
         result_list_->setCurrentRow(0);
+        result_stack_->setCurrentWidget(result_list_);
     }
     status_label_->setText(
         results.isEmpty()
@@ -92,6 +108,10 @@ void UserSearchDialog::setStatus(const QString& text, bool error) {
 
 void UserSearchDialog::clearResults() {
     result_list_->clear();
+    last_keyword_.clear();
+    if (result_stack_ != nullptr) {
+        result_stack_->setCurrentWidget(result_list_);
+    }
     status_label_->setText("输入用户名、昵称或用户ID后搜索");
     status_label_->setStyleSheet("color: " + QString::fromLatin1(theme::kBody) + ";");
     search_edit_->clear();
@@ -105,6 +125,7 @@ void UserSearchDialog::submitSearch() {
         status_label_->setText("请输入用户名或昵称");
         return;
     }
+    last_keyword_ = keyword;
     status_label_->setText("正在搜索...");
     emit searchRequested(keyword);
 }

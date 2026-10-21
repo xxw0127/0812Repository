@@ -2,6 +2,7 @@
 #define CHATBOX_CLIENT_CORE_AVATAR_UTILS_H
 
 #include <QByteArray>
+#include <QColor>
 #include <QImage>
 #include <QString>
 #include <QtGlobal>
@@ -20,6 +21,16 @@ QByteArray encodeAvatarJpeg(const QImage& source, int max_bytes = 48 * 1024);
 // Draws the first character of name on a colored circle. The color is stable
 // for a given seed.
 QImage fallbackAvatar(const QString& name, quint64 seed, int size);
+
+// Background of the fallback initial avatar. The palette is deliberately a
+// fixed set rather than theme tokens: an avatar must not change colour when
+// the user switches appearance, and every entry is paired with
+// readableForeground() so the initial stays legible.
+QColor fallbackAvatarBackground(quint64 seed);
+
+// White or near-black, whichever reaches at least 4.5:1 against background.
+// Used for initials drawn on a saturated avatar colour.
+QColor readableForeground(const QColor& background);
 
 // Scales source to size x size and masks it to a circle with transparent
 // corners.

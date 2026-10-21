@@ -1,6 +1,8 @@
 #include "ui/settings_dialog.h"
 
+#include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDialogButtonBox>
@@ -57,9 +59,8 @@ SettingsDialog::SettingsDialog(const QString& public_id, const QString& history_
     auto* form = new QFormLayout();
 
     id_label_ = new QLabel(public_id, this);
+    id_label_->setObjectName("SettingsIdLabel");
     id_label_->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    id_label_->setStyleSheet("font-weight: 600; color: " +
-                             QString::fromLatin1(theme::kInk) + ";");
     form->addRow("我的ID", id_label_);
 
     QSettings settings;
@@ -81,6 +82,24 @@ SettingsDialog::SettingsDialog(const QString& public_id, const QString& history_
         settings.value("settings/system_popup", true).toBool());
     autostart_check_ = new QCheckBox("开机自启动（静默到托盘）", this);
     autostart_check_->setChecked(chatbox::client::isAutostartEnabled());
+    appearance_combo_ = new QComboBox(this);
+    appearance_combo_->setObjectName("AppearanceCombo");
+    appearance_combo_->addItem("跟随系统",
+                               static_cast<int>(chatbox::client::theme::ThemeMode::kSystem));
+    appearance_combo_->addItem("浅色",
+                               static_cast<int>(chatbox::client::theme::ThemeMode::kLight));
+    appearance_combo_->addItem("深色",
+                               static_cast<int>(chatbox::client::theme::ThemeMode::kDark));
+    const int stored_appearance =
+        settings.value("settings/appearance",
+                       static_cast<int>(chatbox::client::theme::ThemeMode::kSystem))
+            .toInt();
+    for (int i = 0; i < appearance_combo_->count(); ++i) {
+        if (appearance_combo_->itemData(i).toInt() == stored_appearance) {
+            appearance_combo_->setCurrentIndex(i);
+            break;
+        }
+    }
 
     form->addRow("服务器", host_edit_);
     form->addRow("端口", port_spin_);
@@ -88,6 +107,7 @@ SettingsDialog::SettingsDialog(const QString& public_id, const QString& history_
     form->addRow("通知", notifications_check_);
     form->addRow("", system_popup_check_);
     form->addRow("启动", autostart_check_);
+    form->addRow("外观", appearance_combo_);
     layout->addLayout(form);
 
     // 本地聊天记录分组：只展示与发起意图，不在这里动数据库。
@@ -98,16 +118,14 @@ SettingsDialog::SettingsDialog(const QString& public_id, const QString& history_
     history_path_label_->setObjectName("HistoryPathLabel");
     history_path_label_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     history_path_label_->setWordWrap(true);
-    history_path_label_->setStyleSheet("color: " +
-                                      QString::fromLatin1(theme::kBody) + ";");
     auto* path_caption = new QLabel("存放位置", history_group);
-    path_caption->setStyleSheet("color: " + QString::fromLatin1(theme::kMuted) + ";");
+    path_caption->setObjectName("SettingsCaption");
     history_layout->addWidget(path_caption);
     history_layout->addWidget(history_path_label_);
 
     auto* size_row = new QHBoxLayout();
     auto* size_caption = new QLabel("占用空间", history_group);
-    size_caption->setStyleSheet("color: " + QString::fromLatin1(theme::kMuted) + ";");
+    size_caption->setObjectName("SettingsCaption");
     history_size_label_ = new QLabel(this);
     history_size_label_->setObjectName("HistorySizeLabel");
     history_size_label_->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -140,14 +158,29 @@ SettingsDialog::SettingsDialog(const QString& public_id, const QString& history_
 
     auto* version = new QLabel(
         QString("ChatBox %1").arg(QCoreApplication::applicationVersion()), this);
-    version->setStyleSheet("color: " + QString::fromLatin1(theme::kMuted) + ";");
+    version->setObjectName("SettingsVersion");
     layout->addWidget(version);
 
     auto* buttons = new QDialogButtonBox(
         QDialogButtonBox::Save | QDialogButtonBox::Cancel, this);
+    buttons->button(QDialogButtonBox::Save)->setText("保存");
+    buttons->button(QDialogButtonBox::Cancel)->setText("取消");
     layout->addWidget(buttons);
 
     connect(open_logs, &QPushButton::clicked, this, &SettingsDialog::openLogDirectory);
+    connect(appearance_combo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int index) {
+                if (index < 0) {
+                    return;
+                }
+                const auto mode = static_cast<chatbox::client::theme::ThemeMode>(
+                    appearance_combo_->itemData(index).toInt());
+                QSettings current;
+                current.setValue("settings/appearance", static_cast<int>(mode));
+                current.sync();
+                chatbox::client::theme::applyTheme(qApp, mode);
+                emit appearanceChanged();
+            });
     connect(buttons, &QDialogButtonBox::accepted, this, &SettingsDialog::saveSettings);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(change_history_dir_button_, &QPushButton::clicked, this,
@@ -279,6 +312,7 @@ void SettingsDialog::openClearHistoryDialog() {
     auto* buttons = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     buttons->button(QDialogButtonBox::Ok)->setText("开始清理");
+    buttons->button(QDialogButtonBox::Cancel)->setText("取消");
     buttons->button(QDialogButtonBox::Ok)->setEnabled(false);
     layout->addWidget(buttons);
 

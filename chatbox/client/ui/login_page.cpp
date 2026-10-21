@@ -1,6 +1,7 @@
 #include "ui/login_page.h"
 
 #include <QCheckBox>
+#include <QColor>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -22,12 +23,16 @@ namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
 LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     setObjectName("LoginPage");
+    // Clicking the empty page must take focus away from username/password and
+    // stop text input; the page itself only needs click focus, not Tab focus.
+    setFocusPolicy(Qt::ClickFocus);
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(24, 24, 24, 24);
     root->addStretch();
 
     auto* card = new QFrame(this);
     card->setObjectName("LoginCard");
+    card->setFocusPolicy(Qt::ClickFocus);
     card->setFixedWidth(390);
     auto* card_layout = new QVBoxLayout(card);
     card_layout->setContentsMargins(30, 22, 30, 24);
@@ -38,24 +43,21 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     top_row->addStretch(1);
     advanced_toggle_ = new QToolButton(card);
     advanced_toggle_->setObjectName("AdvancedOptionsButton");
-    advanced_toggle_->setIcon(chatbox::client::moreDotsIcon());
-    advanced_toggle_->setIconSize(QSize(44, 44));
+    advanced_toggle_->setIcon(chatbox::client::moreDotsIcon(QColor(theme::kInk)));
+    advanced_toggle_->setIconSize(QSize(20, 20));
     advanced_toggle_->setToolTip("更多选项");
     advanced_toggle_->setCheckable(true);
     advanced_toggle_->setAutoRaise(true);
     advanced_toggle_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    advanced_toggle_->setFixedSize(48, 48);
+    advanced_toggle_->setFixedSize(32, 32);
     advanced_toggle_->setCursor(Qt::PointingHandCursor);
     top_row->addWidget(advanced_toggle_, 0, Qt::AlignTop | Qt::AlignRight);
     card_layout->addLayout(top_row);
 
     auto* logo = new QLabel("C", card);
+    logo->setObjectName("AppLogo");
     logo->setFixedSize(56, 56);
     logo->setAlignment(Qt::AlignCenter);
-    logo->setStyleSheet(
-        "background: " + QString::fromLatin1(theme::kAccent) + "; color: " +
-        QString::fromLatin1(theme::kOnPrimary) +
-        "; border-radius: 28px; font-size: 28px; font-weight: 600;");
     card_layout->addWidget(logo, 0, Qt::AlignHCenter);
 
     auto* title = new QLabel("ChatBox", card);
@@ -83,16 +85,22 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     tls_check_ = new QCheckBox("TLS 加密连接", card);
     tls_check_->setObjectName("ServerTlsCheck");
     tls_check_->setChecked(true);
+    host_edit_->setAccessibleName("服务器");
+    port_spin_->setAccessibleName("端口");
+    tls_check_->setAccessibleName("TLS 加密连接");
     username_edit_ = new QLineEdit(card);
     username_edit_->setObjectName("UsernameEdit");
+    username_edit_->setAccessibleName("用户名");
     username_edit_->setPlaceholderText("3-32 位字母、数字、下划线");
     password_edit_ = new QLineEdit(card);
     password_edit_->setObjectName("PasswordEdit");
+    password_edit_->setAccessibleName("密码");
     password_edit_->setEchoMode(QLineEdit::Password);
     password_edit_->setPlaceholderText("至少 8 位");
     nickname_label_ = new QLabel("昵称", card);
     nickname_edit_ = new QLineEdit(card);
     nickname_edit_->setObjectName("NicknameEdit");
+    nickname_edit_->setAccessibleName("昵称");
     nickname_edit_->setPlaceholderText("注册时填写");
 
     QSettings settings;
@@ -111,9 +119,11 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     login_options->setSpacing(14);
     auto_login_check_ = new QCheckBox("自动登录", card);
     auto_login_check_->setObjectName("AutoLoginCheck");
+    auto_login_check_->setAccessibleName("自动登录");
     auto_login_check_->setChecked(settings.value("login/auto_login", true).toBool());
     remember_password_check_ = new QCheckBox("记住密码", card);
     remember_password_check_->setObjectName("RememberPasswordCheck");
+    remember_password_check_->setAccessibleName("记住密码");
     remember_password_check_->setChecked(
         settings.value("login/remember_password", false).toBool());
     if (!chatbox::client::passwordStorageSupported()) {
@@ -199,6 +209,18 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
             port_spin_->setValue(9100);
         }
     });
+
+    QWidget::setTabOrder(advanced_toggle_, username_edit_);
+    QWidget::setTabOrder(username_edit_, password_edit_);
+    QWidget::setTabOrder(password_edit_, nickname_edit_);
+    QWidget::setTabOrder(nickname_edit_, auto_login_check_);
+    QWidget::setTabOrder(auto_login_check_, remember_password_check_);
+    QWidget::setTabOrder(remember_password_check_, host_edit_);
+    QWidget::setTabOrder(host_edit_, port_spin_);
+    QWidget::setTabOrder(port_spin_, tls_check_);
+    QWidget::setTabOrder(tls_check_, login_button_);
+    QWidget::setTabOrder(login_button_, register_button_);
+    username_edit_->setFocus();
 }
 
 void LoginPage::setStatus(const QString& text, bool error) {
@@ -249,9 +271,17 @@ void LoginPage::reloadSavedCredentials() {
     password_edit_->setText(saved_password);
 }
 
+void LoginPage::refreshThemeIcons() {
+    if (advanced_toggle_ != nullptr) {
+        advanced_toggle_->setIcon(chatbox::client::moreDotsIcon(QColor(theme::kInk)));
+    }
+}
+
 void LoginPage::resetToLogin() {
     setRegisterMode(false);
+    refreshThemeIcons();
     reloadSavedCredentials();
+    username_edit_->setFocus();
 }
 
 void LoginPage::toggleRegisterMode() {

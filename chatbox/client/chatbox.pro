@@ -25,6 +25,8 @@ SOURCES += \
     core/autostart.cpp \
     core/client_policy.cpp \
     core/credential_store.cpp \
+    core/focus_ring.cpp \
+    core/ui_theme.cpp \
     core/socket_compat.cpp \
     core/protocol_qt.cpp \
     core/network_thread.cpp \
@@ -38,6 +40,8 @@ SOURCES += \
     core/avatar_cache.cpp \
     core/history_store.cpp \
     ui/chat_view.cpp \
+    ui/empty_state.cpp \
+    ui/message_input.cpp \
     ui/message_action_bar.cpp \
     ui/login_page.cpp \
     ui/more_dots.cpp \
@@ -45,6 +49,11 @@ SOURCES += \
     ui/friend_item_delegate.cpp \
     ui/friend_list_widget.cpp \
     ui/main_window.cpp \
+    ui/main_window_chat.cpp \
+    ui/main_window_contacts.cpp \
+    ui/main_window_net.cpp \
+    ui/main_window_profile.cpp \
+    ui/main_window_tray.cpp \
     ui/message_search_dialog.cpp \
     ui/settings_dialog.cpp \
     ui/user_search_dialog.cpp \
@@ -55,6 +64,7 @@ HEADERS += \
     core/autostart.h \
     core/client_policy.h \
     core/credential_store.h \
+    core/focus_ring.h \
     core/socket_compat.h \
     core/protocol_qt.h \
     core/network_thread.h \
@@ -72,6 +82,9 @@ HEADERS += \
     core/friend_view.h \
     core/user_profile.h \
     ui/chat_view.h \
+    ui/dialog_buttons.h \
+    ui/empty_state.h \
+    ui/message_input.h \
     ui/message_action_bar.h \
     ui/login_page.h \
     ui/more_dots.h \
@@ -79,6 +92,7 @@ HEADERS += \
     ui/friend_item_delegate.h \
     ui/friend_list_widget.h \
     ui/main_window.h \
+    ui/main_window_support.h \
     ui/message_search_dialog.h \
     ui/settings_dialog.h \
     ui/user_search_dialog.h \

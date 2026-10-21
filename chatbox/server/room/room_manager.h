@@ -42,7 +42,9 @@ public:
     bool snapshot(int room_id, std::vector<RoomMember>& members) const;
     int onlineCount(int room_id) const;
     void updateNickname(uint64_t user_id, const std::string& nickname);
-    void removeConnection(uint64_t connection_id);
+    // Removes every room membership for the connection and returns the room
+    // ids that changed, so callers can broadcast a fresh member list.
+    std::vector<int> removeConnection(uint64_t connection_id);
 
 private:
     struct RoomState {

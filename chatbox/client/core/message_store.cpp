@@ -108,16 +108,17 @@ void MessageStore::prependHistory(const QVector<ChatMessage>& history) {
     sortMessagesChronologically();
 }
 
-void MessageStore::appendIncoming(const ChatMessage& message) {
+bool MessageStore::appendIncoming(const ChatMessage& message) {
     if (message.message_id != 0 && hasMessageId(message.message_id)) {
-        return;
+        return false;
     }
     if (!message.client_msg_id.isEmpty() &&
         indexOfClientId(message.client_msg_id) >= 0) {
-        return;
+        return false;
     }
     messages_.push_back(message);
     persistMessage(message);
+    return true;
 }
 
 void MessageStore::addPending(const ChatMessage& message) {

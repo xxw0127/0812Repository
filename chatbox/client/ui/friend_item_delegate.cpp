@@ -6,6 +6,7 @@
 #include <QPainterPath>
 #include <QStyle>
 
+#include "core/avatar_utils.h"
 #include "core/message_time.h"
 #include "core/ui_theme.h"
 
@@ -20,14 +21,6 @@ constexpr int kOnlineRole = Qt::UserRole + 3;
 constexpr int kContentRole = Qt::UserRole + 4;
 constexpr int kTimeRole = Qt::UserRole + 5;
 constexpr int kRemarkRole = Qt::UserRole + 6;
-
-QColor avatarColor(quint64 id) {
-    static const QColor colors[] = {
-        QColor(theme::kAccent), QColor("#4CAF50"), QColor("#F5A623"),
-        QColor("#9B59B6"), QColor("#E74C3C"), QColor("#16A085"),
-    };
-    return colors[id % (sizeof(colors) / sizeof(colors[0]))];
-}
 
 }  // namespace
 
@@ -56,9 +49,11 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
     const bool hovered = option.state & QStyle::State_MouseOver;
     QRect row = option.rect.adjusted(4, 2, -4, -2);
     if (selected) {
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(theme::kSurfaceStrong));
-        painter->drawRoundedRect(row, 8, 8);
+        // Mirrors QListWidget::item:selected in style.qss; the delegate paints
+        // its own row, so the stylesheet never reaches this list.
+        painter->setPen(QPen(QColor(theme::kSelectionBorder), 1));
+        painter->setBrush(QColor(theme::kSelectionBg));
+        painter->drawRoundedRect(QRectF(row).adjusted(0.5, 0.5, -0.5, -0.5), 8, 8);
     } else if (hovered) {
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(theme::kSurfaceSoft));
@@ -85,20 +80,21 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
         painter->drawPixmap(avatar_rect, avatar);
         painter->restore();
     } else {
+        const QColor avatar_bg = chatbox::client::fallbackAvatarBackground(id);
         painter->setPen(Qt::NoPen);
-        painter->setBrush(avatarColor(id));
+        painter->setBrush(avatar_bg);
         painter->drawEllipse(avatar_rect);
         QFont avatar_font = painter->font();
         avatar_font.setPixelSize(15);
         avatar_font.setBold(true);
         painter->setFont(avatar_font);
-        painter->setPen(Qt::white);
+        painter->setPen(chatbox::client::readableForeground(avatar_bg));
         painter->drawText(avatar_rect, Qt::AlignCenter,
                           name.isEmpty() ? QString("?") : name.left(1).toUpper());
     }
 
     if (online) {
-        painter->setBrush(QColor(theme::kSemanticUp));
+        painter->setBrush(QColor(theme::kOnlineDot));
         painter->setPen(QPen(QColor(theme::kCanvas), 2));
         painter->drawEllipse(QPoint(avatar_rect.right() - 2, avatar_rect.bottom() - 2),
                              5, 5);
@@ -114,7 +110,7 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
     name_font.setBold(true);
     painter->setFont(name_font);
     painter->setPen(primary);
-    const QRect name_rect(text_left, row.top() + 7, text_right - text_left - 42, 18);
+    const QRect name_rect(text_left, row.top() + 7, text_right - text_left - 48, 18);
     painter->drawText(name_rect, Qt::AlignLeft | Qt::AlignVCenter,
                       QFontMetrics(name_font).elidedText(name, Qt::ElideRight,
                                                          name_rect.width()));
@@ -135,17 +131,17 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
         const QString local =
             utc.isValid() ? chatbox::client::formatLocalTime(utc) : time;
         QFont time_font = painter->font();
-        time_font.setPixelSize(10);
+        time_font.setPixelSize(11);
         painter->setFont(time_font);
         painter->setPen(secondary);
-        painter->drawText(QRect(row.right() - 48, row.top() + 7, 40, 16),
+        painter->drawText(QRect(row.right() - 54, row.top() + 7, 46, 16),
                           Qt::AlignRight | Qt::AlignVCenter, local);
     }
 
     if (unread > 0) {
         const QString label = unread > 99 ? QString("99+") : QString::number(unread);
         QFont badge_font = painter->font();
-        badge_font.setPixelSize(10);
+        badge_font.setPixelSize(11);
         badge_font.setBold(true);
         painter->setFont(badge_font);
         const int width = qMax(18, QFontMetrics(badge_font).horizontalAdvance(label) + 10);

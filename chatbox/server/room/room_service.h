@@ -21,6 +21,10 @@ struct RoomResult {
     explicit RoomResult(Frame frame) : response(std::move(frame)) {}
 };
 
+// Builds the same member-list payload used by ROOM_MEMBERS responses and by
+// presence pushes after join/leave/logout/disconnect.
+Frame makeRoomMembersFrame(int room_id, const std::vector<RoomMember>& members);
+
 class RoomService {
 public:
     RoomService(MysqlConnection& database, RoomManager& rooms);
