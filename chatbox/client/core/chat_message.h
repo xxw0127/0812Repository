@@ -44,6 +44,10 @@ struct ChatMessage {
 struct MessageKey {
     quint64 message_id = 0;
     QString client_msg_id;
+    // Filled by the renderer with the bubble surface colour for this theme.
+    // ChatView uses it when masking the square table corners into rounded
+    // corners; the text document itself has no border-radius support.
+    QString bubble_color;
 
     bool isNull() const { return message_id == 0 && client_msg_id.isEmpty(); }
 };

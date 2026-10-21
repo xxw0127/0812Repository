@@ -83,6 +83,15 @@ MessageActions messageActions(const ChatMessage& message, quint64 self_user_id,
     return actions;
 }
 
+QString messageBubbleColor(const ChatMessage& message, quint64 self_user_id) {
+    const bool outgoing =
+        message.outgoing || (message.sender_id != 0 && message.sender_id == self_user_id);
+    if (message.recalled) {
+        return QString::fromLatin1(theme::kSurfaceStrong);
+    }
+    return QString::fromLatin1(outgoing ? theme::kBubbleOwn : theme::kBubbleOther);
+}
+
 bool shouldShowSenderName(const ChatMessage* previous, const ChatMessage& current) {
     if (previous == nullptr || current.recalled) {
         return false;
@@ -112,13 +121,7 @@ QString renderMessageFragment(const ChatMessage& message, quint64 self_user_id,
     const bool outgoing =
         message.outgoing || (message.sender_id != 0 && message.sender_id == self_user_id);
     const QString alignment = outgoing ? "right" : "left";
-    QString background = outgoing ? QString::fromLatin1(theme::kBubbleOwn)
-                                  : QString::fromLatin1(theme::kBubbleOther);
-    if (message.recalled) {
-        // kSurfaceSoft equals the light canvas; recalled messages need a
-        // strictly different surface in both palettes.
-        background = QString::fromLatin1(theme::kSurfaceStrong);
-    }
+    const QString background = messageBubbleColor(message, self_user_id);
     const QString quote_background = QString::fromLatin1(theme::kQuoteBg);
 
     QString content = message.recalled ? "消息已撤回" : message.content.toHtmlEscaped();
@@ -136,7 +139,7 @@ QString renderMessageFragment(const ChatMessage& message, quint64 self_user_id,
     html += "<table align=\"" + alignment + "\"" + width_attr +
             " cellspacing=\"0\" cellpadding=\"1\" bgcolor=\"" +
             QString::fromLatin1(theme::kBubbleBorder) + "\"><tr><td>";
-    html += "<table cellspacing=\"0\" cellpadding=\"10\" bgcolor=\"" + background +
+    html += "<table cellspacing=\"0\" cellpadding=\"12\" bgcolor=\"" + background +
             "\"><tr><td>";
     if (!outgoing && !message.recalled && show_sender_name) {
         html += "<div style=\"color: " + QString::fromLatin1(theme::kBody) +
@@ -192,6 +195,7 @@ QString renderConversationHtml(const QVector<ChatMessage>& messages,
             MessageKey key;
             key.message_id = message.message_id;
             key.client_msg_id = message.client_msg_id;
+            key.bubble_color = messageBubbleColor(message, self_user_id);
             rendered_messages->append(key);
         }
         const QString date = formatLocalDate(message.created_at_utc);

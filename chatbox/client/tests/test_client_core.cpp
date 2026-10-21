@@ -158,6 +158,7 @@ private slots:
     void rendererQuoteBlockWithoutInlineActions();
     void rendererCapsWideBubbleWidth();
     void rendererQuoteBubbleStaysNarrow();
+    void messageBubblesHaveRoundedCorners();
     void messageActionsAvailability();
     void messageActionsRecallWindow();
     void chatViewMapsMessagesToIds();
@@ -583,7 +584,7 @@ void TestClientCore::rendererBubbleSpecUsesBorderAndExternalTimestamp() {
     const QString html = chatbox::client::renderConversationHtml({message}, 1);
     QVERIFY(html.contains(QStringLiteral("cellpadding=\"1\"")));
     QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kBubbleBorder)));
-    QVERIFY(html.contains(QStringLiteral("cellpadding=\"10\"")));
+    QVERIFY(html.contains(QStringLiteral("cellpadding=\"12\"")));
     QVERIFY(html.contains(QStringLiteral("line-height: 150%")));
     const QString local_time = chatbox::client::formatLocalTime(created);
     const int timestamp = html.indexOf(local_time);
@@ -791,6 +792,51 @@ void TestClientCore::rendererQuoteBubbleStaysNarrow() {
              qPrintable(QStringLiteral("quote bubble %1 > limit %2")
                             .arg(bubble.width())
                             .arg(limit)));
+}
+
+void TestClientCore::messageBubblesHaveRoundedCorners() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage message;
+    message.message_id = 43;
+    message.sender_id = 9;
+    message.sender_name = "Bob";
+    message.content = "rounded corner";
+    message.created_at_utc = created;
+
+    QFile style(QStringLiteral(":/style.qss"));
+    QVERIFY(style.open(QIODevice::ReadOnly | QIODevice::Text));
+    const QString previous_style = qApp->styleSheet();
+    qApp->setStyleSheet(QString::fromUtf8(style.readAll()));
+
+    QVector<chatbox::client::MessageKey> keys;
+    const QString html =
+        chatbox::client::renderConversationHtml({message}, 1, &keys);
+    ChatView view;
+    view.resize(560, 400);
+    view.show();
+    QTest::qWait(50);
+    view.setConversationHtml(html, keys);
+    QTest::qWait(50);
+    const QRect bubble = view.messageOuterBubbleRect(43);
+    QVERIFY(!bubble.isNull());
+    QWidget* overlay =
+        view.findChild<QWidget*>(QStringLiteral("BubbleOverlay"));
+    QVERIFY(overlay != nullptr);
+    const QImage image = overlay->grab().toImage();
+    const QColor canvas(chatbox::client::theme::kSurfaceSoft);
+    const QColor corner = image.pixelColor(bubble.left() + 2, bubble.top() + 2);
+    qApp->setStyleSheet(previous_style);
+
+    QVERIFY2(qAbs(corner.red() - canvas.red()) <= 4 &&
+                 qAbs(corner.green() - canvas.green()) <= 4 &&
+                 qAbs(corner.blue() - canvas.blue()) <= 4,
+             qPrintable(QStringLiteral("corner colour %1,%2,%3 should be canvas %4,%5,%6")
+                            .arg(corner.red())
+                            .arg(corner.green())
+                            .arg(corner.blue())
+                            .arg(canvas.red())
+                            .arg(canvas.green())
+                            .arg(canvas.blue())));
 }
 
 void TestClientCore::messageActionsAvailability() {

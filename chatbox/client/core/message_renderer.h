@@ -38,6 +38,10 @@ QString renderMessageFragment(const ChatMessage& message, quint64 self_user_id,
                               bool include_date_header, const QString& date_label,
                               bool show_sender_name = true);
 
+// Surface colour used by the bubble for the current palette. ChatView also
+// uses this when painting rounded corners over the square rich-text table.
+QString messageBubbleColor(const ChatMessage& message, quint64 self_user_id);
+
 // Renders the whole conversation as rich text. When rendered_messages is not
 // null it receives one key per rendered bubble in document order, so the view
 // can map mouse positions back to messages.

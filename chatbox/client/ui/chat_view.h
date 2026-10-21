@@ -7,7 +7,9 @@
 
 #include "core/chat_message.h"
 
+class BubbleOverlay;
 class QKeyEvent;
+class QPainter;
 class QTextTable;
 
 // Read-only conversation view. Besides rendering the conversation it maps
@@ -16,6 +18,7 @@ class QTextTable;
 // styling (theme blue, no underline).
 class ChatView : public QTextBrowser {
     Q_OBJECT
+    friend class BubbleOverlay;
 
 public:
     explicit ChatView(QWidget* parent = nullptr);
@@ -49,6 +52,10 @@ public:
     // unknown or the document structure does not expose the bubble.
     QRect messageBubbleRect(quint64 message_id) const;
 
+    // Outer 1px-bordered table rect (viewport coordinates), including the
+    // rounded-corner painting bounds. Primarily useful for visual guards.
+    QRect messageOuterBubbleRect(quint64 message_id) const;
+
     // Forgets the currently hovered message without emitting anything; the
     // next mouse move over the same message reports it again.
     void clearHoverState();
@@ -74,15 +81,19 @@ private:
         int last = 0;
         chatbox::client::MessageKey key;
         QTextTable* frame = nullptr;
+        QString bubble_color;
     };
 
     void buildMessageRanges(const QVector<chatbox::client::MessageKey>& message_keys);
+    QRect outerBubbleRect(const MessageRange& range) const;
+    void paintRoundedBubbleCorners(QPainter& painter);
     bool messageKeyAtPosition(int position,
                               chatbox::client::MessageKey* key) const;
     void styleAnchors();
     void styleAnchorsInRange(int start, int end);
 
     QVector<MessageRange> message_ranges_;
+    QWidget* bubble_overlay_ = nullptr;
     quint64 hovered_id_ = 0;
 };
 
