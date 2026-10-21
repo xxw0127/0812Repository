@@ -82,6 +82,7 @@ Qt 客户端 --TLS 9443--> nginx stream（证书 /etc/chatbox/certs）--PROXY-->
 |---|---|
 | [`chatbox/README.md`](chatbox/README.md) | 服务端：依赖、建库、配置、构建、运行、systemd、监控指标、协议表、联调工具 |
 | [`chatbox/client/README.md`](chatbox/client/README.md) | 客户端：构建、分发、TLS、各功能说明、回归测试、截图索引 |
+| [`AGENTS.md`](AGENTS.md) | C++ 跨平台开发规范（Qt 客户端 + Linux/Windows 服务端 + Socket + MySQL 5.7），可供其他项目参考学习 |
 | [`docs/2026-10-18-linux-chatroom-design.md`](docs/2026-10-18-linux-chatroom-design.md) | 服务端架构规划书（历史设计稿，保留原始命名） |
 | [`docs/superpowers/specs/`](docs/superpowers/specs) | 各功能的规格（换肤、图标、客户端可用性等） |
 | [`docs/superpowers/plans/`](docs/superpowers/plans) | 对应的实施计划与台账 |
@@ -94,11 +95,30 @@ Qt 客户端 --TLS 9443--> nginx stream（证书 /etc/chatbox/certs）--PROXY-->
 - Token 只存哈希（`SHA-256`），密码使用 Argon2id；日志不打印口令与 Token。
 - 本仓库为个人学习/演示项目，以 [MIT 许可证](LICENSE) 开源。
 
+## 项目目的
+
+- **版本管理**：完整记录 ChatBox 从设计、实现到持续迭代的过程，保留每一次提交与文档演进。
+- **参考学习**：仓库保留了客户端与服务端源码、协议设计、部署脚本和开发文档，供对 C++ 网络编程、Qt 桌面开发感兴趣的朋友参考。
+- 项目仍在持续完善，代码和文档难免有不足之处，欢迎交流与指正。
+
 ## 开发方式
 
 - 本项目采用 **vibe coding** 方式开发：需求、技术决策与验收由仓库所有者完成，代码主要由 AI 助手 **DeepSeek**（DeepSeek V4.1 Flash）编写。
 - 开发过程使用 [Superpowers](https://github.com/obra/superpowers) 技能包，覆盖头脑风暴、方案设计、计划执行、调试与代码评审等环节。
 - 仓库的日常提交、推送与文档维护同样由 **DeepSeek V4.1 Flash** 在所有者授权下完成。
+
+## 代码规范
+
+本仓库遵循 [`AGENTS.md`](AGENTS.md) 中的 **C++ 跨平台开发规范**，覆盖：
+
+- 部署架构：Qt 客户端 + Linux/Windows 服务端 + 原生 Socket + MySQL 5.7
+- 基础编码：C++17、命名与缩进、RAII、固定宽度类型
+- Qt 客户端：线程模型、信号槽、Winsock
+- 服务端：epoll / IOCP、网络字节序、IO 线程池与业务线程池分离
+- MySQL：每线程独立连接、预处理语句、禁止拼接 SQL
+- 部署、日志、错误处理与禁止行为清单
+
+这份规范同样适用于其他 C++ 跨平台项目，欢迎参考、学习和交流。
 
 ## 仓库管理
 
