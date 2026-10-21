@@ -14,6 +14,7 @@
 
 #include "server/auth/auth_service.h"
 #include "server/auth/login_rate_limiter.h"
+#include "server/auth/registration_rate_limiter.h"
 #include "server/auth/session_manager.h"
 #include "server/auth/user_lock_table.h"
 #include "server/db/mysql_connection.h"
@@ -67,6 +68,7 @@ private:
     SessionManager& sessions_;
     RoomManager& rooms_;
     LoginRateLimiter login_limiter_{5, 60};
+    RegistrationRateLimiter registration_limiter_{20, 100, 3600};
     UserLockTable user_locks_;
     std::vector<std::unique_ptr<Worker>> workers_;
     std::atomic<bool> started_{false};

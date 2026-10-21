@@ -50,6 +50,7 @@ add_executable(chatbox_server
     server/auth/password_hash.cpp
     server/auth/token.cpp
     server/auth/login_rate_limiter.cpp
+    server/auth/registration_rate_limiter.cpp
     server/auth/session_manager.cpp
     server/auth/auth_service.cpp
     server/business/worker_pool.cpp
@@ -94,3 +95,10 @@ add_executable(test_auth
 target_include_directories(test_auth PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(test_auth PRIVATE ${ARGON2_LIBRARY} OpenSSL::Crypto)
 add_test(NAME auth COMMAND test_auth)
+
+add_executable(test_registration_rate_limiter
+    tests/test_registration_rate_limiter.cpp
+    server/auth/registration_rate_limiter.cpp)
+target_include_directories(test_registration_rate_limiter PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(test_registration_rate_limiter PRIVATE Threads::Threads)
+add_test(NAME registration_rate_limiter COMMAND test_registration_rate_limiter)

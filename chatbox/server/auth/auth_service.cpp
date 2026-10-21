@@ -1,6 +1,7 @@
 #include "server/auth/auth_service.h"
 
 #include <cctype>
+#include <chrono>
 #include <ctime>
 #include <string>
 
@@ -74,18 +75,20 @@ std::string utcPlusDays(int days) {
 }  // namespace
 
 AuthService::AuthService(MysqlConnection& database, SessionManager& sessions,
-                         UserLockTable& user_locks, LoginRateLimiter& login_limiter)
+                         UserLockTable& user_locks, LoginRateLimiter& login_limiter,
+                         RegistrationRateLimiter& registration_limiter)
     : database_(database),
       sessions_(sessions),
       user_locks_(user_locks),
-      login_limiter_(login_limiter) {}
+      login_limiter_(login_limiter),
+      registration_limiter_(registration_limiter) {}
 
 AuthResult AuthService::handle(const Frame& request, uint64_t current_user_id,
                                const std::string& current_token_hash,
                                const SessionBinding& binding) {
     switch (request.header.cmd) {
         case kCmdRegister:
-            return handleRegister(request);
+            return handleRegister(request, binding);
         case kCmdLogin:
             return handleLogin(request, binding);
         case kCmdLogout:
@@ -97,7 +100,8 @@ AuthResult AuthService::handle(const Frame& request, uint64_t current_user_id,
     }
 }
 
-AuthResult AuthService::handleRegister(const Frame& request) {
+AuthResult AuthService::handleRegister(const Frame& request,
+                                       const SessionBinding& binding) {
     ByteReader reader(request.body.data(), request.body.size());
     std::string username;
     std::string password;
@@ -117,6 +121,11 @@ AuthResult AuthService::handleRegister(const Frame& request) {
     }
     if (!validNickname(nickname)) {
         return AuthResult{makeError(request.header.seq, 1001, "invalid nickname")};
+    }
+    if (!registration_limiter_.allow(binding.peer_ip, std::chrono::steady_clock::now())) {
+        metrics().rate_limited.fetch_add(1, std::memory_order_relaxed);
+        return AuthResult{makeError(request.header.seq, 1005,
+                                    "too many registrations")};
     }
 
     std::string password_hash;

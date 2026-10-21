@@ -119,7 +119,7 @@ void WorkerPool::workerLoop(std::size_t index) {
     }
 
     auto auth = std::make_unique<AuthService>(*database, sessions_, user_locks_,
-                                              login_limiter_);
+                                              login_limiter_, registration_limiter_);
     auto room = std::make_unique<RoomService>(*database, rooms_);
     auto private_chat = std::make_unique<PrivateService>(*database, sessions_);
     auto history = std::make_unique<HistoryService>(*database, rooms_);
