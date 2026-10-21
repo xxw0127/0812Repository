@@ -26,6 +26,7 @@
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSettings>
+#include <QShortcut>
 #include <QSize>
 #include <QPainter>
 #include <QPixmap>
@@ -135,12 +136,52 @@ chatbox::client::ConversationRow conversationRow(chatbox::client::ChatContext co
     return row;
 }
 
+QString conversationAccessibleText(const QString& name, bool online, int unread,
+                                   const QString& last_content) {
+    QString text = name + (online ? "，在线" : "，离线");
+    if (unread > 0) {
+        text += QString("，%1 条未读").arg(unread);
+    }
+    if (!last_content.isEmpty()) {
+        text += "，最后一条：" + last_content;
+    }
+    return text;
+}
+
 }  // namespace
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setWindowTitle("ChatBox");
     resize(1120, 720);
     buildUi();
+
+    auto* message_search_shortcut =
+        new QShortcut(QKeySequence(QStringLiteral("Ctrl+F")), this);
+    connect(message_search_shortcut, &QShortcut::activated, this,
+            &MainWindow::openMessageSearch);
+    auto* user_search_shortcut =
+        new QShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+F")), this);
+    connect(user_search_shortcut, &QShortcut::activated, this,
+            &MainWindow::openUserSearch);
+    auto* settings_shortcut =
+        new QShortcut(QKeySequence(QStringLiteral("Ctrl+,")), this);
+    connect(settings_shortcut, &QShortcut::activated, this, &MainWindow::openSettings);
+    auto* previous_conversation =
+        new QShortcut(QKeySequence(QStringLiteral("Alt+Up")), this);
+    connect(previous_conversation, &QShortcut::activated, this,
+            [this] { selectAdjacentConversation(-1); });
+    auto* next_conversation =
+        new QShortcut(QKeySequence(QStringLiteral("Alt+Down")), this);
+    connect(next_conversation, &QShortcut::activated, this,
+            [this] { selectAdjacentConversation(1); });
+    auto* cancel_reply =
+        new QShortcut(QKeySequence(Qt::Key_Escape), this);
+    connect(cancel_reply, &QShortcut::activated, this, [this] {
+        if (reply_to_id_ != 0) {
+            clearReply();
+        }
+    });
+
     QSettings initial_settings;
     notifications_enabled_ =
         initial_settings.value("settings/notifications", true).toBool();
@@ -340,6 +381,7 @@ QWidget* MainWindow::buildChatPage() {
     rooms_label->setObjectName("SectionLabel");
     left->addWidget(rooms_label);
     room_list_ = new QListWidget(left_panel);
+    room_list_->setAccessibleName("房间列表");
     room_list_->setSelectionMode(QAbstractItemView::SingleSelection);
     room_list_->setFocusPolicy(Qt::StrongFocus);
     room_list_->setIconSize(QSize(30, 30));
@@ -355,6 +397,7 @@ QWidget* MainWindow::buildChatPage() {
     conversations_label->setObjectName("SectionLabel");
     left->addWidget(conversations_label);
     conversation_list_ = new FriendListWidget(left_panel);
+    conversation_list_->setAccessibleName("会话列表");
     conversation_list_->setSelectionMode(QAbstractItemView::SingleSelection);
     conversation_list_->setFocusPolicy(Qt::StrongFocus);
     conversation_list_->setIconSize(QSize(30, 30));
@@ -382,6 +425,8 @@ QWidget* MainWindow::buildChatPage() {
     profile_layout->setSpacing(10);
     my_profile_avatar_ = new QLabel(my_profile_button_);
     my_profile_avatar_->setFixedSize(32, 32);
+    my_profile_avatar_->setAccessibleName("我的头像");
+    my_profile_avatar_->setAccessibleDescription("我的头像");
     my_profile_avatar_->setAttribute(Qt::WA_TransparentForMouseEvents);
     profile_layout->addWidget(my_profile_avatar_);
     auto* profile_text_layout = new QVBoxLayout();
@@ -434,6 +479,8 @@ QWidget* MainWindow::buildChatPage() {
     connect(reconnect_button_, &QPushButton::clicked, this, &MainWindow::retryConnection);    auto* header_row = new QHBoxLayout();
     context_avatar_ = new QLabel(header);
     context_avatar_->setFixedSize(36, 36);
+    context_avatar_->setAccessibleName("查看资料");
+    context_avatar_->setAccessibleDescription("当前会话头像");
     context_avatar_->setPixmap(avatarIcon("C", 0).pixmap(32, 32));
     context_avatar_->setCursor(Qt::ArrowCursor);
     context_avatar_->setToolTip("查看资料");
@@ -444,6 +491,7 @@ QWidget* MainWindow::buildChatPage() {
     header_row->addWidget(context_label_, 1);
     more_button_ = new QToolButton(header);
     more_button_->setObjectName("MoreButton");
+    more_button_->setAccessibleName("更多");
     more_button_->setIcon(chatbox::client::moreDotsIcon());
     more_button_->setIconSize(QSize(44, 44));
     more_button_->setToolTip("更多");
@@ -487,6 +535,7 @@ QWidget* MainWindow::buildChatPage() {
     reply_label_->setWordWrap(true);
     reply_label_->hide();
     reply_cancel_button_ = new QPushButton("取消回复", composer);
+    reply_cancel_button_->setAccessibleName("取消回复");
     reply_cancel_button_->hide();
     auto* reply_layout = new QHBoxLayout();
     reply_layout->setContentsMargins(0, 0, 0, 0);
@@ -498,13 +547,16 @@ QWidget* MainWindow::buildChatPage() {
     input_layout->setSpacing(6);
     input_edit_ = new QLineEdit(composer);
     input_edit_->setObjectName("MessageInput");
+    input_edit_->setAccessibleName("输入消息");
     input_edit_->setPlaceholderText("输入消息，回车发送");
     mention_button_ = new QPushButton("@", composer);
     mention_button_->setObjectName("IconButton");
+    mention_button_->setAccessibleName("提及成员");
     mention_button_->setFixedSize(38, 38);
     mention_button_->setToolTip("提及成员");
     send_button_ = new QPushButton(QIcon(":/icons/send.png"), "", composer);
     send_button_->setObjectName("SendButton");
+    send_button_->setAccessibleName("发送消息");
     send_button_->setIconSize(QSize(18, 18));
     send_button_->setFixedSize(38, 38);
     send_button_->setToolTip("发送");
@@ -533,6 +585,7 @@ QWidget* MainWindow::buildChatPage() {
     members_label->setObjectName("SectionLabel");
     right->addWidget(members_label);
     member_list_ = new QListWidget(right_panel);
+    member_list_->setAccessibleName("在线成员");
     member_list_->setIconSize(QSize(28, 28));
     member_list_->setContextMenuPolicy(Qt::CustomContextMenu);
     right->addWidget(member_list_, 1);
@@ -563,6 +616,13 @@ QWidget* MainWindow::buildChatPage() {
     connect(reply_cancel_button_, &QPushButton::clicked, this, &MainWindow::clearReply);
     connect(logout_button_, &QPushButton::clicked, this, &MainWindow::logout);
     connect(settings_button, &QPushButton::clicked, this, &MainWindow::openSettings);
+
+    QWidget::setTabOrder(room_list_, conversation_list_);
+    QWidget::setTabOrder(conversation_list_, chat_view_);
+    QWidget::setTabOrder(chat_view_, input_edit_);
+    QWidget::setTabOrder(input_edit_, mention_button_);
+    QWidget::setTabOrder(mention_button_, send_button_);
+    QWidget::setTabOrder(send_button_, member_list_);
 
     if (QSystemTrayIcon::isSystemTrayAvailable()) {
         tray_ = new QSystemTrayIcon(this);
@@ -900,6 +960,12 @@ void MainWindow::refreshFriendListView() {
         item->setData(Qt::UserRole + 4, view.last_content);
         item->setData(Qt::UserRole + 5, view.last_time);
         item->setData(Qt::UserRole + 6, view.remark);
+        item->setData(
+            Qt::AccessibleTextRole,
+            conversationAccessibleText(
+                view.remark.isEmpty() ? view.nickname : view.remark, view.online,
+                chatbox::client::displayedUnread(notifications_enabled_, view.unread),
+                view.last_content));
         QImage image;
         if (avatar_cache_.lookup(view.user_id, image) && !image.isNull()) {
             item->setData(FriendItemDelegate::kAvatarRole,
@@ -1764,6 +1830,7 @@ void MainWindow::updateRoomMemberNickname(quint64 user_id,
         QListWidgetItem* item = member_list_->item(i);
         if (item->data(Qt::UserRole).toULongLong() == user_id) {
             item->setText(nickname);
+            item->setData(Qt::AccessibleTextRole, nickname + "，在线");
             item->setIcon(memberAvatarIcon(user_id, nickname, 28));
             break;
         }
@@ -3301,6 +3368,7 @@ void MainWindow::populateOfflineSidebar() {
             item->setSizeHint(QSize(0, 48));
             item->setData(Qt::UserRole, static_cast<uint>(row.target_id));
             item->setData(Qt::UserRole + 1, row.title);
+            item->setData(Qt::AccessibleTextRole, row.title + "，离线记录");
             continue;
         }
         chatbox::client::FriendView view;
@@ -3445,6 +3513,32 @@ void MainWindow::addConversation(quint64 peer_id, const QString& nickname) {
     item->setSizeHint(QSize(0, 28));
     item->setData(Qt::UserRole, QVariant::fromValue<qulonglong>(peer_id));
     item->setData(Qt::UserRole + 1, nickname);
+    item->setData(Qt::AccessibleTextRole, nickname + "，离线");
+}
+
+void MainWindow::selectAdjacentConversation(int delta) {
+    if (conversation_list_ == nullptr || conversation_list_->count() == 0 ||
+        delta == 0) {
+        return;
+    }
+    const int count = conversation_list_->count();
+    int index = conversation_list_->currentRow();
+    if (index < 0) {
+        index = delta > 0 ? -1 : count;
+    }
+    for (int step = 0; step < count; ++step) {
+        index += delta;
+        if (index < 0 || index >= count) {
+            return;
+        }
+        QListWidgetItem* item = conversation_list_->item(index);
+        if (item == nullptr || item->data(Qt::UserRole).toULongLong() == 0) {
+            continue;
+        }
+        conversation_list_->setCurrentItem(item);
+        onConversationClicked(item);
+        return;
+    }
 }
 
 void MainWindow::onLoadMoreClicked() {
@@ -3691,6 +3785,8 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                 item->setData(Qt::UserRole, static_cast<uint>(id));
                 item->setData(Qt::UserRole + 1, name);
                 item->setData(Qt::UserRole + 2, max_members);
+                item->setData(Qt::AccessibleTextRole,
+                              QString("%1，在线 %2 人").arg(name).arg(online));
             }
             if (context_type_ == ContextType::None && room_list_->count() > 0) {
                 QListWidgetItem* first = room_list_->item(0);
@@ -3734,6 +3830,8 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                                        .arg(room_name)
                                        .arg(count)
                                        .arg(max_members));
+                room_item->setData(Qt::AccessibleTextRole,
+                                   QString("%1，在线 %2 人").arg(room_name).arg(count));
                 break;
             }
             if (context_type_ != ContextType::Room ||
@@ -3753,6 +3851,7 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
                 item->setIcon(memberAvatarIcon(member_id, nickname, 28));
                 item->setSizeHint(QSize(0, 48));
                 item->setData(Qt::UserRole, QVariant::fromValue<qulonglong>(member_id));
+                item->setData(Qt::AccessibleTextRole, nickname + "，在线");
                 if (member_id == user_id_) {
                     // requestPeerAvatar() skips self; ask the same way so the
                     // own row fills right after a fresh login too.

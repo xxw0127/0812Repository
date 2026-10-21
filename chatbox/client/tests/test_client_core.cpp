@@ -148,6 +148,10 @@ private slots:
     void messageBubbleColoursComeFromTheme();
     void contrastTokensMeetAa();
     void themeTokensMatchContrastSpec();
+    void styleSheetHasVisibleKeyboardFocus();
+    void mainWindowExposesKeyboardShortcuts();
+    void mainWindowAccessibilityLabels();
+    void friendItemsExposeAccessibleText();
     void themeTokensMatchStyleSheet();
     void messageActionBarHasSingleSoftShadow();
     void messageActionBarIsKeyboardReachable();
@@ -194,6 +198,7 @@ private slots:
     void loginPageHidesServerFieldsBehindMoreDots();
     void loginPageShowsNicknameOnlyInRegisterMode();
     void loginPageHasAutoLoginAndRememberPasswordOptions();
+    void loginPageAccessibleNames();
     void loginPageReloadsRememberedPasswordAfterLogout();
     void credentialStoreEncryptsSavedPassword();
     void mainWindowUsesIncrementalAppendForIncomingMessages();
@@ -1618,6 +1623,56 @@ void TestClientCore::themeTokensMatchContrastSpec() {
     QVERIFY(source.contains(QStringLiteral("#6B7280")));
 }
 
+void TestClientCore::styleSheetHasVisibleKeyboardFocus() {
+    const QString qss = readClientSource(QStringLiteral("resources/style.qss"));
+    QVERIFY2(!qss.isEmpty(), "resources/style.qss must be readable");
+    QVERIFY(!qss.contains(QStringLiteral("outline: 0")));
+    const QStringList selectors = {
+        QStringLiteral("QListWidget:focus"),
+        QStringLiteral("QPushButton:focus"),
+        QStringLiteral("QPushButton#PrimaryButton:focus"),
+        QStringLiteral("QPushButton#SendButton:focus"),
+        QStringLiteral("QCheckBox:focus::indicator"),
+        QStringLiteral("QToolButton:focus"),
+    };
+    for (const QString& selector : selectors) {
+        QVERIFY2(qss.contains(selector), qPrintable(selector));
+    }
+}
+
+void TestClientCore::mainWindowExposesKeyboardShortcuts() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("Ctrl+F")));
+    QVERIFY(source.contains(QStringLiteral("Ctrl+Shift+F")));
+    QVERIFY(source.contains(QStringLiteral("Ctrl+,")));
+    QVERIFY(source.contains(QStringLiteral("Alt+Up")));
+    QVERIFY(source.contains(QStringLiteral("Alt+Down")));
+    QVERIFY(source.contains(QStringLiteral("Qt::Key_Escape")));
+    QVERIFY(source.contains(QStringLiteral("clearReply()")));
+}
+
+void TestClientCore::mainWindowAccessibilityLabels() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("more_button_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("send_button_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("mention_button_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("context_avatar_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("my_profile_avatar_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("context_avatar_->setAccessibleDescription")));
+    QVERIFY(source.contains(QStringLiteral("my_profile_avatar_->setAccessibleDescription")));
+    QVERIFY(source.contains(QStringLiteral("room_list_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("conversation_list_->setAccessibleName")));
+    QVERIFY(source.contains(QStringLiteral("member_list_->setAccessibleName")));
+}
+
+void TestClientCore::friendItemsExposeAccessibleText() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("Qt::AccessibleTextRole")));
+}
+
 void TestClientCore::themeTokensMatchStyleSheet() {
     // resolve relative to the test binary first so the guard also works when
     // the binary is launched outside tests/ (Qt Creator, CI, ...)
@@ -2530,6 +2585,25 @@ void TestClientCore::loginPageHasAutoLoginAndRememberPasswordOptions() {
     QVERIFY(remember != nullptr);
     QVERIFY(auto_login->isChecked());
     QVERIFY(!remember->isChecked());
+}
+
+void TestClientCore::loginPageAccessibleNames() {
+    LoginPage page;
+    auto* host = page.findChild<QLineEdit*>(QStringLiteral("ServerHostEdit"));
+    auto* port = page.findChild<QSpinBox*>(QStringLiteral("ServerPortSpin"));
+    auto* username = page.findChild<QLineEdit*>(QStringLiteral("UsernameEdit"));
+    auto* password = page.findChild<QLineEdit*>(QStringLiteral("PasswordEdit"));
+    auto* nickname = page.findChild<QLineEdit*>(QStringLiteral("NicknameEdit"));
+    QVERIFY(host != nullptr);
+    QVERIFY(port != nullptr);
+    QVERIFY(username != nullptr);
+    QVERIFY(password != nullptr);
+    QVERIFY(nickname != nullptr);
+    QCOMPARE(host->accessibleName(), QStringLiteral("服务器"));
+    QCOMPARE(port->accessibleName(), QStringLiteral("端口"));
+    QCOMPARE(username->accessibleName(), QStringLiteral("用户名"));
+    QCOMPARE(password->accessibleName(), QStringLiteral("密码"));
+    QCOMPARE(nickname->accessibleName(), QStringLiteral("昵称"));
 }
 
 void TestClientCore::loginPageReloadsRememberedPasswordAfterLogout() {

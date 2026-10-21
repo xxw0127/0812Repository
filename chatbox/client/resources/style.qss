@@ -80,6 +80,11 @@ QPushButton {
     padding: 8px 12px;
 }
 
+QPushButton:focus {
+    border: 2px solid #0052FF;
+    padding: 6px 10px;
+}
+
 QPushButton:hover {
     background: #E6E8EC;
 }
@@ -103,6 +108,11 @@ QPushButton#PrimaryButton:hover {
     background: #0046DD;
 }
 
+QPushButton#PrimaryButton:focus {
+    border: 2px solid #0052FF;
+    padding: 6px 10px;
+}
+
 QPushButton#PrimaryButton:pressed {
     background: #003ECC;
 }
@@ -121,6 +131,11 @@ QPushButton#SendButton {
 
 QPushButton#SendButton:hover {
     background: #0046DD;
+}
+
+QPushButton#SendButton:focus {
+    border: 2px solid #0052FF;
+    padding: 6px 12px;
 }
 
 QPushButton#SendButton:pressed {
@@ -206,8 +221,12 @@ QStatusBar QLabel {
 QListWidget {
     background: transparent;
     border: none;
-    outline: 0;
     padding: 0;
+}
+
+QListWidget:focus {
+    border: 2px solid #0052FF;
+    border-radius: 10px;
 }
 
 QListWidget::item {
@@ -266,6 +285,10 @@ QCheckBox::indicator:checked {
     image: url(:/icons/check.png);
 }
 
+QCheckBox:focus::indicator {
+    border: 2px solid #0052FF;
+}
+
 QDialogButtonBox QPushButton {
     min-width: 72px;
 }
@@ -298,6 +321,18 @@ QToolButton#MoreButton, QToolButton#AdvancedOptionsButton {
     border: none;
     border-radius: 12px;
     padding: 0px;
+}
+
+QToolButton:focus {
+    background: #E6E8EC;
+    border: 2px solid #0052FF;
+    border-radius: 8px;
+}
+
+QToolButton#MoreButton:focus, QToolButton#AdvancedOptionsButton:focus {
+    background: #E6E8EC;
+    border: 2px solid #0052FF;
+    border-radius: 12px;
 }
 
 QToolButton#MoreButton:hover, QToolButton#AdvancedOptionsButton:hover {

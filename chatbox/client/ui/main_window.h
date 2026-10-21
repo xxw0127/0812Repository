@@ -68,6 +68,7 @@ private slots:
     void onSendClicked();
     void onRoomClicked(QListWidgetItem* item);
     void onConversationClicked(QListWidgetItem* item);
+    void selectAdjacentConversation(int delta);
     void onFriendAvatarClicked(QListWidgetItem* item);
     void openOwnProfile();
     void onProfileSaveRequested(const QString& nickname,

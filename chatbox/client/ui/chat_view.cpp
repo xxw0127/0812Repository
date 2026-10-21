@@ -22,6 +22,7 @@ ChatView::ChatView(QWidget* parent) : QTextBrowser(parent) {
     // QTextBrowser defaults to ClickFocus; keyboard users need to reach the
     // message menu through the normal Tab chain.
     setFocusPolicy(Qt::StrongFocus);
+    setAccessibleName("聊天记录");
     setMouseTracking(true);
     if (viewport() != nullptr) {
         viewport()->setMouseTracking(true);
