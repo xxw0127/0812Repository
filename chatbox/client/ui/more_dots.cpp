@@ -8,8 +8,9 @@ namespace chatbox::client {
 
 QIcon moreDotsIcon(const QColor& color) {
     const int canvas = 44;
-    const int dot = 11;
+    const int dot = 10;
     const int gap = 4;
+    const qreal corner = 2.5;
     const int total = dot * 3 + gap * 2;
 
     QPixmap pixmap(canvas, canvas);
@@ -22,7 +23,8 @@ QIcon moreDotsIcon(const QColor& color) {
     const qreal left = (canvas - total) / 2.0;
     const qreal top = (canvas - dot) / 2.0;
     for (int i = 0; i < 3; ++i) {
-        painter.drawEllipse(QRectF(left + i * (dot + gap), top, dot, dot));
+        painter.drawRoundedRect(QRectF(left + i * (dot + gap), top, dot, dot),
+                                corner, corner);
     }
     painter.end();
     return QIcon(pixmap);

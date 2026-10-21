@@ -290,7 +290,7 @@ QToolTip {
     padding: 6px 8px;
 }
 QToolButton#MoreButton, QToolButton#AdvancedOptionsButton {
-    background: #EEF0F3;
+    background: transparent;
     border: none;
     border-radius: 12px;
     padding: 0px;

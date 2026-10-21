@@ -6,7 +6,7 @@
 
 namespace chatbox::client {
 
-// Three filled, evenly spaced dots for the compact "more" button.
+// Three rounded-square dots for the compact "more" button.
 QIcon moreDotsIcon(const QColor& color = QColor(10, 11, 13));
 
 }  // namespace chatbox::client
