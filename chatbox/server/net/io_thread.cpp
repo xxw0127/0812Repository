@@ -22,10 +22,12 @@ constexpr std::size_t kReadChunk = 8192;
 }  // namespace
 
 IoThread::IoThread(int id, FrameHandler handler, int idle_timeout_sec,
-                   CloseHandler close_handler, bool proxy_protocol)
+                   CloseHandler close_handler, bool proxy_protocol,
+                   ProxyRekeyHandler proxy_rekey_handler)
     : id_(id),
       handler_(std::move(handler)),
       close_handler_(std::move(close_handler)),
+      proxy_rekey_handler_(std::move(proxy_rekey_handler)),
       idle_timeout_sec_(idle_timeout_sec),
       proxy_protocol_(proxy_protocol) {}
 
@@ -376,6 +378,7 @@ void IoThread::handleRead(const Connection::Ptr& connection) {
     }
 
     if (connection->proxyHeaderPending()) {
+        const bool had_pending = connection->proxyHeaderPending();
         std::string proxy_error;
         if (!connection->tryParseProxyHeader(proxy_error)) {
             metrics().protocol_errors.fetch_add(1, std::memory_order_relaxed);
@@ -387,6 +390,17 @@ void IoThread::handleRead(const Connection::Ptr& connection) {
         }
         if (connection->proxyHeaderPending()) {
             return;
+        }
+        if (had_pending && proxy_rekey_handler_) {
+            std::string rekey_error;
+            if (!proxy_rekey_handler_(connection->id(), connection->peerIp(), rekey_error)) {
+                logMessage(LogLevel::kWarn, "io",
+                           "thread " + std::to_string(id_) + " conn=" +
+                               std::to_string(connection->id()) +
+                               " rekey rejected: " + rekey_error);
+                closeConnection(connection, rekey_error);
+                return;
+            }
         }
     }
 

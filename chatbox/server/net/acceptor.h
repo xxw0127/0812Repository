@@ -15,7 +15,7 @@ namespace chatbox {
 class Acceptor {
 public:
     Acceptor(int port, std::vector<IoThread*> io_threads, ConnectionLimiter& limiter,
-             std::string listen_address);
+             std::string listen_address, bool proxy_protocol = false);
     ~Acceptor();
 
     Acceptor(const Acceptor&) = delete;
@@ -33,6 +33,7 @@ private:
     std::vector<IoThread*> io_threads_;
     ConnectionLimiter& limiter_;
     std::string listen_address_;
+    bool proxy_protocol_ = false;
     int listen_fd_ = -1;
     int epoll_fd_ = -1;
     int event_fd_ = -1;

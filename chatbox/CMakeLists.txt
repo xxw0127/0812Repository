@@ -102,3 +102,11 @@ add_executable(test_registration_rate_limiter
 target_include_directories(test_registration_rate_limiter PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(test_registration_rate_limiter PRIVATE Threads::Threads)
 add_test(NAME registration_rate_limiter COMMAND test_registration_rate_limiter)
+
+add_executable(test_connection_limiter tests/test_connection_limiter.cpp)
+target_link_libraries(test_connection_limiter PRIVATE chatbox_net)
+add_test(NAME connection_limiter COMMAND test_connection_limiter)
+
+add_executable(test_connection_proxy tests/test_connection_proxy.cpp)
+target_link_libraries(test_connection_proxy PRIVATE chatbox_net)
+add_test(NAME connection_proxy COMMAND test_connection_proxy)

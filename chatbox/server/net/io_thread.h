@@ -19,9 +19,12 @@ public:
     // Return false to close the connection after handling the frame.
     using FrameHandler = std::function<bool(const Connection::Ptr&, const Frame&, IoThread&)>;
     using CloseHandler = std::function<void(uint64_t)>;
+    using ProxyRekeyHandler =
+        std::function<bool(uint64_t, const std::string&, std::string&)>;
 
     IoThread(int id, FrameHandler handler, int idle_timeout_sec,
-             CloseHandler close_handler = nullptr, bool proxy_protocol = false);
+             CloseHandler close_handler = nullptr, bool proxy_protocol = false,
+             ProxyRekeyHandler proxy_rekey_handler = nullptr);
     ~IoThread();
 
     IoThread(const IoThread&) = delete;
@@ -60,6 +63,7 @@ private:
     int id_;
     FrameHandler handler_;
     CloseHandler close_handler_;
+    ProxyRekeyHandler proxy_rekey_handler_;
     int idle_timeout_sec_;
     bool proxy_protocol_ = false;
     int epoll_fd_ = -1;

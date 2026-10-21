@@ -20,11 +20,12 @@ constexpr int kMaxEvents = 16;
 }  // namespace
 
 Acceptor::Acceptor(int port, std::vector<IoThread*> io_threads, ConnectionLimiter& limiter,
-                   std::string listen_address)
+                   std::string listen_address, bool proxy_protocol)
     : port_(port),
       io_threads_(std::move(io_threads)),
       limiter_(limiter),
-      listen_address_(std::move(listen_address)) {}
+      listen_address_(std::move(listen_address)),
+      proxy_protocol_(proxy_protocol) {}
 
 Acceptor::~Acceptor() {
     stop();
@@ -213,7 +214,8 @@ void Acceptor::run() {
                 ++next_io_;
 
                 std::string limit_error;
-                if (!limiter_.acquire(connection_id, client_ip, limit_error)) {
+                if (!limiter_.acquire(connection_id, client_ip, limit_error,
+                                      proxy_protocol_)) {
                     logMessage(LogLevel::kWarn, "acceptor",
                                "reject conn=" + std::to_string(connection_id) + " from " +
                                    client_ip + ": " + limit_error);

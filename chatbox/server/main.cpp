@@ -426,7 +426,11 @@ int main(int argc, char** argv) {
                 sessions.unbindByConnection(connection_id);
                 connection_limiter.release(connection_id);
             },
-            config.proxy_protocol);
+            config.proxy_protocol,
+            [&connection_limiter](uint64_t connection_id, const std::string& ip,
+                                  std::string& rekey_error) {
+                return connection_limiter.rekey(connection_id, ip, rekey_error);
+            });
         if (!io_thread->start(error)) {
             chatbox::logMessage(LogLevel::kError, "main",
                                  "failed to start IO thread " + std::to_string(i) + ": " + error);
@@ -442,7 +446,7 @@ int main(int argc, char** argv) {
     }
 
     chatbox::Acceptor acceptor(config.port, io_thread_refs, connection_limiter,
-                                config.listen_address);
+                                config.listen_address, config.proxy_protocol);
     if (!acceptor.start(error)) {
         chatbox::logMessage(LogLevel::kError, "main", "failed to start acceptor: " + error);
         worker_pool.stop();
