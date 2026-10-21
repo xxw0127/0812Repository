@@ -71,7 +71,7 @@ SakuraFrp 免费 TCP 隧道把服务暴露到公网，供朋友/同学使用；�
 
 ```text
 公网客户端
-  -> <SAKURA_NODE_HOST>:<SAKURA_PORT>   (SakuraFrp TCP 节点)
+  -> frp-oil.com:15318                (SakuraFrp TCP 节点)
   -> frpc（宿舍服务器主动外连，token/tunnel）
   -> 127.0.0.1:9444  nginx stream（TLS 终止 + 接收 PROXY v2）
   -> 127.0.0.1:9100  chatbox（--proxy-protocol）
@@ -91,9 +91,11 @@ SakuraFrp 免费 TCP 隧道把服务暴露到公网，供朋友/同学使用；�
 
 - 隧道类型：**TCP**。
 - 本地目标：`127.0.0.1:9444`（专供隧道，和局域网 9443 分离）。
-- 节点：用户选择延迟可接受的免费节点；记录节点域名 `<SAKURA_NODE_HOST>` 和远程端口
-  `<SAKURA_PORT>`。
-- 高级设置：`proxy_protocol_version = v2`，让 frpc 在转发给 nginx 前附加 PROXY v2 头。
+- 节点：用户已选择节点，公网端点为 **`frp-oil.com:15318`**（节点 `frp-oil.com`，
+  远程端口 `15318`）。
+- 高级设置：在 SakuraFrp **用户资料页**开启“高级用户模式”，然后在隧道编辑页的
+  “自定义设置”填入 `proxy_protocol_version = v2`，让 frpc 在转发给 nginx 前附加
+  PROXY v2 头。已确认保存成功。
 - 客户端：使用 SakuraFrp 官方分发的 `frpc`（要求版本号包含 `sakura`，建议
   `0.51.0-sakura-14` 或更新），首次用 `-f <token>:<tunnel_id> -w` 拉取配置，生成
   `/etc/chatbox/frpc.ini`（root 600）；systemd 只执行 `frpc -c
@@ -146,17 +148,17 @@ server {
 - 扩展 `deploy/gen_certs.sh`，让 `SAN_DNS` 支持逗号分隔的多个 DNS，生成：
   - `IP:192.168.2.240`
   - `DNS:chatbox.local`
-  - `DNS:<SAKURA_NODE_HOST>`
+  - `DNS:frp-oil.com`
 - 重新签发 `chat.crt` 后 `nginx -t && systemctl reload nginx`。
-- 用 `openssl s_client -connect <SAKURA_NODE_HOST>:<SAKURA_PORT> -servername
-  <SAKURA_NODE_HOST> -CAfile ca.crt` 验证 SAN 和链。
+- 用 `openssl s_client -connect frp-oil.com:15318 -servername frp-oil.com
+  -CAfile ca.crt` 验证 SAN 和链。
 - 节点域名变化时只重签服务端证书并更新客户端连接地址；不重建 CA。
 
 ### 5.4 客户端
 
 - 不修改 TLS 校验逻辑，不绕过主机名校验。
 - 客户端包中的 `certs/ca.crt` 保持不变；旧客户端可以连新证书。
-- 公网用户首次使用时在登录页填写 `<SAKURA_NODE_HOST>` 和 `<SAKURA_PORT>`，勾选 TLS；
+- 公网用户首次使用时在登录页填写 `frp-oil.com` 和 `15318`，勾选 TLS；
   QSettings 会记住。
 - 默认地址仍保留 `.240:9443`，避免破坏宿舍局域网使用。
 - 文档写清楚：公网地址只在朋友/同学之间分发；客户端包必须带 `certs/ca.crt`。
@@ -275,7 +277,7 @@ server {
 ## 8. 验收标准
 
 1. 公网：从宿舍外网络（手机热点或外部主机）用客户端连接
-   `<SAKURA_NODE_HOST>:<SAKURA_PORT>`，TLS 校验通过，能登录/注册/收发消息。
+   `frp-oil.com:15318`，TLS 校验通过，能登录/注册/收发消息。
 2. 局域网：`192.168.2.240:9443` 仍能连接，行为不变。
 3. 证书：`openssl s_client` 显示 SAN 包含节点域名，链由 `ChatBox Dev CA` 签发；客户端不
    出现证书错误。
@@ -291,13 +293,19 @@ server {
 9. 24 小时：连续运行 24 小时，隧道在线、无异常退出、无磁盘/内存耗尽；记录断线次数。
 10. 额度：SakuraFrp 面板显示流量/限速状态；文档写明超额后的行为。
 
-## 9. 实施前置条件（需要用户提供/确认）
+## 9. 实施前置条件（已确认/待放置）
 
-- SakuraFrp 账号已完成所需实名认证（如平台要求）。
-- 创建好 TCP 隧道：本地 `127.0.0.1:9444`，记录节点域名、远程端口、隧道 ID。
-- 确认该隧道可启用高级模式并设置 `proxy_protocol_version = v2`。
-- 提供 token 和隧道 ID 的方式：**不要发在聊天里**；实施时由用户在服务器上写入
-  `/etc/chatbox/sakurafrp.env`（root 600），或通过本地临时文件 scp 后删除。
+已确认：
+
+- TCP 隧道已创建，本地目标 `127.0.0.1:9444`；公网端点 `frp-oil.com:15318`。
+- 已开启高级用户模式，隧道自定义设置 `proxy_protocol_version = v2` 已保存。
+- 隧道访问密码和 TOTP 均留空（未启用访问认证）。
+- 设计已通过评审。
+
+待放置：
+
+- token 和隧道 ID：**不要发在聊天里**；实施时由用户在服务器上写入 root 600 的临时
+  文件，生成 `/etc/chatbox/frpc.ini` 后删除临时文件。
 - 确认笔记本可以长期插电、联网，且接受合盖不睡眠的设置。
 - 确认公网地址只发给朋友/同学；客户端包会带本地 CA。
 
@@ -310,10 +318,16 @@ server {
 - 所有配置/脚本进入代码仓库（token、DB 密码、私钥除外）；部署后提交。
 - 免费方案的额度/节点稳定性是外部依赖，不能通过代码消除。
 
-## 11. 待确认问题
+## 11. 已确认与剩余运行假设
 
-1. SakuraFrp 面板是否允许免费账号使用高级模式 + `proxy_protocol_version = v2`？
-2. 用户是否能提供节点域名/远程端口/隧道 ID，并按安全方式放置 token？
-3. 是否接受“合盖不睡眠、长期插电”的服务器设置？
-4. 公网客户端是否只分发当前 portable ZIP，并让用户手动填写节点地址/端口？
-5. 是否接受免费额度（约 5 GiB/月、10 Mbps）用完后公网不可用，局域网仍可用？
+已确认：
+
+1. SakuraFrp 高级用户模式可用，`proxy_protocol_version = v2` 已保存。
+2. 公网端点 `frp-oil.com:15318`；token 和隧道 ID 通过 root 600 文件放置，不进聊天。
+3. 设计已通过。
+
+剩余运行假设（由运维承担，不阻塞实施）：
+
+1. 笔记本长期插电、联网，接受合盖不睡眠；断电/断网由人工恢复。
+2. 公网客户端分发当前 portable ZIP，用户首次手动填写节点地址/端口。
+3. 免费额度（约 5 GiB/月、10 Mbps）用完后公网不可用，局域网仍可用。
