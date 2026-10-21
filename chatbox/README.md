@@ -45,14 +45,6 @@ sudo mysql < deploy/migrate_profiles.sql
 `signature VARCHAR(128)`、`avatar MEDIUMBLOB`、`avatar_version INT UNSIGNED`，
 已有用户默认空签名、无头像、版本 0。生产库已于 2026-10-19 执行并校验。
 
-已有数据库把默认房间从「大厅 N」改为「群聊 X」时：
-
-```bash
-sudo mysql < deploy/migrate_room_names.sql
-```
-
-脚本只更新 id 1–10 且名称为旧值的房间，重复执行不会覆盖手动改过的名字；id 11（技术交流）与 12（闲聊）保持原样。
-
 创建应用账号（密码换成自己的强密码）：
 
 ```sql

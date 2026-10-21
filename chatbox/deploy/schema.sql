@@ -41,10 +41,10 @@ CREATE TABLE IF NOT EXISTS rooms (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT IGNORE INTO rooms (id, name, max_members) VALUES
-(1, '群聊A', 1000), (2, '群聊B', 1000), (3, '群聊C', 1000),
-(4, '群聊D', 1000), (5, '群聊E', 1000), (6, '群聊F', 1000),
-(7, '群聊G', 1000), (8, '群聊H', 1000), (9, '群聊I', 1000),
-(10, '群聊J', 1000), (11, '技术交流', 500), (12, '闲聊', 500);
+(1, '群聊A', 1000), (2, '大厅 2', 1000), (3, '大厅 3', 1000),
+(4, '大厅 4', 1000), (5, '大厅 5', 1000), (6, '大厅 6', 1000),
+(7, '大厅 7', 1000), (8, '大厅 8', 1000), (9, '大厅 9', 1000),
+(10, '大厅 10', 1000), (11, '技术交流', 500), (12, '闲聊', 500);
 
 CREATE TABLE IF NOT EXISTS messages (
     id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
