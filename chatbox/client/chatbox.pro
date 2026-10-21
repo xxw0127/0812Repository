@@ -49,6 +49,11 @@ SOURCES += \
     ui/friend_item_delegate.cpp \
     ui/friend_list_widget.cpp \
     ui/main_window.cpp \
+    ui/main_window_chat.cpp \
+    ui/main_window_contacts.cpp \
+    ui/main_window_net.cpp \
+    ui/main_window_profile.cpp \
+    ui/main_window_tray.cpp \
     ui/message_search_dialog.cpp \
     ui/settings_dialog.cpp \
     ui/user_search_dialog.cpp \
@@ -87,6 +92,7 @@ HEADERS += \
     ui/friend_item_delegate.h \
     ui/friend_list_widget.h \
     ui/main_window.h \
+    ui/main_window_support.h \
     ui/message_search_dialog.h \
     ui/settings_dialog.h \
     ui/user_search_dialog.h \

@@ -74,6 +74,24 @@ QString readClientSource(const QString& relative) {
     return QString::fromUtf8(file.readAll());
 }
 
+QString readMainWindowSource() {
+    const QStringList files = {
+        QStringLiteral("ui/main_window.cpp"),
+        QStringLiteral("ui/main_window_chat.cpp"),
+        QStringLiteral("ui/main_window_contacts.cpp"),
+        QStringLiteral("ui/main_window_profile.cpp"),
+        QStringLiteral("ui/main_window_tray.cpp"),
+        QStringLiteral("ui/main_window_net.cpp"),
+        QStringLiteral("ui/main_window_support.h"),
+    };
+    QString source;
+    for (const QString& file : files) {
+        source += readClientSource(file);
+        source += QLatin1Char('\n');
+    }
+    return source;
+}
+
 QString sourceSection(const QString& source, const QString& marker,
                       const QString& next_marker) {
     const int start = source.indexOf(marker);
@@ -1789,7 +1807,7 @@ void TestClientCore::focusRingFilterHonoursKeyboardAndMouse() {
 }
 
 void TestClientCore::mainWindowExposesKeyboardShortcuts() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY(source.contains(QStringLiteral("Ctrl+F")));
     QVERIFY(source.contains(QStringLiteral("Ctrl+Shift+F")));
@@ -1801,7 +1819,7 @@ void TestClientCore::mainWindowExposesKeyboardShortcuts() {
 }
 
 void TestClientCore::mainWindowAccessibilityLabels() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY(source.contains(QStringLiteral("more_button_->setAccessibleName")));
     QVERIFY(source.contains(QStringLiteral("send_button_->setAccessibleName")));
@@ -1816,7 +1834,7 @@ void TestClientCore::mainWindowAccessibilityLabels() {
 }
 
 void TestClientCore::friendItemsExposeAccessibleText() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY(source.contains(QStringLiteral("Qt::AccessibleTextRole")));
 }
@@ -1934,15 +1952,8 @@ void TestClientCore::roomAvatarIsBrandBadge() {
 // The tray must show the brand mark, not Qt's stock information icon. The
 // wiring itself needs a live system tray, so this is a source guard.
 void TestClientCore::trayIconUsesBrandIcon() {
-    QString source_path = QCoreApplication::applicationDirPath() +
-                          QStringLiteral("/../../ui/main_window.cpp");
-    if (!QFile::exists(source_path)) {
-        source_path = QStringLiteral("../ui/main_window.cpp");
-    }
-    QFile source_file(source_path);
-    QVERIFY2(source_file.open(QIODevice::ReadOnly | QIODevice::Text),
-             qPrintable(source_path + ": " + source_file.errorString()));
-    const QString source = QString::fromUtf8(source_file.readAll());
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "main window sources must be readable");
     QVERIFY2(!source.contains(QStringLiteral("SP_MessageBoxInformation")),
              "tray must not fall back to the stock Qt information icon");
     QVERIFY2(source.contains(QStringLiteral(":/app.ico")),
@@ -1955,15 +1966,8 @@ void TestClientCore::trayIconUsesBrandIcon() {
 // version 0" path used for other peers, and repaint when an avatar arrives.
 // The list needs a live connection, so this is a source guard.
 void TestClientCore::memberListShowsAvatarFromCache() {
-    QString source_path = QCoreApplication::applicationDirPath() +
-                          QStringLiteral("/../../ui/main_window.cpp");
-    if (!QFile::exists(source_path)) {
-        source_path = QStringLiteral("../ui/main_window.cpp");
-    }
-    QFile source_file(source_path);
-    QVERIFY2(source_file.open(QIODevice::ReadOnly | QIODevice::Text),
-             qPrintable(source_path + ": " + source_file.errorString()));
-    const QString source = QString::fromUtf8(source_file.readAll());
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "main window sources must be readable");
     QVERIFY2(source.contains(QStringLiteral("QIcon MainWindow::memberAvatarIcon(")),
              "member list must resolve icons through the cache-aware helper");
     QVERIFY2(source.contains(QStringLiteral("item->setIcon(memberAvatarIcon(")),
@@ -1983,15 +1987,8 @@ void TestClientCore::memberListShowsAvatarFromCache() {
 // (483 -> #E8684A), so the same user showed two different colours.
 // The rendering needs widgets, so this is a source guard.
 void TestClientCore::fallbackAvatarPaletteIsSingleSource() {
-    QString source_path = QCoreApplication::applicationDirPath() +
-                          QStringLiteral("/../../ui/main_window.cpp");
-    if (!QFile::exists(source_path)) {
-        source_path = QStringLiteral("../ui/main_window.cpp");
-    }
-    QFile source_file(source_path);
-    QVERIFY2(source_file.open(QIODevice::ReadOnly | QIODevice::Text),
-             qPrintable(source_path + ": " + source_file.errorString()));
-    const QString source = QString::fromUtf8(source_file.readAll());
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.isEmpty(), "main window sources must be readable");
     QVERIFY2(!source.contains(QStringLiteral("#9B59B6")) &&
                  !source.contains(QStringLiteral("#4CAF50")) &&
                  !source.contains(QStringLiteral("#F5A623")),
@@ -2005,20 +2002,8 @@ void TestClientCore::fallbackAvatarPaletteIsSingleSource() {
 // string must not come back. Rendering needs widgets, so this is a source
 // guard; brandIdentifiersAreUnified covers the internal identifiers.
 void TestClientCore::appTitleUsesBrandName() {
-    const auto read_source = [](const QString& relative) -> QString {
-        QString path = QCoreApplication::applicationDirPath() +
-                       QStringLiteral("/../../") + relative;
-        if (!QFile::exists(path)) {
-            path = QStringLiteral("../") + relative;
-        }
-        QFile file(path);
-        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            return QString();
-        }
-        return QString::fromUtf8(file.readAll());
-    };
-    const QString window = read_source(QStringLiteral("ui/main_window.cpp"));
-    QVERIFY2(!window.isEmpty(), "ui/main_window.cpp must be readable");
+    const QString window = readMainWindowSource();
+    QVERIFY2(!window.isEmpty(), "main window sources must be readable");
     QVERIFY2(!window.contains(QStringLiteral("ChatBox Client")),
              "the old product name must not come back");
     QVERIFY2(window.contains(QStringLiteral("setWindowTitle(\"ChatBox\"")),
@@ -2028,7 +2013,7 @@ void TestClientCore::appTitleUsesBrandName() {
     QVERIFY2(window.contains(QStringLiteral("ChatBox (%1)")),
              "unread-count title must use the ChatBox brand");
 
-    const QString login = read_source(QStringLiteral("ui/login_page.cpp"));
+    const QString login = readClientSource(QStringLiteral("ui/login_page.cpp"));
     QVERIFY2(!login.isEmpty(), "ui/login_page.cpp must be readable");
     QVERIFY2(login.contains(QStringLiteral("QLabel(\"ChatBox\"")),
              "login card title must use the ChatBox brand");
@@ -2156,7 +2141,7 @@ void TestClientCore::installerTemplateTargetsChatboxExe() {
 
 // 私聊不提供 @ 功能：输入区的 @ 按钮只在房间出现，私聊消息不再触发“有人@你”。
 void TestClientCore::privateChatHasNoMentionEntry() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     const QString private_section = functionSection(
         source, QStringLiteral("void MainWindow::selectPrivate("));
@@ -2169,7 +2154,7 @@ void TestClientCore::privateChatHasNoMentionEntry() {
 }
 
 void TestClientCore::privatePushSkipsMentionNotification() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     const QString private_push = caseSection(
         source, QStringLiteral("case chatbox::kCmdPrivatePush:"));
@@ -2184,7 +2169,7 @@ void TestClientCore::privatePushSkipsMentionNotification() {
 
 // 头部只留 头像 + 标题 + ⋯；资料入口是头像，消息搜索在 ⋯ 菜单里。
 void TestClientCore::headerUsesAvatarAndMoreMenu() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY2(!source.contains(QStringLiteral("context_profile_button_")),
              "the header must not keep a separate profile button");
@@ -2229,7 +2214,7 @@ void TestClientCore::headerUsesAvatarAndMoreMenu() {
 
 // 系统弹窗是独立开关：关掉后仍保留任务栏闪烁，但不再调用托盘气泡。
 void TestClientCore::systemPopupNotificationIsOptional() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY2(source.contains(QStringLiteral("settings/system_popup")),
              "the system-popup preference must be persisted");
@@ -2312,7 +2297,7 @@ void TestClientCore::unreadBadgesHonourAlertsSwitch() {
     QCOMPARE(chatbox::client::displayedUnread(true, 5), 5);
     QCOMPARE(chatbox::client::displayedUnread(false, 5), 0);
     QCOMPARE(chatbox::client::displayedUnread(true, -1), 0);
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     const QString refresh = functionSection(
         source, QStringLiteral("void MainWindow::refreshFriendListView("));
     QVERIFY2(refresh.contains(QStringLiteral("displayedUnread(notifications_enabled_")),
@@ -2626,7 +2611,7 @@ void TestClientCore::buildScriptShipsSqlDriver() {
 // 两个选择入口都必须先 loadInitialHistory()，
 // 预渲染本身只读本地库并把结果交给 replaceHistory()。
 void TestClientCore::conversationOpensFromLocalHistoryFirst() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     const QString room = functionSection(source, QStringLiteral("void MainWindow::selectRoom("));
     const QString priv = functionSection(source, QStringLiteral("void MainWindow::selectPrivate("));
@@ -2640,7 +2625,7 @@ void TestClientCore::conversationOpensFromLocalHistoryFirst() {
 // 后台会话收到的推送同样要落本地库（不论是不是当前会话），
 // 私聊推送还要补一条会话摘要，便于离线侧栏显示。
 void TestClientCore::incomingPushesArePersistedForOtherConversations() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     const QString room_push = caseSection(source, QStringLiteral("case chatbox::kCmdChatPush:"));
     const QString private_push = caseSection(source, QStringLiteral("case chatbox::kCmdPrivatePush:"));
     QVERIFY(room_push.contains(QStringLiteral("history_store_.saveMessage(")));
@@ -2651,7 +2636,7 @@ void TestClientCore::incomingPushesArePersistedForOtherConversations() {
 // 后台会话的撤回推送同样要落到本地历史库：
 // 否则本地副本里还留着用户已经撤回的正文。
 void TestClientCore::recallPushUpdatesBackgroundHistory() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     const QString recall = caseSection(source, QStringLiteral("case chatbox::kCmdMessageRecall:"));
     QVERIFY(!recall.isEmpty());
     QVERIFY(recall.contains(QStringLiteral("history_store_.markRecalled(")));
@@ -2701,7 +2686,7 @@ void TestClientCore::loginPageHidesServerFieldsBehindMoreDots() {
 }
 
 void TestClientCore::layoutWeightsFollowAudit() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY(!source.contains(QStringLiteral("room_list_->setFixedHeight(58)")));
     QVERIFY(source.contains(QStringLiteral("room_list_->setMinimumHeight(56)")));
@@ -2716,7 +2701,7 @@ void TestClientCore::layoutWeightsFollowAudit() {
 }
 
 void TestClientCore::adaptiveLayoutUsesSplitter() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY(source.contains(QStringLiteral("setMinimumSize(880, 560)")));
     QVERIFY(source.contains(QStringLiteral("QSplitter(Qt::Horizontal")));
@@ -2766,7 +2751,7 @@ void TestClientCore::emptyStateShowsConfiguredCopy() {
 }
 
 void TestClientCore::emptyStatesAreWired() {
-    const QString window = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString window = readMainWindowSource();
     QVERIFY2(!window.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY(window.contains(QStringLiteral("chat_empty_state_")));
     QVERIFY(window.contains(QStringLiteral("friends_empty_state_")));
@@ -2821,7 +2806,7 @@ void TestClientCore::messageInputHandlesKeyboardAndPlainPaste() {
 }
 
 void TestClientCore::messageComposerUsesByteCounter() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY(source.contains(QStringLiteral("MessageInput")));
     QVERIFY(source.contains(QStringLiteral("MessageByteCounter")));
@@ -2832,7 +2817,7 @@ void TestClientCore::messageComposerUsesByteCounter() {
 }
 
 void TestClientCore::dangerousActionsUseChineseDialogs() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     QVERIFY(source.contains(QStringLiteral("confirmDanger")));
     QVERIFY(source.contains(QStringLiteral("撤回消息")));
@@ -2968,7 +2953,7 @@ void TestClientCore::credentialStoreEncryptsSavedPassword() {
 }
 
 void TestClientCore::mainWindowUsesIncrementalAppendForIncomingMessages() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
     const QString add = functionSection(
         source, QStringLiteral("void MainWindow::addIncomingMessage("));
@@ -3008,7 +2993,7 @@ void TestClientCore::settingsDialogDefaultsToPublicServer() {
 // 离线模式必须是只读的本地视图：所有写操作都要被挡住，
 // 搜索与翻页改走本地历史库；断网时自动进入，不再保留手动入口。
 void TestClientCore::offlineModeIsReadOnlyAndLocal() {
-    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString source = readMainWindowSource();
     QVERIFY(source.contains(QStringLiteral("enterOfflineMode(")));
     QVERIFY(source.contains(QStringLiteral("enterOfflineMode(true)")));
     QVERIFY(source.contains(QStringLiteral("离线模式 · 仅显示本地记录")));
@@ -3061,7 +3046,7 @@ void TestClientCore::settingsDialogExposesHistoryActions() {
     QVERIFY(dialog.contains(QStringLiteral("historyClearAllRequested")));
     QVERIFY(dialog.contains(QStringLiteral("historyClearOlderRequested")));
     QVERIFY(dialog.contains(QStringLiteral("不影响服务器历史")));
-    const QString window = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    const QString window = readMainWindowSource();
     QVERIFY(window.contains(QStringLiteral("settings/history/path")));
     QVERIFY(window.contains(QStringLiteral("moveTo(")));
 }
