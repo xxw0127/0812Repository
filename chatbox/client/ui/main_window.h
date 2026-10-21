@@ -24,6 +24,7 @@ class FriendListWidget;
 class NetworkThread;
 class ProfileDialog;
 class ChatView;
+class EmptyState;
 class MessageActionBar;
 class QAction;
 class QCloseEvent;
@@ -164,6 +165,7 @@ private:
     void refreshOfflineAfterClear();
     // 离线翻页：从本地历史库取更早的一页。
     void loadOlderFromLocal();
+    void updateChatEmptyState();
     void resetContext();
     void renderCurrentConversation(ScrollMode mode);
     void addIncomingMessage(const chatbox::client::ChatMessage& message);
@@ -201,8 +203,11 @@ private:
     QWidget* chat_page_ = nullptr;
     QListWidget* room_list_ = nullptr;
     FriendListWidget* conversation_list_ = nullptr;
+    QStackedWidget* conversation_stack_ = nullptr;
+    EmptyState* friends_empty_state_ = nullptr;
     QListWidget* contact_list_ = nullptr;
-    QListWidget* member_list_ = nullptr;    QLabel* context_label_ = nullptr;
+    QListWidget* member_list_ = nullptr;
+    QLabel* context_label_ = nullptr;
     QLabel* context_avatar_ = nullptr;
     QToolButton* more_button_ = nullptr;
     QMenu* more_menu_ = nullptr;
@@ -214,6 +219,8 @@ private:
     QLabel* reply_label_ = nullptr;
     QPushButton* reply_cancel_button_ = nullptr;
     ChatView* chat_view_ = nullptr;
+    QStackedWidget* chat_stack_ = nullptr;
+    EmptyState* chat_empty_state_ = nullptr;
     MessageActionBar* message_action_bar_ = nullptr;
     quint64 action_bar_message_id_ = 0;
     QLineEdit* input_edit_ = nullptr;

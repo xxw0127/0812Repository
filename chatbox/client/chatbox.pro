@@ -39,6 +39,7 @@ SOURCES += \
     core/avatar_cache.cpp \
     core/history_store.cpp \
     ui/chat_view.cpp \
+    ui/empty_state.cpp \
     ui/message_action_bar.cpp \
     ui/login_page.cpp \
     ui/more_dots.cpp \
@@ -74,6 +75,7 @@ HEADERS += \
     core/friend_view.h \
     core/user_profile.h \
     ui/chat_view.h \
+    ui/empty_state.h \
     ui/message_action_bar.h \
     ui/login_page.h \
     ui/more_dots.h \

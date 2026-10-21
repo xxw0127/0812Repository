@@ -49,6 +49,7 @@
 #include "core/ui_theme.h"
 #include "core/user_profile.h"
 #include "ui/chat_view.h"
+#include "ui/empty_state.h"
 #include "ui/login_page.h"
 #include "ui/message_action_bar.h"
 #include "ui/profile_dialog.h"
@@ -206,6 +207,8 @@ private slots:
     void layoutWeightsFollowAudit();
     void adaptiveLayoutUsesSplitter();
     void textNeverSmallerThanElevenPixels();
+    void emptyStateShowsConfiguredCopy();
+    void emptyStatesAreWired();
     void loginPageShowsNicknameOnlyInRegisterMode();
     void loginPageHasAutoLoginAndRememberPasswordOptions();
     void loginPageAccessibleNames();
@@ -2709,6 +2712,45 @@ void TestClientCore::textNeverSmallerThanElevenPixels() {
         readClientSource(QStringLiteral("ui/friend_item_delegate.cpp"));
     QVERIFY2(!delegate.isEmpty(), "ui/friend_item_delegate.cpp must be readable");
     QVERIFY(!delegate.contains(QStringLiteral("setPixelSize(10)")));
+}
+
+void TestClientCore::emptyStateShowsConfiguredCopy() {
+    EmptyState state;
+    state.setIcon(QIcon(QStringLiteral(":/icons/message.png")));
+    state.setTitle(QStringLiteral("还没有消息"));
+    state.setDescription(QStringLiteral("发送第一条消息，打个招呼吧"));
+    state.setAction(QStringLiteral("开始"));
+
+    auto* icon = state.findChild<QLabel*>(QStringLiteral("EmptyStateIcon"));
+    auto* title = state.findChild<QLabel*>(QStringLiteral("EmptyStateTitle"));
+    auto* description =
+        state.findChild<QLabel*>(QStringLiteral("EmptyStateDescription"));
+    auto* action =
+        state.findChild<QPushButton*>(QStringLiteral("EmptyStateAction"));
+    QVERIFY(icon != nullptr);
+    QVERIFY(title != nullptr);
+    QVERIFY(description != nullptr);
+    QVERIFY(action != nullptr);
+    QVERIFY(icon->pixmap() != nullptr);
+    QCOMPARE(title->text(), QStringLiteral("还没有消息"));
+    QCOMPARE(description->text(), QStringLiteral("发送第一条消息，打个招呼吧"));
+    QCOMPARE(action->text(), QStringLiteral("开始"));
+    QVERIFY(!action->isHidden());
+}
+
+void TestClientCore::emptyStatesAreWired() {
+    const QString window = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!window.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(window.contains(QStringLiteral("chat_empty_state_")));
+    QVERIFY(window.contains(QStringLiteral("friends_empty_state_")));
+    QVERIFY(window.contains(QStringLiteral("还没有消息")));
+    QVERIFY(window.contains(QStringLiteral("还没有好友")));
+
+    const QString search =
+        readClientSource(QStringLiteral("ui/user_search_dialog.cpp"));
+    QVERIFY2(!search.isEmpty(), "ui/user_search_dialog.cpp must be readable");
+    QVERIFY(search.contains(QStringLiteral("EmptyState")));
+    QVERIFY(search.contains(QStringLiteral("没有找到「")));
 }
 
 // 昵称只在注册时出现：登录态点“注册”进入注册态，

@@ -56,6 +56,7 @@
 #include "core/protocol_qt.h"
 #include "core/ui_theme.h"
 #include "ui/chat_view.h"
+#include "ui/empty_state.h"
 #include "ui/login_page.h"
 #include "ui/friend_item_delegate.h"
 #include "ui/friend_list_widget.h"
@@ -422,7 +423,9 @@ QWidget* MainWindow::buildChatPage() {
     auto* conversations_label = new QLabel("好友", left_panel);
     conversations_label->setObjectName("SectionLabel");
     left->addWidget(conversations_label);
-    conversation_list_ = new FriendListWidget(left_panel);
+    conversation_stack_ = new QStackedWidget(left_panel);
+    conversation_stack_->setObjectName("ConversationStack");
+    conversation_list_ = new FriendListWidget(conversation_stack_);
     conversation_list_->setAccessibleName("会话列表");
     conversation_list_->setSelectionMode(QAbstractItemView::SingleSelection);
     conversation_list_->setFocusPolicy(Qt::StrongFocus);
@@ -430,7 +433,14 @@ QWidget* MainWindow::buildChatPage() {
     conversation_list_->setContextMenuPolicy(Qt::CustomContextMenu);
     conversation_list_->setItemDelegate(new FriendItemDelegate(conversation_list_));
     conversation_list_->setSpacing(0);
-    left->addWidget(conversation_list_, 1);
+    friends_empty_state_ = new EmptyState(conversation_stack_);
+    friends_empty_state_->setIcon(QIcon(":/icons/users.png"));
+    friends_empty_state_->setTitle("还没有好友");
+    friends_empty_state_->setDescription("点上方「搜索用户」，用昵称或 ID 找到对方");
+    conversation_stack_->addWidget(conversation_list_);
+    conversation_stack_->addWidget(friends_empty_state_);
+    conversation_stack_->setCurrentWidget(friends_empty_state_);
+    left->addWidget(conversation_stack_, 1);
 
     my_profile_button_ = new QPushButton(left_panel);
     my_profile_button_->setObjectName("MyProfileButton");
@@ -538,11 +548,21 @@ QWidget* MainWindow::buildChatPage() {
     header_layout->addLayout(header_row);
     center->addWidget(header);
 
-    chat_view_ = new ChatView(center_panel);
+    chat_stack_ = new QStackedWidget(center_panel);
+    chat_stack_->setObjectName("ChatStack");
+    chat_view_ = new ChatView(chat_stack_);
     chat_view_->setReadOnly(true);
     chat_view_->setOpenExternalLinks(false);
     chat_view_->setOpenLinks(false);
-    center->addWidget(chat_view_, 1);
+    chat_empty_state_ = new EmptyState(chat_stack_);
+    chat_empty_state_->setIcon(QIcon(":/icons/message.png"));
+    chat_empty_state_->setTitle("选择一个会话开始聊天");
+    chat_empty_state_->setDescription(
+        "从左侧选择大厅或好友；按 Ctrl+Shift+F 搜索用户");
+    chat_stack_->addWidget(chat_view_);
+    chat_stack_->addWidget(chat_empty_state_);
+    chat_stack_->setCurrentWidget(chat_empty_state_);
+    center->addWidget(chat_stack_, 1);
 
     // Floating per-message actions; lives in the viewport so it can be
     // positioned in view coordinates and disappears as soon as the pointer
@@ -1042,6 +1062,13 @@ void MainWindow::refreshFriendListView() {
         QListWidgetItem* item = findConversationItem(selected_id);
         if (item != nullptr) {
             conversation_list_->setCurrentItem(item);
+        }
+    }
+    if (conversation_stack_ != nullptr) {
+        if (friend_views_.isEmpty()) {
+            conversation_stack_->setCurrentWidget(friends_empty_state_);
+        } else {
+            conversation_stack_->setCurrentWidget(conversation_list_);
         }
     }
     refreshUnreadTitle();
@@ -4920,6 +4947,26 @@ void MainWindow::clearSession() {
     login_page_->setStatus("会话已失效，请重新登录", true);
 }
 
+void MainWindow::updateChatEmptyState() {
+    if (chat_stack_ == nullptr || chat_empty_state_ == nullptr) {
+        return;
+    }
+    if (context_type_ == ContextType::None) {
+        chat_empty_state_->setTitle("选择一个会话开始聊天");
+        chat_empty_state_->setDescription(
+            "从左侧选择大厅或好友；按 Ctrl+Shift+F 搜索用户");
+        chat_stack_->setCurrentWidget(chat_empty_state_);
+        return;
+    }
+    if (message_store_.messages().isEmpty()) {
+        chat_empty_state_->setTitle("还没有消息");
+        chat_empty_state_->setDescription("发送第一条消息，打个招呼吧");
+        chat_stack_->setCurrentWidget(chat_empty_state_);
+        return;
+    }
+    chat_stack_->setCurrentWidget(chat_view_);
+}
+
 void MainWindow::resetContext() {
     context_type_ = ContextType::None;
     current_room_id_ = 0;
@@ -4945,8 +4992,8 @@ void MainWindow::resetContext() {
     }
     if (chat_view_ != nullptr) {
         chat_view_->clear();
-    chat_view_->clearHoverState();
-    hideMessageActionBar();
+        chat_view_->clearHoverState();
+        hideMessageActionBar();
     }
     if (member_list_ != nullptr) {
         member_list_->clear();
@@ -4957,6 +5004,7 @@ void MainWindow::resetContext() {
     if (load_more_action_ != nullptr) {
         load_more_action_->setEnabled(false);
     }
+    updateChatEmptyState();
 }
 
 void MainWindow::renderCurrentConversation(ScrollMode mode) {
@@ -4979,6 +5027,7 @@ void MainWindow::renderCurrentConversation(ScrollMode mode) {
             bar->setValue(std::min(previous, bar->maximum()));
             break;
     }
+    updateChatEmptyState();
 }
 
 void MainWindow::addIncomingMessage(const chatbox::client::ChatMessage& message) {
@@ -5005,6 +5054,7 @@ void MainWindow::addIncomingMessage(const chatbox::client::ChatMessage& message)
                                                    show_sender_name),
             key);
         bar->setValue(bar->maximum());
+        updateChatEmptyState();
         return;
     }
     renderCurrentConversation(at_bottom ? ScrollMode::kBottom : ScrollMode::kPreserve);

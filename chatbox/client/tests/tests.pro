@@ -23,6 +23,7 @@ SOURCES += \
     ../core/avatar_cache.cpp \
     ../core/history_store.cpp \
     ../ui/chat_view.cpp \
+    ../ui/empty_state.cpp \
     ../ui/message_action_bar.cpp \
     ../ui/profile_dialog.cpp \
     ../ui/login_page.cpp \
@@ -47,6 +48,7 @@ HEADERS += \
     ../core/history_store.h \
     ../core/user_profile.h \
     ../ui/chat_view.h \
+    ../ui/empty_state.h \
     ../ui/message_action_bar.h \
     ../ui/profile_dialog.h \
     ../ui/login_page.h \
