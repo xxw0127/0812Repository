@@ -55,12 +55,9 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     card_layout->addLayout(top_row);
 
     auto* logo = new QLabel("C", card);
+    logo->setObjectName("AppLogo");
     logo->setFixedSize(56, 56);
     logo->setAlignment(Qt::AlignCenter);
-    logo->setStyleSheet(
-        "background: " + QString::fromLatin1(theme::kAccent) + "; color: " +
-        QString::fromLatin1(theme::kOnPrimary) +
-        "; border-radius: 28px; font-size: 28px; font-weight: 600;");
     card_layout->addWidget(logo, 0, Qt::AlignHCenter);
 
     auto* title = new QLabel("ChatBox", card);
@@ -274,9 +271,15 @@ void LoginPage::reloadSavedCredentials() {
     password_edit_->setText(saved_password);
 }
 
+void LoginPage::refreshThemeIcons() {
+    if (advanced_toggle_ != nullptr) {
+        advanced_toggle_->setIcon(chatbox::client::moreDotsIcon(QColor(theme::kInk)));
+    }
+}
+
 void LoginPage::resetToLogin() {
     setRegisterMode(false);
-    advanced_toggle_->setIcon(chatbox::client::moreDotsIcon(QColor(theme::kInk)));
+    refreshThemeIcons();
     reloadSavedCredentials();
     username_edit_->setFocus();
 }

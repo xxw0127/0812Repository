@@ -369,8 +369,6 @@ QWidget* MainWindow::buildChatPage() {
     more_button_->setFixedSize(32, 32);
     more_button_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     more_button_->setArrowType(Qt::NoArrow);
-    more_button_->setStyleSheet(
-        "QToolButton#MoreButton::menu-indicator { image: none; width: 0px; }");
     more_button_->setPopupMode(QToolButton::InstantPopup);
     more_menu_ = new QMenu(this);
     more_menu_->addAction(QIcon(":/icons/message.png"), "消息搜索", this,
@@ -577,16 +575,26 @@ void MainWindow::finishLogout() {
     setStatus("已退出登录");
 }
 
+void MainWindow::refreshThemeDependentIcons() {
+    // Reloading the stylesheet repaints everything QSS drives, but icons that
+    // baked the old colour into a QPixmap keep the stale pixels. Every such
+    // asset belongs in this function so a new one cannot be forgotten inside
+    // an appearance-changed lambda.
+    if (more_button_ != nullptr) {
+        more_button_->setIcon(chatbox::client::moreDotsIcon(QColor(theme::kInk)));
+    }
+    if (login_page_ != nullptr) {
+        login_page_->refreshThemeIcons();
+    }
+}
+
 void MainWindow::openSettings() {
     SettingsDialog dialog(chatbox::client::publicUserId(user_id_),
                           history_store_.directory(),
                           history_store_.sizeBytes(),
                           history_store_.isOpen(), this);
     connect(&dialog, &SettingsDialog::appearanceChanged, this, [this] {
-        if (more_button_ != nullptr) {
-            more_button_->setIcon(
-                chatbox::client::moreDotsIcon(QColor(theme::kInk)));
-        }
+        refreshThemeDependentIcons();
         if (chat_view_ != nullptr) {
             renderCurrentConversation(ScrollMode::kPreserve);
         }

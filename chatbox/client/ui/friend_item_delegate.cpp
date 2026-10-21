@@ -6,6 +6,7 @@
 #include <QPainterPath>
 #include <QStyle>
 
+#include "core/avatar_utils.h"
 #include "core/message_time.h"
 #include "core/ui_theme.h"
 
@@ -20,14 +21,6 @@ constexpr int kOnlineRole = Qt::UserRole + 3;
 constexpr int kContentRole = Qt::UserRole + 4;
 constexpr int kTimeRole = Qt::UserRole + 5;
 constexpr int kRemarkRole = Qt::UserRole + 6;
-
-QColor avatarColor(quint64 id) {
-    static const QColor colors[] = {
-        QColor(theme::kAccent), QColor("#4CAF50"), QColor("#F5A623"),
-        QColor("#9B59B6"), QColor("#E74C3C"), QColor("#16A085"),
-    };
-    return colors[id % (sizeof(colors) / sizeof(colors[0]))];
-}
 
 }  // namespace
 
@@ -56,9 +49,11 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
     const bool hovered = option.state & QStyle::State_MouseOver;
     QRect row = option.rect.adjusted(4, 2, -4, -2);
     if (selected) {
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(theme::kSurfaceStrong));
-        painter->drawRoundedRect(row, 8, 8);
+        // Mirrors QListWidget::item:selected in style.qss; the delegate paints
+        // its own row, so the stylesheet never reaches this list.
+        painter->setPen(QPen(QColor(theme::kSelectionBorder), 1));
+        painter->setBrush(QColor(theme::kSelectionBg));
+        painter->drawRoundedRect(QRectF(row).adjusted(0.5, 0.5, -0.5, -0.5), 8, 8);
     } else if (hovered) {
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(theme::kSurfaceSoft));
@@ -85,14 +80,15 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
         painter->drawPixmap(avatar_rect, avatar);
         painter->restore();
     } else {
+        const QColor avatar_bg = chatbox::client::fallbackAvatarBackground(id);
         painter->setPen(Qt::NoPen);
-        painter->setBrush(avatarColor(id));
+        painter->setBrush(avatar_bg);
         painter->drawEllipse(avatar_rect);
         QFont avatar_font = painter->font();
         avatar_font.setPixelSize(15);
         avatar_font.setBold(true);
         painter->setFont(avatar_font);
-        painter->setPen(Qt::white);
+        painter->setPen(chatbox::client::readableForeground(avatar_bg));
         painter->drawText(avatar_rect, Qt::AlignCenter,
                           name.isEmpty() ? QString("?") : name.left(1).toUpper());
     }

@@ -18,6 +18,14 @@ QFrame#LoginCard {
     border-radius: 16px;
 }
 
+QLabel#AppLogo {
+    background: #4D8DFF;
+    color: #FFFFFF;
+    border-radius: 28px;
+    font-size: 28px;
+    font-weight: 600;
+}
+
 QLabel#AppTitle {
     font-size: 26px;
     font-weight: 600;
@@ -272,10 +280,13 @@ QListWidget::item {
 
 QListWidget::item:hover {
     background: #1A2027;
+    border: 1px solid transparent;
 }
 
+/* 见 style.qss 同名注释：选中态要和悬停态拉开，不能只和未选中拉开。 */
 QListWidget::item:selected {
-    background: #232B33;
+    background: #2A3E5C;
+    border: 1px solid #3D6299;
     color: #F2F4F7;
 }
 
@@ -322,6 +333,97 @@ QCheckBox::indicator:checked {
 
 QCheckBox[keyboardFocus="true"]::indicator:focus {
     border: 2px solid #4D8DFF;
+}
+
+/* 见 style.qss：三种控件原先无规则，深色下会露出系统浅色外观。 */
+QComboBox {
+    background: #232B33;
+    border: 1px solid #323B44;
+    border-radius: 8px;
+    padding: 6px 10px;
+    min-height: 20px;
+}
+
+QComboBox:hover {
+    background: #2B343D;
+}
+
+QComboBox:focus {
+    background: #0F1419;
+    border: 1px solid #4D8DFF;
+}
+
+QComboBox:disabled {
+    background: #1A2027;
+    color: #9AA2AC;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 20px;
+    border: none;
+    background: transparent;
+}
+
+QComboBox::down-arrow {
+    image: url(:/icons/chevron-dark.png);
+    width: 10px;
+    height: 10px;
+}
+
+QComboBox QAbstractItemView {
+    background: #0F1419;
+    border: 1px solid #323B44;
+    border-radius: 8px;
+    padding: 4px;
+    outline: none;
+    selection-background-color: #2A3E5C;
+    selection-color: #F2F4F7;
+}
+
+QRadioButton {
+    spacing: 8px;
+}
+
+QRadioButton::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    border: 1px solid #9AA2AC;
+    background: #0F1419;
+}
+
+QRadioButton::indicator:checked {
+    border: 1px solid #4D8DFF;
+    background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+                                stop:0 #4D8DFF, stop:0.45 #4D8DFF,
+                                stop:0.55 #0F1419, stop:1 #0F1419);
+}
+
+QRadioButton::indicator:disabled {
+    border-color: #323B44;
+}
+
+QRadioButton[keyboardFocus="true"]::indicator:focus {
+    border: 2px solid #4D8DFF;
+}
+
+QGroupBox {
+    border: 1px solid #323B44;
+    border-radius: 12px;
+    margin-top: 10px;
+    padding: 14px 12px 10px 12px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 12px;
+    padding: 0 4px;
+    color: #8A929C;
+    font-size: 11px;
+    font-weight: 600;
 }
 
 QDialogButtonBox QPushButton {
@@ -412,6 +514,12 @@ QPushButton#EmptyStateAction {
 
 QPushButton#EmptyStateAction:hover {
     color: #3B7BEB;
+}
+
+QLabel#ProfileNameLabel {
+    font-size: 22px;
+    font-weight: 600;
+    color: #F2F4F7;
 }
 
 QLabel#SettingsIdLabel {

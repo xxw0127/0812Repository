@@ -64,8 +64,6 @@ void ProfileDialog::buildUi() {
     name_label_->setObjectName("ProfileNameLabel");
     name_label_->setAlignment(Qt::AlignCenter);
     name_label_->setWordWrap(true);
-    name_label_->setStyleSheet("font-size: 22px; font-weight: 600; color: " +
-                               QString::fromLatin1(theme::kInk) + ";");
     layout->addWidget(name_label_);
 
     secondary_nickname_label_ = new QLabel(this);

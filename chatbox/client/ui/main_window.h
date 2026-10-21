@@ -90,6 +90,9 @@ private:
     enum class ScrollMode { kBottom, kTop, kPreserve };
 
     void buildUi();
+    // Single entry point for colours baked into QPixmap/QIcon. Called on every
+    // appearance change; add new rasterised assets here, not one-off lambdas.
+    void refreshThemeDependentIcons();
     QWidget* buildChatPage();
     void startConnection();
     bool sendFrame(const chatbox::Frame& frame);

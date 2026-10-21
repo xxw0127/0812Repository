@@ -2138,6 +2138,8 @@ void TestClientCore::themeTokensMatchStyleSheet() {
         light.mutedSoft,
         light.disabledText,
         light.dangerText,
+        light.selectionBg,
+        light.selectionBorder,
     };
     QStringList allowed;
     for (const QString& token : required) {
@@ -2450,7 +2452,11 @@ void TestClientCore::headerUsesAvatarAndMoreMenu() {
              "the header more control uses three filled dots");
     QVERIFY2(!source.contains(QStringLiteral("more_button_->setText")),
              "the header more control must not render thin text dots");
-    QVERIFY2(source.contains(QStringLiteral("menu-indicator")),
+    // The indicator rule moved from an inline setStyleSheet into style.qss so
+    // it follows the theme; assert against the stylesheet that actually
+    // carries it now.
+    const QString qss = readClientSource(QStringLiteral("resources/style.qss"));
+    QVERIFY2(qss.contains(QStringLiteral("QToolButton#MoreButton::menu-indicator")),
              "the header more control must hide the menu indicator arrow");
     QVERIFY2(source.contains(QStringLiteral("消息搜索")) &&
                  source.contains(QStringLiteral("加载更早消息")),

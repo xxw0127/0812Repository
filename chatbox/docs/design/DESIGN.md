@@ -34,6 +34,8 @@
 | `kQuoteBg` | `#F4F6F8` | `#202830` | 引用块背景 |
 | `kBubbleOwn` | `#E6F7F0` | `#14332A` | 己方气泡 |
 | `kBubbleOther` | `#FFFFFF` | `#1A2027` | 对方气泡 |
+| `kSelectionBg` | `#CCDCFF` | `#2A3E5C` | 列表选中行底色 |
+| `kSelectionBorder` | `#A9C1F0` | `#3D6299` | 列表选中行 1px 描边 |
 | `kBannerErrorBg` | `#FAE9EA` | `#3A2024` | 断开横幅底 |
 | `kBannerErrorLine` | `#F2BCC0` | `#6B3035` | 断开横幅描边 |
 
@@ -74,7 +76,7 @@
 
 ### 按钮
 
-- 主按钮：`kPrimary` 底、`kOnPrimary` 字、8px 圆角、44px 高。深色主按钮使用 `kPrimary`（`#2F6FDC`）而不是亮 accent，保证白字 ≥ 4.5:1；链接仍用 `kAccent`。
+- 主按钮：`kPrimary` 底、`kOnPrimary` 字、8px 圆角、38px 高（登录/注册/保存实测值；图标按钮 32×32，次级按钮 32px）。深色主按钮使用 `kPrimary`（`#2F6FDC`）而不是亮 accent，保证白字 ≥ 4.5:1；链接仍用 `kAccent`。
 - 次按钮：`kSurfaceStrong` 底、`kInk` 字，悬停 `kSurfaceStrongHover`。
 - 危险文字按钮：透明底，`kDangerText`。
 - 图标按钮：至少 32×32px；`更多` 为 32×32、20px 图标，图标本身是三个 3px 圆角方点。
@@ -102,6 +104,8 @@
 
 - 大厅列表 56–160px，超过约 3 个房间内部滚动。
 - 好友/会话列表行高 56px；空列表显示空状态，不显示空白区域。
+- 列表选中行用 `kSelectionBg` 底 + `kSelectionBorder` 1px 描边 + 8px 圆角，悬停用 `kSurfaceSoft`。两者必须能区分（对比 ≥ 1.25:1）——纯灰选中对悬停只有 1.09:1，用户看不出当前在哪一行。
+- 自绘 delegate（好友/会话列表）必须复刻同一组选中/悬停样式，因为 QSS 不会到达 delegate 的 `paint()`。
 - “好友”已作为列表的区块标题；只有在线、离线两组都非空时才额外显示“在线/离线”分组标题，禁止连续堆叠两个 11px 标签。
 - 右侧“在线成员 (N)”置顶，成员列表拉伸，设置/退出登录固定在底部 32px 次级按钮。
 - 好友申请未读使用右侧 16px `kAccent` 圆角角标，按钮文字恒为“好友申请”。

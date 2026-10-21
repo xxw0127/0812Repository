@@ -26,6 +26,9 @@ MessageInput::MessageInput(QWidget* parent) : QTextEdit(parent) {
 
 void MessageInput::keyPressEvent(QKeyEvent* event) {
     if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
+        // Shift+Enter inserts a newline. Enter and Ctrl+Enter both send:
+        // Ctrl+Enter arrives as the same Key_Return with ControlModifier, so
+        // the only modifier that needs special handling is Shift.
         if (event->modifiers() & Qt::ShiftModifier) {
             QTextEdit::keyPressEvent(event);
             return;

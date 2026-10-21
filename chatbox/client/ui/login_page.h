@@ -21,6 +21,9 @@ public:
     void clearPassword();
     void resetToLogin();
     void setServerSettings(const QString& host, quint16 port, bool tls);
+    // Rebuilds icons that rasterise a theme colour (more-dots). Reloading the
+    // stylesheet repaints QSS widgets but cannot reach a baked QPixmap.
+    void refreshThemeIcons();
 
 signals:
     void loginRequested(const QString& host, quint16 port, const QString& username,

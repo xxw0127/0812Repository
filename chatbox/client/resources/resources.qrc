@@ -11,5 +11,7 @@
         <file>icons/message.png</file>
         <file>icons/contact.png</file>
         <file>icons/check.png</file>
+        <file>icons/chevron-light.png</file>
+        <file>icons/chevron-dark.png</file>
     </qresource>
 </RCC>

@@ -8,10 +8,54 @@
 #include <QRectF>
 #include <QVector>
 
+#include <cmath>
+
 #include "core/ui_theme.h"
 
 namespace chatbox {
 namespace client {
+
+namespace {
+
+// WCAG relative luminance. Kept here rather than in a header because the only
+// consumers are the avatar painters in this file and readableForeground().
+double relativeLuminance(const QColor& color) {
+    auto channel = [](double value) {
+        value /= 255.0;
+        return value <= 0.03928 ? value / 12.92
+                                : std::pow((value + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * channel(color.red()) + 0.7152 * channel(color.green()) +
+           0.0722 * channel(color.blue());
+}
+
+// A fixed eight-colour set. These are literals on purpose: they used to start
+// with theme::kAccent inside a `static` array, which froze the first entry to
+// whichever theme happened to be active on the first call.
+const QColor* fallbackPalette(int* count) {
+    static const QColor colors[] = {
+        QColor("#0052FF"), QColor("#5AD8A6"), QColor("#F6BD16"),
+        QColor("#E8684A"), QColor("#6DC8EC"), QColor("#9270CA"),
+        QColor("#FF9D4D"), QColor("#269A99"),
+    };
+    *count = static_cast<int>(sizeof(colors) / sizeof(colors[0]));
+    return colors;
+}
+
+}  // namespace
+
+QColor fallbackAvatarBackground(quint64 seed) {
+    int count = 0;
+    const QColor* colors = fallbackPalette(&count);
+    return colors[seed % static_cast<quint64>(count)];
+}
+
+QColor readableForeground(const QColor& background) {
+    // Luminance at which white drops below 4.5:1:
+    // (1.0 + 0.05) / (L + 0.05) = 4.5  =>  L = 0.1833
+    return relativeLuminance(background) > 0.1833 ? QColor("#0A0B0D")
+                                                  : QColor(Qt::white);
+}
 
 QImage centerCropSquare(const QImage& source) {
     if (source.isNull()) {
@@ -62,13 +106,7 @@ QImage fallbackAvatar(const QString& name, quint64 seed, int size) {
         return QImage();
     }
 
-    static const QColor colors[] = {
-        QColor(theme::kAccent), QColor("#5AD8A6"), QColor("#F6BD16"),
-        QColor("#E8684A"), QColor("#6DC8EC"), QColor("#9270CA"),
-        QColor("#FF9D4D"), QColor("#269A99")
-    };
-    const int color_count = static_cast<int>(sizeof(colors) / sizeof(colors[0]));
-    const QColor background = colors[seed % static_cast<quint64>(color_count)];
+    const QColor background = fallbackAvatarBackground(seed);
 
     QString initial;
     const QString trimmed = name.trimmed();
@@ -97,7 +135,7 @@ QImage fallbackAvatar(const QString& name, quint64 seed, int size) {
     font.setBold(true);
     font.setPixelSize(qMax(8, size / 2));
     painter.setFont(font);
-    painter.setPen(Qt::white);
+    painter.setPen(readableForeground(background));
     painter.drawText(QRectF(0, 0, size, size), Qt::AlignCenter, initial);
     painter.end();
 

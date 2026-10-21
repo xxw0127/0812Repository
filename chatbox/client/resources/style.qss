@@ -18,6 +18,15 @@ QFrame#LoginCard {
     border-radius: 16px;
 }
 
+/* 品牌字母标：原本是 Qt 内联样式，切主题时不会重算，故收进 QSS。 */
+QLabel#AppLogo {
+    background: #0052FF;
+    color: #FFFFFF;
+    border-radius: 28px;
+    font-size: 28px;
+    font-weight: 600;
+}
+
 QLabel#AppTitle {
     font-size: 26px;
     font-weight: 600;
@@ -68,6 +77,12 @@ QLabel#ContextTitle {
 QLabel#MutedLabel {
     color: #616877;
     font-size: 12px;
+}
+
+QLabel#ProfileNameLabel {
+    font-size: 22px;
+    font-weight: 600;
+    color: #0A0B0D;
 }
 
 QLabel#SettingsIdLabel {
@@ -343,10 +358,14 @@ QListWidget::item {
 
 QListWidget::item:hover {
     background: #F7F7F7;
+    border: 1px solid transparent;
 }
 
+/* 选中态必须同时区别于行底色（白）和悬停底色（#F7F7F7）。
+   纯灰 #EEF0F3 对悬停只有 1.09:1，等于看不出选中，故改用淡蓝 + 描边。 */
 QListWidget::item:selected {
-    background: #EEF0F3;
+    background: #CCDCFF;
+    border: 1px solid #A9C1F0;
     color: #0A0B0D;
 }
 
@@ -393,6 +412,105 @@ QCheckBox::indicator:checked {
 
 QCheckBox[keyboardFocus="true"]::indicator:focus {
     border: 2px solid #0052FF;
+}
+
+/* 下拉框、单选、分组框原先没有任何规则，在深色主题里会回落到系统控件外观。
+   不覆盖 ::down-arrow / ::drop-down：图标资源里没有 chevron，
+   交给 Qt 用当前 palette 绘制反而在明暗两套下都可见。 */
+QComboBox {
+    background: #EEF0F3;
+    border: 1px solid #DEE1E6;
+    border-radius: 8px;
+    padding: 6px 10px;
+    min-height: 20px;
+}
+
+QComboBox:hover {
+    background: #E6E8EC;
+}
+
+QComboBox:focus {
+    background: #FFFFFF;
+    border: 1px solid #0052FF;
+}
+
+QComboBox:disabled {
+    background: #F7F7F7;
+    color: #676D76;
+}
+
+/* ::drop-down 保留原生箭头，但必须清掉它的边框和底色，
+   否则 QComboBox 本体的圆角会被这一块方角盖住。 */
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 20px;
+    border: none;
+    background: transparent;
+}
+
+/* 清空 ::drop-down 后原生箭头不再绘制，必须自带一张；
+   没有箭头用户看不出这个控件可以展开。 */
+QComboBox::down-arrow {
+    image: url(:/icons/chevron-light.png);
+    width: 10px;
+    height: 10px;
+}
+
+QComboBox QAbstractItemView {
+    background: #FFFFFF;
+    border: 1px solid #DEE1E6;
+    border-radius: 8px;
+    padding: 4px;
+    outline: none;
+    selection-background-color: #CCDCFF;
+    selection-color: #0A0B0D;
+}
+
+QRadioButton {
+    spacing: 8px;
+}
+
+QRadioButton::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    border: 1px solid #676D76;
+    background: #FFFFFF;
+}
+
+/* 选中不能靠加粗 border 实现：border 会把 indicator 从 18px 撑到 28px，
+   9px 圆角就不再是圆。用径向渐变画「蓝点 + 白环」，整体仍是 18px。 */
+QRadioButton::indicator:checked {
+    border: 1px solid #0052FF;
+    background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+                                stop:0 #0052FF, stop:0.45 #0052FF,
+                                stop:0.55 #FFFFFF, stop:1 #FFFFFF);
+}
+
+QRadioButton::indicator:disabled {
+    border-color: #DEE1E6;
+}
+
+QRadioButton[keyboardFocus="true"]::indicator:focus {
+    border: 2px solid #0052FF;
+}
+
+QGroupBox {
+    border: 1px solid #DEE1E6;
+    border-radius: 12px;
+    margin-top: 10px;
+    padding: 14px 12px 10px 12px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 12px;
+    padding: 0 4px;
+    color: #616877;
+    font-size: 11px;
+    font-weight: 600;
 }
 
 QDialogButtonBox QPushButton {

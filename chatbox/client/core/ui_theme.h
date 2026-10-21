@@ -46,6 +46,10 @@ struct ThemePalette {
     const char* primary;
     const char* primaryHover;
     const char* primaryActive;
+    // Selected row in a list: must stay distinguishable from both the row
+    // background and the hover background, which a single grey cannot do.
+    const char* selectionBg;
+    const char* selectionBorder;
 };
 
 const ThemePalette& lightPalette();
@@ -86,6 +90,8 @@ extern const char* kBubbleBorder;
 extern const char* kPrimary;
 extern const char* kPrimaryHover;
 extern const char* kPrimaryActive;
+extern const char* kSelectionBg;
+extern const char* kSelectionBorder;
 
 }  // namespace theme
 }  // namespace client
