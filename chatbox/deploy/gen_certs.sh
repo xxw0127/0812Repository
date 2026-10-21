@@ -13,17 +13,34 @@ if [ ! -f "${CERT_DIR}/ca.crt" ]; then
         -subj "/CN=ChatBox Dev CA"
 fi
 
+# 覆盖服务器证书前备份；CA 始终保留，客户端不需要重新分发 ca.crt。
+if [ -f "${CERT_DIR}/chat.crt" ]; then
+    sudo cp -a "${CERT_DIR}/chat.crt" "${CERT_DIR}/chat.crt.$(date +%Y%m%d-%H%M%S).bak"
+fi
+if [ -f "${CERT_DIR}/chat.key" ]; then
+    sudo cp -a "${CERT_DIR}/chat.key" "${CERT_DIR}/chat.key.$(date +%Y%m%d-%H%M%S).bak"
+fi
+
 sudo openssl req -newkey rsa:2048 -sha256 -nodes \
     -keyout "${CERT_DIR}/chat.key" -out "${CERT_DIR}/chat.csr" \
     -subj "/CN=chatbox.local"
 
 # 服务器 LAN 地址固定为 192.168.2.240；换网段时用 SAN_IP=... 覆盖默认值。
+# SAN_DNS 支持逗号分隔的多个域名，例如 chatbox.local,frp-oil.com。
 # 只轮换服务器证书不会影响客户端已信任的 ca.crt。
 SAN_IP=${SAN_IP:-192.168.2.240}
-SAN_DNS=${SAN_DNS:-chatbox.local}
+SAN_DNS=${SAN_DNS:-chatbox.local,frp-oil.com}
+
+san="IP:${SAN_IP}"
+IFS=',' read -ra dns_names <<< "${SAN_DNS}"
+for name in "${dns_names[@]}"; do
+    if [ -n "${name}" ]; then
+        san="${san},DNS:${name}"
+    fi
+done
 
 sudo tee "${CERT_DIR}/ext.cnf" >/dev/null <<EOF
-subjectAltName=IP:${SAN_IP},DNS:${SAN_DNS}
+subjectAltName=${san}
 extendedKeyUsage=serverAuth
 EOF
 
