@@ -1,5 +1,7 @@
 # ChatBox
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 C++ 聊天室：Windows 端 Qt 5.15 桌面客户端 + Linux C++17 高并发服务端（epoll ET + MySQL + nginx TLS 终结）。
 
 - 客户端：Qt Widgets、原生 Winsock + 独立网络线程、浅色三栏聊天界面、原生 TCP + TLS、本地历史 + 离线只读（SQLite 本机副本，只落服务端已确认消息；离线可浏览、可在当前会话内搜索，保留 token 时自动重连）。
@@ -88,4 +90,10 @@ Qt 客户端 --TLS 9443--> nginx stream（证书 /etc/chatbox/certs）--PROXY-->
 - 客户端不直连服务端 MySQL；所有数据操作经服务端命令字。本地仅保留一份 SQLite 本机副本（`history.sqlite`，按 `user_id` 分区；在线写穿透、离线只读浏览）。
 - 网络传输一律大端序列化，禁止直接发送内存结构体。
 - Token 只存哈希（`SHA-256`），密码使用 Argon2id；日志不打印口令与 Token。
-- 本仓库为个人学习/演示项目，未附开源许可证。
+- 本仓库为个人学习/演示项目，以 [MIT 许可证](LICENSE) 开源。
+
+## 仓库管理
+
+- **所有者**：xxw
+- **全权管理**：本仓库由 AI 助手 **DeepSeek V4.1 Flash** 在所有者授权下全权管理，包括日常提交、推送、文档维护与仓库设置。
+- **管理约定**：只做增量修改、不强制推送、不改写历史；所有变更通过 `main` 分支提交推送。

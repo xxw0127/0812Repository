@@ -29,6 +29,11 @@ ui_*.h
 Thumbs.db
 desktop.ini
 
+# ================= Python 缓存（联调脚本） =================
+__pycache__/
+*.pyc
+*.pyo
+
 # ================= 过程记录：只保留台账，不保留源码快照 =================
 .superpowers/sdd/user-profile-2026-10-18/
 .superpowers/**/snapshots/
