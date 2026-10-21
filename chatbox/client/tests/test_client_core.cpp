@@ -202,6 +202,7 @@ private slots:
     void loginPageShowsNicknameOnlyInRegisterMode();
     void loginPageHasAutoLoginAndRememberPasswordOptions();
     void loginPageAccessibleNames();
+    void loginPageClearsFieldFocusOnBlankClick();
     void loginPageReloadsRememberedPasswordAfterLogout();
     void credentialStoreEncryptsSavedPassword();
     void mainWindowUsesIncrementalAppendForIncomingMessages();
@@ -2636,6 +2637,22 @@ void TestClientCore::loginPageAccessibleNames() {
     QCOMPARE(username->accessibleName(), QStringLiteral("用户名"));
     QCOMPARE(password->accessibleName(), QStringLiteral("密码"));
     QCOMPARE(nickname->accessibleName(), QStringLiteral("昵称"));
+}
+
+void TestClientCore::loginPageClearsFieldFocusOnBlankClick() {
+    LoginPage page;
+    page.resize(640, 720);
+    page.show();
+    QTest::qWait(50);
+    auto* username = page.findChild<QLineEdit*>(QStringLiteral("UsernameEdit"));
+    QVERIFY(username != nullptr);
+    username->setFocus();
+    QTest::qWait(20);
+    QVERIFY(username->hasFocus());
+
+    QTest::mouseClick(&page, Qt::LeftButton, Qt::NoModifier, QPoint(8, 8));
+    QTest::qWait(20);
+    QVERIFY(!username->hasFocus());
 }
 
 void TestClientCore::loginPageReloadsRememberedPasswordAfterLogout() {

@@ -22,12 +22,16 @@ namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
 LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     setObjectName("LoginPage");
+    // Clicking the empty page must take focus away from username/password and
+    // stop text input; the page itself only needs click focus, not Tab focus.
+    setFocusPolicy(Qt::ClickFocus);
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(24, 24, 24, 24);
     root->addStretch();
 
     auto* card = new QFrame(this);
     card->setObjectName("LoginCard");
+    card->setFocusPolicy(Qt::ClickFocus);
     card->setFixedWidth(390);
     auto* card_layout = new QVBoxLayout(card);
     card_layout->setContentsMargins(30, 22, 30, 24);
