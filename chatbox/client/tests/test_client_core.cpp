@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDialogButtonBox>
 #include <QDir>
 #include <QColor>
 #include <QCoreApplication>
@@ -14,6 +15,7 @@
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QPlainTextEdit>
 #include <QPixmap>
@@ -52,6 +54,7 @@
 #include "ui/chat_view.h"
 #include "ui/empty_state.h"
 #include "ui/login_page.h"
+#include "ui/message_input.h"
 #include "ui/message_action_bar.h"
 #include "ui/profile_dialog.h"
 #include "ui/settings_dialog.h"
@@ -211,6 +214,9 @@ private slots:
     void textNeverSmallerThanElevenPixels();
     void emptyStateShowsConfiguredCopy();
     void emptyStatesAreWired();
+    void messageInputHandlesKeyboardAndPlainPaste();
+    void messageComposerUsesByteCounter();
+    void dangerousActionsUseChineseDialogs();
     void loginPageShowsNicknameOnlyInRegisterMode();
     void loginPageHasAutoLoginAndRememberPasswordOptions();
     void loginPageAccessibleNames();
@@ -2704,7 +2710,7 @@ void TestClientCore::layoutWeightsFollowAudit() {
     QVERIFY(source.contains(QStringLiteral("friend_requests_badge_")));
     QVERIFY(source.contains(QStringLiteral("FriendRequestBadge")));
     QVERIFY(source.contains(QStringLiteral("member_count_label_")));
-    QVERIFY(source.contains(QStringLiteral("QMessageBox::question")));
+    QVERIFY(source.contains(QStringLiteral("confirmDanger")));
     QVERIFY(source.contains(QStringLiteral("more_button_->setFixedSize(32, 32)")));
     QVERIFY(source.contains(QStringLiteral("friend_requests_button_->setText(\"好友申请\")")));
 }
@@ -2772,6 +2778,66 @@ void TestClientCore::emptyStatesAreWired() {
     QVERIFY2(!search.isEmpty(), "ui/user_search_dialog.cpp must be readable");
     QVERIFY(search.contains(QStringLiteral("EmptyState")));
     QVERIFY(search.contains(QStringLiteral("没有找到「")));
+}
+
+class ExposedMessageInput : public MessageInput {
+public:
+    using MessageInput::insertFromMimeData;
+};
+
+void TestClientCore::messageInputHandlesKeyboardAndPlainPaste() {
+    MessageInput input;
+    input.resize(400, 60);
+    input.show();
+    QTest::qWait(30);
+    QSignalSpy submitted(&input, &MessageInput::submitRequested);
+
+    QTest::keyClicks(&input, "hello");
+    QTest::keyClick(&input, Qt::Key_Return);
+    QCOMPARE(submitted.count(), 1);
+
+    input.clear();
+    QTest::keyClicks(&input, "line");
+    QTest::keyClick(&input, Qt::Key_Return, Qt::ShiftModifier);
+    QCOMPARE(submitted.count(), 1);
+    QVERIFY(input.toPlainText().contains('\n'));
+
+    input.clear();
+    QTest::keyClick(&input, Qt::Key_Return, Qt::ControlModifier);
+    QCOMPARE(submitted.count(), 2);
+
+    QMimeData mime;
+    mime.setHtml(QStringLiteral("<b>pasted</b>"));
+    mime.setText(QStringLiteral("pasted"));
+    ExposedMessageInput pasted;
+    pasted.insertFromMimeData(&mime);
+    QCOMPARE(pasted.toPlainText(), QStringLiteral("pasted"));
+
+    input.clear();
+    input.setPlainText(QString(1000, QChar('x')));
+    QTest::qWait(20);
+    QVERIFY(input.height() >= 40);
+    QVERIFY(input.height() <= 120);
+}
+
+void TestClientCore::messageComposerUsesByteCounter() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("MessageInput")));
+    QVERIFY(source.contains(QStringLiteral("MessageByteCounter")));
+    QVERIFY(source.contains(QStringLiteral("toPlainText()")));
+    QVERIFY(source.contains(QStringLiteral("2000")));
+    QVERIFY(source.contains(QStringLiteral("1800")));
+    QVERIFY(source.contains(QStringLiteral("已用 %1/2000 字节")));
+}
+
+void TestClientCore::dangerousActionsUseChineseDialogs() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("confirmDanger")));
+    QVERIFY(source.contains(QStringLiteral("撤回消息")));
+    QVERIFY(source.contains(QStringLiteral("退出登录")));
+    QVERIFY(!source.contains(QStringLiteral("QMessageBox::question")));
 }
 
 // 昵称只在注册时出现：登录态点“注册”进入注册态，
@@ -2923,11 +2989,17 @@ void TestClientCore::settingsDialogDefaultsToPublicServer() {
     auto* tls = dialog.findChild<QCheckBox*>(QStringLiteral("ServerTlsCheck"));
     auto* appearance =
         dialog.findChild<QComboBox*>(QStringLiteral("AppearanceCombo"));
+    auto* buttons = dialog.findChild<QDialogButtonBox*>();
     QVERIFY(host != nullptr);
     QVERIFY(port != nullptr);
     QVERIFY(tls != nullptr);
     QVERIFY(appearance != nullptr);
+    QVERIFY(buttons != nullptr);
     QCOMPARE(appearance->count(), 3);
+    QCOMPARE(buttons->button(QDialogButtonBox::Save)->text(),
+             QStringLiteral("保存"));
+    QCOMPARE(buttons->button(QDialogButtonBox::Cancel)->text(),
+             QStringLiteral("取消"));
     QCOMPARE(host->text(), QStringLiteral("frp-oil.com"));
     QCOMPARE(port->value(), 15318);
     QVERIFY(tls->isChecked());

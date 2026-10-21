@@ -56,12 +56,14 @@
 #include "core/protocol_qt.h"
 #include "core/ui_theme.h"
 #include "ui/chat_view.h"
+#include "ui/dialog_buttons.h"
 #include "ui/empty_state.h"
 #include "ui/login_page.h"
 #include "ui/friend_item_delegate.h"
 #include "ui/friend_list_widget.h"
 #include "ui/friend_request_dialog.h"
 #include "ui/message_action_bar.h"
+#include "ui/message_input.h"
 #include "ui/message_search_dialog.h"
 #include "ui/more_dots.h"
 #include "ui/profile_dialog.h"
@@ -578,10 +580,14 @@ QWidget* MainWindow::buildChatPage() {
 
     auto* input_layout = new QHBoxLayout();
     input_layout->setSpacing(6);
-    input_edit_ = new QLineEdit(composer);
+    input_edit_ = new MessageInput(composer);
     input_edit_->setObjectName("MessageInput");
     input_edit_->setAccessibleName("输入消息");
-    input_edit_->setPlaceholderText("输入消息，回车发送");
+    input_edit_->setPlaceholderText("输入消息，回车发送，Shift + 回车换行");
+    message_byte_counter_ = new QLabel(composer);
+    message_byte_counter_->setObjectName("MessageByteCounter");
+    message_byte_counter_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    message_byte_counter_->hide();
     mention_button_ = new QPushButton("@", composer);
     mention_button_->setObjectName("IconButton");
     mention_button_->setAccessibleName("提及成员");
@@ -597,6 +603,7 @@ QWidget* MainWindow::buildChatPage() {
     input_layout->addWidget(mention_button_);
     input_layout->addWidget(send_button_);
     composer_layout->addLayout(input_layout);
+    composer_layout->addWidget(message_byte_counter_);
     center->addWidget(composer);
 
     auto* right_panel = new QWidget(page);
@@ -659,13 +666,14 @@ QWidget* MainWindow::buildChatPage() {
             &MainWindow::onMemberContextMenu);
     connect(search_users_button_, &QPushButton::clicked, this, &MainWindow::openUserSearch);
     connect(send_button_, &QPushButton::clicked, this, &MainWindow::onSendClicked);
-    connect(input_edit_, &QLineEdit::returnPressed, this, &MainWindow::onSendClicked);
+    connect(input_edit_, &MessageInput::submitRequested, this, &MainWindow::onSendClicked);
+    connect(input_edit_, &MessageInput::textChanged, this,
+            &MainWindow::updateMessageByteCounter);
     connect(mention_button_, &QPushButton::clicked, this, &MainWindow::insertMention);
     connect(reply_cancel_button_, &QPushButton::clicked, this, &MainWindow::clearReply);
     connect(logout_button_, &QPushButton::clicked, this, [this] {
-        if (QMessageBox::question(this, "退出登录", "确定要退出登录吗？",
-                                  QMessageBox::Yes | QMessageBox::No,
-                                  QMessageBox::No) == QMessageBox::Yes) {
+        if (chatbox::client::confirmDanger(this, "退出登录",
+                                           "确定要退出登录吗？", "退出登录")) {
             logout();
         }
     });
@@ -1572,10 +1580,9 @@ void MainWindow::openProfile(quint64 user_id, const QString& fallback_name) {
         if (name.isEmpty()) {
             name = chatbox::client::publicUserId(id);
         }
-        const auto answer = QMessageBox::question(
-            dialog, "删除好友", QString("确定要删除好友“%1”吗？").arg(name),
-            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-        if (answer != QMessageBox::Yes) {
+        if (!chatbox::client::confirmDanger(
+                dialog, "删除好友",
+                QString("确定要删除好友“%1”吗？").arg(name), "删除")) {
             return;
         }
         sendFriendRemove(id);
@@ -2443,7 +2450,7 @@ void MainWindow::insertMention() {
         setStatus("当前没有可提及的成员", true);
         return;
     }
-    input_edit_->insert("@" + nickname + " ");
+    input_edit_->insertPlainText("@" + nickname + " ");
     input_edit_->setFocus();
 }
 
@@ -2479,6 +2486,10 @@ void MainWindow::sendRecall(quint64 message_id) {
         return;
     }
     if (context_type_ == ContextType::None || message_id == 0) {
+        return;
+    }
+    if (!chatbox::client::confirmDanger(this, "撤回消息",
+                                        "确定要撤回这条消息吗？", "撤回")) {
         return;
     }
     chatbox::Frame frame;
@@ -2815,10 +2826,9 @@ void MainWindow::onFriendContextMenu(const QPoint& position) {
     } else if (selected == remark_action) {
         setFriendRemark(friend_id);
     } else if (selected == remove_action) {
-        const auto answer = QMessageBox::question(
-            this, "删除好友", QString("确定要删除好友“%1”吗？").arg(display_name),
-            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-        if (answer == QMessageBox::Yes) {
+        if (chatbox::client::confirmDanger(
+                this, "删除好友",
+                QString("确定要删除好友“%1”吗？").arg(display_name), "删除")) {
             sendFriendRemove(friend_id);
         }
     }
@@ -2921,7 +2931,7 @@ void MainWindow::onSendClicked() {
         setStatus("当前离线，无法发送", true);
         return;
     }
-    const QString text = input_edit_->text().trimmed();
+    const QString text = input_edit_->toPlainText().trimmed();
     if (text.isEmpty()) {
         return;
     }
@@ -2953,6 +2963,7 @@ void MainWindow::onSendClicked() {
     outbox_.add(message, message.created_at_utc);
     message_store_.addPending(message);
     input_edit_->clear();
+    updateMessageByteCounter();
     renderCurrentConversation(ScrollMode::kBottom);
     sendMessage(message);
     clearReply();
@@ -3137,6 +3148,7 @@ void MainWindow::setOnline(bool online, const QString& text) {
     if (member_list_ != nullptr) {
         member_list_->setEnabled(online_ && !offline_mode_);
     }
+    updateMessageByteCounter();
 }
 
 void MainWindow::onRoomClicked(QListWidgetItem* item) {
@@ -3214,6 +3226,7 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
     requestHistory(1, static_cast<quint64>(room_id), 0);
     input_edit_->setEnabled(online_);
     send_button_->setEnabled(online_);
+    updateMessageByteCounter();
     setStatus("正在进入房间: " + name);
 }
 
@@ -3304,6 +3317,7 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
     requestHistory(2, peer_id, 0);
     input_edit_->setEnabled(online_);
     send_button_->setEnabled(online_);
+    updateMessageByteCounter();
     setStatus("正在加载与 " + nickname + " 的私聊历史");
 }
 
@@ -4943,6 +4957,29 @@ void MainWindow::clearSession() {
     login_page_->setStatus("会话已失效，请重新登录", true);
 }
 
+void MainWindow::updateMessageByteCounter() {
+    if (input_edit_ == nullptr || message_byte_counter_ == nullptr ||
+        send_button_ == nullptr) {
+        return;
+    }
+    const int bytes = input_edit_->toPlainText().toUtf8().size();
+    const bool over_limit = bytes > 2000;
+    if (bytes <= 1800) {
+        message_byte_counter_->hide();
+    } else {
+        message_byte_counter_->setText(
+            QString("已用 %1/2000 字节").arg(bytes));
+        message_byte_counter_->setStyleSheet(
+            QString("font-size: 11px; color: %1;")
+                .arg(QString::fromLatin1(over_limit ? theme::kSemanticDown
+                                                    : theme::kMuted)));
+        message_byte_counter_->show();
+    }
+    send_button_->setEnabled(
+        !over_limit && online_ && !offline_mode_ &&
+        context_type_ != ContextType::None);
+}
+
 void MainWindow::updateChatEmptyState() {
     if (chat_stack_ == nullptr || chat_empty_state_ == nullptr) {
         return;
@@ -4975,6 +5012,7 @@ void MainWindow::resetContext() {
     if (input_edit_ != nullptr) {
         input_edit_->clear();
     }
+    updateMessageByteCounter();
     if (mention_button_ != nullptr) {
         mention_button_->hide();
     }

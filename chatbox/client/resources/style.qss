@@ -101,16 +101,20 @@ QLineEdit:focus, QSpinBox:focus {
     border: 1px solid #0052FF;
 }
 
-QLineEdit#MessageInput {
+QTextEdit#MessageInput {
     background: #EEF0F3;
     border: 1px solid transparent;
-    border-radius: 18px;
-    padding: 9px 14px;
+    border-radius: 12px;
+    padding: 8px 12px;
 }
 
-QLineEdit#MessageInput:focus {
+QTextEdit#MessageInput:focus {
     background: #FFFFFF;
     border: 1px solid #0052FF;
+}
+
+QLabel#MessageByteCounter {
+    font-size: 11px;
 }
 
 QPushButton {

@@ -61,14 +61,14 @@ QLineEdit:focus, QSpinBox:focus {
     border: 1px solid #4D8DFF;
 }
 
-QLineEdit#MessageInput {
+QTextEdit#MessageInput {
     background: #232B33;
     border: 1px solid transparent;
-    border-radius: 18px;
-    padding: 9px 14px;
+    border-radius: 12px;
+    padding: 8px 12px;
 }
 
-QLineEdit#MessageInput:focus {
+QTextEdit#MessageInput:focus {
     background: #0F1419;
     border: 1px solid #4D8DFF;
 }
@@ -456,4 +456,8 @@ QLabel#MyProfileName {
 QLabel#MyProfileUid {
     font-size: 11px;
     color: #8A929C;
+}
+
+QLabel#MessageByteCounter {
+    font-size: 11px;
 }

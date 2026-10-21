@@ -26,6 +26,7 @@ class ProfileDialog;
 class ChatView;
 class EmptyState;
 class MessageActionBar;
+class MessageInput;
 class QAction;
 class QCloseEvent;
 class QEvent;
@@ -166,6 +167,7 @@ private:
     // 离线翻页：从本地历史库取更早的一页。
     void loadOlderFromLocal();
     void updateChatEmptyState();
+    void updateMessageByteCounter();
     void resetContext();
     void renderCurrentConversation(ScrollMode mode);
     void addIncomingMessage(const chatbox::client::ChatMessage& message);
@@ -223,7 +225,8 @@ private:
     EmptyState* chat_empty_state_ = nullptr;
     MessageActionBar* message_action_bar_ = nullptr;
     quint64 action_bar_message_id_ = 0;
-    QLineEdit* input_edit_ = nullptr;
+    MessageInput* input_edit_ = nullptr;
+    QLabel* message_byte_counter_ = nullptr;
     QPushButton* mention_button_ = nullptr;
     QPushButton* send_button_ = nullptr;
     QPushButton* logout_button_ = nullptr;

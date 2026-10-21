@@ -163,6 +163,8 @@ SettingsDialog::SettingsDialog(const QString& public_id, const QString& history_
 
     auto* buttons = new QDialogButtonBox(
         QDialogButtonBox::Save | QDialogButtonBox::Cancel, this);
+    buttons->button(QDialogButtonBox::Save)->setText("保存");
+    buttons->button(QDialogButtonBox::Cancel)->setText("取消");
     layout->addWidget(buttons);
 
     connect(open_logs, &QPushButton::clicked, this, &SettingsDialog::openLogDirectory);
@@ -310,6 +312,7 @@ void SettingsDialog::openClearHistoryDialog() {
     auto* buttons = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     buttons->button(QDialogButtonBox::Ok)->setText("开始清理");
+    buttons->button(QDialogButtonBox::Cancel)->setText("取消");
     buttons->button(QDialogButtonBox::Ok)->setEnabled(false);
     layout->addWidget(buttons);
 
