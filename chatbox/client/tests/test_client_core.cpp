@@ -125,6 +125,10 @@ private slots:
     void rendererEscapesHtml();
     void rendererShowsRetryOnlyWhenFailed();
     void rendererAddsDateSeparator();
+    void rendererBubbleSpecUsesBorderAndExternalTimestamp();
+    void rendererSuppressesRepeatedSenderName();
+    void rendererQuoteBlockUsesQuoteSurface();
+    void rendererRecalledBubbleHasNoSenderName();
     void rendererFragmentMatchesFullRender();
     void rendererAlignsOwnMessages();
     void rendererQuoteBlockWithoutInlineActions();
@@ -527,6 +531,86 @@ void TestClientCore::rendererAddsDateSeparator() {
     QVERIFY(html.contains("2026-10-19"));
 }
 
+void TestClientCore::rendererBubbleSpecUsesBorderAndExternalTimestamp() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage message;
+    message.message_id = 1;
+    message.sender_name = "Bob";
+    message.content = "bubble body";
+    message.created_at_utc = created;
+
+    const QString html = chatbox::client::renderConversationHtml({message}, 1);
+    QVERIFY(html.contains(QStringLiteral("cellpadding=\"1\"")));
+    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kHairline)));
+    QVERIFY(html.contains(QStringLiteral("cellpadding=\"10\"")));
+    QVERIFY(html.contains(QStringLiteral("line-height: 150%")));
+    const QString local_time = chatbox::client::formatLocalTime(created);
+    const int timestamp = html.indexOf(local_time);
+    const int bubble_close = html.indexOf(QStringLiteral("</table></td></tr></table>"));
+    QVERIFY(timestamp > 0);
+    QVERIFY(bubble_close > 0);
+    QVERIFY(timestamp > bubble_close);
+}
+
+void TestClientCore::rendererSuppressesRepeatedSenderName() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage first;
+    first.message_id = 1;
+    first.sender_id = 2;
+    first.sender_name = "RepeatOnly";
+    first.content = "first";
+    first.created_at_utc = created;
+    chatbox::client::ChatMessage second = first;
+    second.message_id = 2;
+    second.content = "second";
+    second.created_at_utc = created.addSecs(30);
+    chatbox::client::ChatMessage third = first;
+    third.message_id = 3;
+    third.content = "third";
+    third.created_at_utc = created.addSecs(60);
+
+    const QString html =
+        chatbox::client::renderConversationHtml({first, second, third}, 1);
+    QCOMPARE(html.count(QStringLiteral("RepeatOnly")), 1);
+    QVERIFY(!chatbox::client::shouldShowSenderName(&first, second));
+    QVERIFY(!chatbox::client::shouldShowSenderName(&second, third));
+    const QString fragment = chatbox::client::renderMessageFragment(
+        third, 1, false, QString(), false);
+    QVERIFY(!fragment.contains(QStringLiteral("RepeatOnly")));
+}
+
+void TestClientCore::rendererQuoteBlockUsesQuoteSurface() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage quoted;
+    quoted.message_id = 7;
+    quoted.sender_name = "Bob";
+    quoted.content = "quoted body";
+    quoted.created_at_utc = created;
+    quoted.reply_to_id = 5;
+    quoted.reply_sender_name = "Alice";
+    quoted.reply_content = "original text";
+
+    const QString html = chatbox::client::renderConversationHtml({quoted}, 1);
+    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kQuoteBg)));
+    QVERIFY(!html.contains(QStringLiteral("border-left")));
+    QVERIFY(html.contains(QStringLiteral("回复 Alice: original text")));
+}
+
+void TestClientCore::rendererRecalledBubbleHasNoSenderName() {
+    const QDateTime created = chatbox::client::parseServerUtc("2026-10-18 12:00:00");
+    chatbox::client::ChatMessage recalled;
+    recalled.message_id = 8;
+    recalled.sender_name = "SenderOnly";
+    recalled.content = "secret";
+    recalled.created_at_utc = created;
+    recalled.recalled = true;
+
+    const QString html = chatbox::client::renderConversationHtml({recalled}, 1);
+    QVERIFY(html.contains(QStringLiteral("消息已撤回")));
+    QVERIFY(!html.contains(QStringLiteral("SenderOnly")));
+    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kSurfaceSoft)));
+}
+
 void TestClientCore::rendererFragmentMatchesFullRender() {
     const QDateTime first_local(QDate(2026, 10, 18), QTime(10, 0), Qt::LocalTime);
     const QDateTime second_local(QDate(2026, 10, 19), QTime(10, 0), Qt::LocalTime);
@@ -914,15 +998,15 @@ void TestClientCore::chatViewAppendStaysUnderBudget() {
         QElapsedTimer timer;
         timer.start();
         view.appendFragment(fragment, key);
-        const qint64 elapsed_ms = timer.elapsed();
-        qInfo("messages=%d full=%lldms append=%lldms", count,
-              static_cast<long long>(full_ms), static_cast<long long>(elapsed_ms));
+        const qint64 elapsed_us = timer.nsecsElapsed() / 1000;
+        qInfo("messages=%d full=%lldms append=%.2fms", count,
+              static_cast<long long>(full_ms), elapsed_us / 1000.0);
         QVERIFY(!view.document()->find("one more").isNull());
         QVERIFY(!view.messageAnchorRect(2000).isNull());
-        QVERIFY2(elapsed_ms < 5,
-                 qPrintable(QStringLiteral("append after %1 messages took %2 ms")
+        QVERIFY2(elapsed_us < 5000,
+                 qPrintable(QStringLiteral("append after %1 messages took %2 us")
                                 .arg(count)
-                                .arg(elapsed_ms)));
+                                .arg(elapsed_us)));
     }
 }
 

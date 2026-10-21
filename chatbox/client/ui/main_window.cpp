@@ -4929,8 +4929,12 @@ void MainWindow::addIncomingMessage(const chatbox::client::ChatMessage& message)
         chatbox::client::MessageKey key;
         key.message_id = message.message_id;
         key.client_msg_id = message.client_msg_id;
+        const bool show_sender_name =
+            messages.isEmpty() ||
+            chatbox::client::shouldShowSenderName(&messages.last(), message);
         chat_view_->appendFragment(
-            chatbox::client::renderMessageFragment(message, user_id_, false, QString()),
+            chatbox::client::renderMessageFragment(message, user_id_, false, QString(),
+                                                   show_sender_name),
             key);
         bar->setValue(bar->maximum());
         return;
