@@ -43,12 +43,12 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     advanced_toggle_ = new QToolButton(card);
     advanced_toggle_->setObjectName("AdvancedOptionsButton");
     advanced_toggle_->setIcon(chatbox::client::moreDotsIcon());
-    advanced_toggle_->setIconSize(QSize(44, 44));
+    advanced_toggle_->setIconSize(QSize(20, 20));
     advanced_toggle_->setToolTip("更多选项");
     advanced_toggle_->setCheckable(true);
     advanced_toggle_->setAutoRaise(true);
     advanced_toggle_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    advanced_toggle_->setFixedSize(48, 48);
+    advanced_toggle_->setFixedSize(32, 32);
     advanced_toggle_->setCursor(Qt::PointingHandCursor);
     top_row->addWidget(advanced_toggle_, 0, Qt::AlignTop | Qt::AlignRight);
     card_layout->addLayout(top_row);

@@ -220,6 +220,8 @@ private:
     QPushButton* mention_button_ = nullptr;
     QPushButton* send_button_ = nullptr;
     QPushButton* logout_button_ = nullptr;
+    QLabel* member_count_label_ = nullptr;
+    QLabel* friend_requests_badge_ = nullptr;
     QLabel* status_label_ = nullptr;
     QSystemTrayIcon* tray_ = nullptr;
     UserSearchDialog* user_search_dialog_ = nullptr;

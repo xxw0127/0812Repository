@@ -203,6 +203,7 @@ private slots:
     void recallPushUpdatesBackgroundHistory();
     void loginPageHasNoLocalHistoryEntry();
     void loginPageHidesServerFieldsBehindMoreDots();
+    void layoutWeightsFollowAudit();
     void loginPageShowsNicknameOnlyInRegisterMode();
     void loginPageHasAutoLoginAndRememberPasswordOptions();
     void loginPageAccessibleNames();
@@ -1819,6 +1820,7 @@ void TestClientCore::themeTokensMatchStyleSheet() {
         chatbox::client::theme::kMuted,
         chatbox::client::theme::kMutedSoft,
         chatbox::client::theme::kDisabledText,
+        chatbox::client::theme::kDangerText,
     };
     QStringList allowed;
     for (const QString& token : required) {
@@ -2645,8 +2647,9 @@ void TestClientCore::loginPageHidesServerFieldsBehindMoreDots() {
     QVERIFY(panel != nullptr);
     QVERIFY(toggle->text().isEmpty());
     QVERIFY(!toggle->icon().isNull());
-    QVERIFY(toggle->iconSize().width() >= 24);
-    QCOMPARE(toggle->width(), toggle->height());
+    QCOMPARE(toggle->iconSize(), QSize(20, 20));
+    QCOMPARE(toggle->width(), 32);
+    QCOMPARE(toggle->height(), 32);
     QVERIFY(panel->isHidden());
 
     auto* host = page.findChild<QLineEdit*>(QStringLiteral("ServerHostEdit"));
@@ -2663,6 +2666,21 @@ void TestClientCore::loginPageHidesServerFieldsBehindMoreDots() {
     QVERIFY(!panel->isHidden());
     toggle->click();
     QVERIFY(panel->isHidden());
+}
+
+void TestClientCore::layoutWeightsFollowAudit() {
+    const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY(!source.contains(QStringLiteral("room_list_->setFixedHeight(58)")));
+    QVERIFY(source.contains(QStringLiteral("room_list_->setMinimumHeight(56)")));
+    QVERIFY(source.contains(QStringLiteral("room_list_->setMaximumHeight(160)")));
+    QVERIFY(source.contains(QStringLiteral("QSizePolicy::Maximum")));
+    QVERIFY(source.contains(QStringLiteral("friend_requests_badge_")));
+    QVERIFY(source.contains(QStringLiteral("FriendRequestBadge")));
+    QVERIFY(source.contains(QStringLiteral("member_count_label_")));
+    QVERIFY(source.contains(QStringLiteral("QMessageBox::question")));
+    QVERIFY(source.contains(QStringLiteral("more_button_->setFixedSize(32, 32)")));
+    QVERIFY(source.contains(QStringLiteral("friend_requests_button_->setText(\"好友申请\")")));
 }
 
 // 昵称只在注册时出现：登录态点“注册”进入注册态，

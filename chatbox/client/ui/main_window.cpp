@@ -373,8 +373,10 @@ QWidget* MainWindow::buildChatPage() {
     left->setSpacing(6);
 
     search_users_button_ = new QPushButton("搜索用户", left_panel);
+    search_users_button_->setObjectName("SidebarAction");
     search_users_button_->setIcon(QIcon(":/icons/search.png"));
-    search_users_button_->setIconSize(QSize(16, 16));
+    search_users_button_->setIconSize(QSize(17, 17));
+    search_users_button_->setFixedHeight(32);
     left->addWidget(search_users_button_);
 
     auto* rooms_label = new QLabel("大厅", left_panel);
@@ -385,13 +387,29 @@ QWidget* MainWindow::buildChatPage() {
     room_list_->setSelectionMode(QAbstractItemView::SingleSelection);
     room_list_->setFocusPolicy(Qt::StrongFocus);
     room_list_->setIconSize(QSize(30, 30));
-    room_list_->setFixedHeight(58);
+    room_list_->setMinimumHeight(56);
+    room_list_->setMaximumHeight(160);
+    room_list_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     left->addWidget(room_list_);
 
-    friend_requests_button_ = new QPushButton("好友申请", left_panel);
+    auto* friend_row = new QWidget(left_panel);
+    auto* friend_row_layout = new QHBoxLayout(friend_row);
+    friend_row_layout->setContentsMargins(0, 0, 0, 0);
+    friend_row_layout->setSpacing(6);
+    friend_requests_button_ = new QPushButton("好友申请", friend_row);
+    friend_requests_button_->setObjectName("SidebarAction");
     friend_requests_button_->setIcon(QIcon(":/icons/users.png"));
-    friend_requests_button_->setIconSize(QSize(16, 16));
-    left->addWidget(friend_requests_button_);
+    friend_requests_button_->setIconSize(QSize(17, 17));
+    friend_requests_button_->setFixedHeight(32);
+    friend_requests_button_->setAccessibleName("好友申请");
+    friend_row_layout->addWidget(friend_requests_button_, 1);
+    friend_requests_badge_ = new QLabel(friend_row);
+    friend_requests_badge_->setObjectName("FriendRequestBadge");
+    friend_requests_badge_->setAlignment(Qt::AlignCenter);
+    friend_requests_badge_->setFixedSize(16, 16);
+    friend_requests_badge_->hide();
+    friend_row_layout->addWidget(friend_requests_badge_, 0, Qt::AlignVCenter);
+    left->addWidget(friend_row);
 
     auto* conversations_label = new QLabel("好友", left_panel);
     conversations_label->setObjectName("SectionLabel");
@@ -493,9 +511,9 @@ QWidget* MainWindow::buildChatPage() {
     more_button_->setObjectName("MoreButton");
     more_button_->setAccessibleName("更多");
     more_button_->setIcon(chatbox::client::moreDotsIcon());
-    more_button_->setIconSize(QSize(44, 44));
+    more_button_->setIconSize(QSize(20, 20));
     more_button_->setToolTip("更多");
-    more_button_->setFixedSize(48, 48);
+    more_button_->setFixedSize(32, 32);
     more_button_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     more_button_->setArrowType(Qt::NoArrow);
     more_button_->setStyleSheet(
@@ -573,22 +591,33 @@ QWidget* MainWindow::buildChatPage() {
     auto* right = new QVBoxLayout(right_panel);
     right->setContentsMargins(12, 12, 12, 12);
     right->setSpacing(6);
-    auto* settings_button = new QPushButton("设置", right_panel);
-    settings_button->setIcon(QIcon(":/icons/settings.png"));
-    settings_button->setIconSize(QSize(16, 16));
-    right->addWidget(settings_button);
-    logout_button_ = new QPushButton("退出登录", right_panel);
-    logout_button_->setIcon(QIcon(":/icons/logout.png"));
-    logout_button_->setIconSize(QSize(16, 16));
-    right->addWidget(logout_button_);
-    auto* members_label = new QLabel("在线成员", right_panel);
-    members_label->setObjectName("SectionLabel");
-    right->addWidget(members_label);
+    member_count_label_ = new QLabel("在线成员 (0)", right_panel);
+    member_count_label_->setObjectName("SectionLabel");
+    right->addWidget(member_count_label_);
     member_list_ = new QListWidget(right_panel);
     member_list_->setAccessibleName("在线成员");
     member_list_->setIconSize(QSize(28, 28));
     member_list_->setContextMenuPolicy(Qt::CustomContextMenu);
     right->addWidget(member_list_, 1);
+
+    auto* footer = new QWidget(right_panel);
+    auto* footer_layout = new QHBoxLayout(footer);
+    footer_layout->setContentsMargins(0, 0, 0, 0);
+    footer_layout->setSpacing(6);
+    auto* settings_button = new QPushButton("设置", footer);
+    settings_button->setObjectName("FooterAction");
+    settings_button->setIcon(QIcon(":/icons/settings.png"));
+    settings_button->setIconSize(QSize(16, 16));
+    settings_button->setFixedHeight(32);
+    logout_button_ = new QPushButton("退出登录", footer);
+    logout_button_->setObjectName("DangerFooterAction");
+    logout_button_->setIcon(QIcon(":/icons/logout.png"));
+    logout_button_->setIconSize(QSize(16, 16));
+    logout_button_->setFixedHeight(32);
+    footer_layout->addWidget(settings_button);
+    footer_layout->addWidget(logout_button_);
+    footer_layout->addStretch(1);
+    right->addWidget(footer);
     layout->addWidget(right_panel);
 
     connect(room_list_, &QListWidget::itemClicked, this, &MainWindow::onRoomClicked);
@@ -614,7 +643,13 @@ QWidget* MainWindow::buildChatPage() {
     connect(input_edit_, &QLineEdit::returnPressed, this, &MainWindow::onSendClicked);
     connect(mention_button_, &QPushButton::clicked, this, &MainWindow::insertMention);
     connect(reply_cancel_button_, &QPushButton::clicked, this, &MainWindow::clearReply);
-    connect(logout_button_, &QPushButton::clicked, this, &MainWindow::logout);
+    connect(logout_button_, &QPushButton::clicked, this, [this] {
+        if (QMessageBox::question(this, "退出登录", "确定要退出登录吗？",
+                                  QMessageBox::Yes | QMessageBox::No,
+                                  QMessageBox::No) == QMessageBox::Yes) {
+            logout();
+        }
+    });
     connect(settings_button, &QPushButton::clicked, this, &MainWindow::openSettings);
 
     QWidget::setTabOrder(room_list_, conversation_list_);
@@ -2254,10 +2289,18 @@ void MainWindow::updateFriendRequestCount() {
     if (friend_requests_button_ == nullptr) {
         return;
     }
-    friend_requests_button_->setText(
+    friend_requests_button_->setText("好友申请");
+    friend_requests_button_->setAccessibleName(
         friend_request_count_ > 0
-            ? QString("好友申请 (%1)").arg(friend_request_count_)
+            ? QString("好友申请，%1 条未读").arg(friend_request_count_)
             : QString("好友申请"));
+    if (friend_requests_badge_ == nullptr) {
+        return;
+    }
+    friend_requests_badge_->setText(
+        friend_request_count_ > 9 ? QString("9+")
+                                  : QString::number(friend_request_count_));
+    friend_requests_badge_->setVisible(friend_request_count_ > 0);
 }
 
 void MainWindow::requestUserSearch(const QString& keyword) {
@@ -3111,6 +3154,9 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
     restorePendingForCurrentContext();
     renderCurrentConversation(ScrollMode::kBottom);
     member_list_->clear();
+    if (member_count_label_ != nullptr) {
+        member_count_label_->setText("在线成员 (0)");
+    }
 
     if (offline_mode_) {
         // 离线只读：不发 JOIN、成员、头像、历史等任何请求帧。
@@ -3197,6 +3243,9 @@ void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
     restorePendingForCurrentContext();
     renderCurrentConversation(ScrollMode::kBottom);
     member_list_->clear();
+    if (member_count_label_ != nullptr) {
+        member_count_label_->setText("在线成员 (0)");
+    }
     if (QListWidgetItem* item = findConversationItem(peer_id)) {
         item->setData(Qt::UserRole + 2, 0);
         QString text = item->text();
@@ -3837,6 +3886,10 @@ void MainWindow::onFrameReceived(const QByteArray& data) {
             if (context_type_ != ContextType::Room ||
                 room_id != static_cast<uint32_t>(current_room_id_)) {
                 break;
+            }
+            if (member_count_label_ != nullptr) {
+                member_count_label_->setText(
+                    QString("在线成员 (%1)").arg(count));
             }
             member_list_->clear();
             for (uint16_t i = 0; i < count; ++i) {
@@ -4885,6 +4938,9 @@ void MainWindow::resetContext() {
     }
     if (member_list_ != nullptr) {
         member_list_->clear();
+    }
+    if (member_count_label_ != nullptr) {
+        member_count_label_->setText("在线成员 (0)");
     }
     if (load_more_action_ != nullptr) {
         load_more_action_->setEnabled(false);
