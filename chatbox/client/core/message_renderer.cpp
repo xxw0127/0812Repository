@@ -129,16 +129,17 @@ QString renderMessageFragment(const ChatMessage& message, quint64 self_user_id,
 
     const int top_margin = show_sender_name ? 12 : 4;
     html += "<div style=\"margin-top: " + QString::number(top_margin) + "px;\">";
-    // Nested tables are the only reliable way to simulate a 1px border in
+    // Nested tables are the only reliable way to create the 1px inset gap in
     // Qt's rich-text engine (border-radius and box-shadow are unsupported).
     // Once content would exceed roughly 620px at 14px, pin the bubble to 72%
     // of the viewport so short messages stay content-sized and long ones stop
-    // before filling the whole transcript.
+    // before filling the whole transcript. The visible border is painted by
+    // ChatView; a square bgcolor here would leave a frame outside the corners.
     const QString width_attr =
         messageNeedsWidthCap(message) ? " width=\"72%\"" : QString();
     html += "<table align=\"" + alignment + "\"" + width_attr +
             " cellspacing=\"0\" cellpadding=\"1\" bgcolor=\"" +
-            QString::fromLatin1(theme::kBubbleBorder) + "\"><tr><td>";
+            QString::fromLatin1(theme::kSurfaceSoft) + "\"><tr><td>";
     html += "<table cellspacing=\"0\" cellpadding=\"12\" bgcolor=\"" + background +
             "\"><tr><td>";
     if (!outgoing && !message.recalled && show_sender_name) {

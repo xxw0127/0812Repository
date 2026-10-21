@@ -89,7 +89,7 @@
 
 ### 消息流
 
-- 气泡：外层 1px `kBubbleBorder` 模拟描边，内层 `cellpadding=12`；Qt 富文本不支持 `border-radius` / `box-shadow`，圆角由 `ChatView` 绘制层遮罩四角并重绘 12px 圆角边框实现，不得尝试在 HTML 里写 `border-radius`。
+- 气泡：内层 `cellpadding=12`；外层 1px 单元格只保留画布色间隙，不能画方角边框；Qt 富文本不支持 `border-radius` / `box-shadow`，可见的 1px `kBubbleBorder` 圆角描边由 `ChatView` 绘制层遮罩四角并重绘 12px 圆角实现，不得尝试在 HTML 里写 `border-radius`。
 - 宽度：短消息按内容收窄；视觉长度超过约 88 个半角单位（中文/emoji 按 2 计），或引用内容超过约 40 个单位时，气泡限制为视口宽度 **72%**，不得横贯整个聊天区。
 - 时间戳在气泡外下方；己方右对齐，对方左对齐。
 - 同一发送者 3 分钟内不重复昵称；发送者名 12px `kBody`，不加粗。

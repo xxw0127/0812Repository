@@ -583,8 +583,15 @@ void TestClientCore::rendererBubbleSpecUsesBorderAndExternalTimestamp() {
 
     const QString html = chatbox::client::renderConversationHtml({message}, 1);
     QVERIFY(html.contains(QStringLiteral("cellpadding=\"1\"")));
-    QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kBubbleBorder)));
     QVERIFY(html.contains(QStringLiteral("cellpadding=\"12\"")));
+    // The outer cell is a canvas-coloured gap; ChatView owns the visible
+    // rounded border, so the HTML must not paint a square border underneath it.
+    QVERIFY(html.contains(QStringLiteral("bgcolor=\"%1\"")
+                              .arg(QString::fromLatin1(
+                                  chatbox::client::theme::kSurfaceSoft))));
+    QVERIFY(!html.contains(QStringLiteral("bgcolor=\"%1\"")
+                               .arg(QString::fromLatin1(
+                                   chatbox::client::theme::kBubbleBorder))));
     QVERIFY(html.contains(QStringLiteral("line-height: 150%")));
     const QString local_time = chatbox::client::formatLocalTime(created);
     const int timestamp = html.indexOf(local_time);
@@ -651,7 +658,6 @@ void TestClientCore::rendererRecalledBubbleHasNoSenderName() {
     QVERIFY(html.contains(QStringLiteral("消息已撤回")));
     QVERIFY(!html.contains(QStringLiteral("SenderOnly")));
     QVERIFY(html.contains(QString::fromLatin1(chatbox::client::theme::kSurfaceStrong)));
-    QVERIFY(!html.contains(QString::fromLatin1(chatbox::client::theme::kSurfaceSoft)));
 }
 
 void TestClientCore::rendererFragmentMatchesFullRender() {
@@ -824,7 +830,14 @@ void TestClientCore::messageBubblesHaveRoundedCorners() {
     QVERIFY(overlay != nullptr);
     const QImage image = overlay->grab().toImage();
     const QColor canvas(chatbox::client::theme::kSurfaceSoft);
+    const QColor border(chatbox::client::theme::kBubbleBorder);
     const QColor corner = image.pixelColor(bubble.left() + 2, bubble.top() + 2);
+    bool border_on_top_edge = false;
+    for (int y = bubble.top(); y <= bubble.top() + 2; ++y) {
+        if (image.pixelColor(bubble.center().x(), y) == border) {
+            border_on_top_edge = true;
+        }
+    }
     qApp->setStyleSheet(previous_style);
 
     QVERIFY2(qAbs(corner.red() - canvas.red()) <= 4 &&
@@ -837,6 +850,8 @@ void TestClientCore::messageBubblesHaveRoundedCorners() {
                             .arg(canvas.red())
                             .arg(canvas.green())
                             .arg(canvas.blue())));
+    QVERIFY2(border_on_top_edge,
+             "the overlay must draw the rounded bubble border, not just mask corners");
 }
 
 void TestClientCore::messageActionsAvailability() {
