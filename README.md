@@ -4,7 +4,7 @@
 
 C++ 聊天室：Windows 端 Qt 5.15 桌面客户端 + Linux C++17 高并发服务端（epoll ET + MySQL + nginx TLS 终结）。
 
-- 客户端：Qt Widgets、原生 Winsock + 独立网络线程、浅色三栏聊天界面、原生 TCP + TLS、本地历史 + 离线只读（SQLite 本机副本，只落服务端已确认消息；离线可浏览、可在当前会话内搜索，保留 token 时自动重连）。
+- 客户端：Qt Widgets、原生 Winsock + 独立网络线程、明暗双主题三栏聊天界面、原生 TCP + TLS、本地历史 + 离线只读（SQLite 本机副本，只落服务端已确认消息；离线可浏览、可在当前会话内搜索，保留 token 时自动重连）。
 - 服务端：IO 线程池 + 业务工作线程池、MySQL 连接池（每线程独立连接 / 预处理语句）、心跳与断线重连、限流与连接上限。
 - 协议：自定义二进制帧（14 字节大端帧头 + TLV 消息体），登录/注册、房间与大厅广播、私聊、历史分页、引用回复、撤回、消息搜索、好友与备注、个人资料与头像。
 
@@ -51,7 +51,7 @@ cd chatbox\client
 ```
 
 - 默认服务器：`192.168.2.240:9443`（TLS，校验 `client\certs\ca.crt`）。
-- 回归测试：`cd chatbox\client\tests; .\run_client_tests.ps1`（当前 79 passed / 0 failed）。
+- 回归测试：`cd chatbox\client\tests; .\run_client_tests.ps1`（当前 126 passed / 0 failed）。
 - 便携分发包：`.\package_client.ps1` → `dist\chatbox-0.2.0-win64.zip`（含 `Qt5Sql.dll`、`sqldrivers\qsqlite.dll`、`imageformats\qjpeg.dll`，打包后逐项校验）。
 - 详细说明见 [`chatbox/client/README.md`](chatbox/client/README.md)。
 
@@ -68,13 +68,13 @@ Qt 客户端 --TLS 9443--> nginx stream（证书 /etc/chatbox/certs）--PROXY-->
 
 | 登录 | 聊天（大厅） |
 |---|---|
-| ![登录](chatbox/client/screenshots/screenshot-coinbase-login.png) | ![主界面](chatbox/client/screenshots/screenshot-coinbase-main.png) |
+| ![登录](chatbox/client/screenshots/ui-login-default.png) | ![主界面](chatbox/client/screenshots/ui-main-room.png) |
 
 | 个人资料 | 设置 |
 |---|---|
-| ![资料](chatbox/client/screenshots/screenshot-coinbase-profile.png) | ![设置](chatbox/client/screenshots/screenshot-coinbase-settings.png) |
+| ![资料](chatbox/client/screenshots/ui-profile.png) | ![设置](chatbox/client/screenshots/ui-settings.png) |
 
-更多界面与验证证据（图标、消息操作、好友、头像修复等）见 `chatbox/client/screenshots/` 下的 `screenshot-*.png` 与客户端 README 索引。
+更多界面与验证证据（私聊、消息操作、搜索、好友、头像等）见 `chatbox/client/screenshots/` 下的 `ui-*.png` 与[截图索引](chatbox/client/screenshots/README.md)。
 
 ## 文档
 
@@ -82,6 +82,8 @@ Qt 客户端 --TLS 9443--> nginx stream（证书 /etc/chatbox/certs）--PROXY-->
 |---|---|
 | [`chatbox/README.md`](chatbox/README.md) | 服务端：依赖、建库、配置、构建、运行、systemd、监控指标、协议表、联调工具 |
 | [`chatbox/client/README.md`](chatbox/client/README.md) | 客户端：构建、分发、TLS、各功能说明、回归测试、截图索引 |
+| [`chatbox/client/screenshots/README.md`](chatbox/client/screenshots/README.md) | 客户端界面截图索引（`ui-*.png`） |
+| [`chatbox/docs/design/DESIGN.md`](chatbox/docs/design/DESIGN.md) | 设计系统：颜色令牌、明暗主题、组件与可访问性规范 |
 | [`AGENTS.md`](AGENTS.md) | C++ 跨平台开发规范（Qt 客户端 + Linux/Windows 服务端 + Socket + MySQL 5.7），可供其他项目参考学习 |
 | [`docs/2026-10-18-linux-chatroom-design.md`](docs/2026-10-18-linux-chatroom-design.md) | 服务端架构规划书（历史设计稿，保留原始命名） |
 | [`docs/superpowers/specs/`](docs/superpowers/specs) | 各功能的规格（换肤、图标、客户端可用性等） |
