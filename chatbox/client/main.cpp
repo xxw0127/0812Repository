@@ -12,6 +12,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QStringList>
 #include <QStyleFactory>
 
 #include "ui/main_window.h"
@@ -27,10 +28,30 @@ int main(int argc, char** argv) {
     // One instance only: two clients would race on the same settings store and
     // (from the history batch on) the same local database. A crashed instance
     // leaves a stale lock that expires instead of blocking forever.
-    const QString lock_directory =
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    // --profile <dir> is an explicit acceptance/testing escape hatch: it gets
+    // its own lock and INI settings, while normal starts keep the registry
+    // store and the default single-instance behaviour.
+    const QStringList arguments = QCoreApplication::arguments();
+    const int profile_index = arguments.indexOf(QStringLiteral("--profile"));
+    QString profile_directory;
+    if (profile_index >= 0 && profile_index + 1 < arguments.size()) {
+        profile_directory = QDir(arguments.at(profile_index + 1)).absolutePath();
+    }
+
+    QString lock_directory;
+    if (!profile_directory.isEmpty()) {
+        QDir().mkpath(profile_directory);
+        QSettings::setDefaultFormat(QSettings::IniFormat);
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                           profile_directory);
+        lock_directory = profile_directory;
+    } else {
+        lock_directory = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    }
     QDir().mkpath(lock_directory);
-    QLockFile instance_lock(QDir(lock_directory).filePath(QStringLiteral("chatbox.lock")));
+    const QString profile_lock =
+        QDir(lock_directory).filePath(QStringLiteral("chatbox.lock"));
+    QLockFile instance_lock(profile_lock);
     instance_lock.setStaleLockTime(30000);
     if (!instance_lock.tryLock(200)) {
         QMessageBox::information(nullptr, "ChatBox", "ChatBox 已在运行。");
@@ -64,8 +85,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    const bool start_minimized =
-        QCoreApplication::arguments().contains(QStringLiteral("--minimized"));
+    const bool start_minimized = arguments.contains(QStringLiteral("--minimized"));
     MainWindow window;
     if (!chatbox::client::shouldStartHidden(
             start_minimized, chatbox::client::shellNotificationAreaAvailable())) {

@@ -163,6 +163,7 @@ private slots:
     void autostartCommandCarriesMinimizedFlag();
     void autostartSettingWritesAndRemovesRunValue();
     void startupHonoursMinimizedAndSingleInstance();
+    void startupSupportsIsolatedProfile();
     void startupPolicyRequiresUsableTray();
     void unreadBadgesHonourAlertsSwitch();
     void historyStoreCreatesSchema();
@@ -1975,6 +1976,17 @@ void TestClientCore::startupHonoursMinimizedAndSingleInstance() {
              "a second instance must not run concurrently");
     QVERIFY2(source.contains(QStringLiteral("setStaleLockTime")),
              "a crashed instance must not block startup forever");
+}
+
+// Acceptance testing needs two clients for two accounts. A separate profile
+// gets its own lock and INI settings without changing the production default.
+void TestClientCore::startupSupportsIsolatedProfile() {
+    const QString source = readClientSource(QStringLiteral("main.cpp"));
+    QVERIFY2(!source.isEmpty(), "main.cpp must be readable");
+    QVERIFY(source.contains(QStringLiteral("--profile")));
+    QVERIFY(source.contains(QStringLiteral("QSettings::setDefaultFormat(QSettings::IniFormat)")));
+    QVERIFY(source.contains(QStringLiteral("QSettings::setPath(")));
+    QVERIFY(source.contains(QStringLiteral("profile_lock")));
 }
 
 // Qt's Windows platform plugin reports a system tray unconditionally, so the
