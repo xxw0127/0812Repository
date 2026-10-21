@@ -447,9 +447,12 @@ QWidget* MainWindow::buildChatPage() {
     header_row->addWidget(context_label_, 1);
     more_button_ = new QToolButton(header);
     more_button_->setObjectName("MoreButton");
-    more_button_->setText(QStringLiteral("⋮"));
+    more_button_->setText(QStringLiteral("⋯"));
     more_button_->setToolTip("更多");
     more_button_->setFixedSize(30, 30);
+    more_button_->setArrowType(Qt::NoArrow);
+    more_button_->setStyleSheet(
+        "QToolButton#MoreButton::menu-indicator { image: none; width: 0px; }");
     more_button_->setPopupMode(QToolButton::InstantPopup);
     more_menu_ = new QMenu(this);
     more_menu_->addAction(QIcon(":/icons/message.png"), "消息搜索", this,

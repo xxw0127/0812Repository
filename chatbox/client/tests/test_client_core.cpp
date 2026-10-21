@@ -1,6 +1,7 @@
 #include <QtTest>
 #include <algorithm>
 #include <QApplication>
+#include <QCheckBox>
 #include <QDir>
 #include <QColor>
 #include <QCoreApplication>
@@ -17,6 +18,7 @@
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QSettings>
+#include <QSpinBox>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QStringList>
@@ -24,6 +26,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextFragment>
+#include <QToolButton>
 #include <QVector>
 
 #include "core/app_settings.h"
@@ -175,6 +178,8 @@ private slots:
     void incomingPushesArePersistedForOtherConversations();
     void recallPushUpdatesBackgroundHistory();
     void loginPageOffersLocalHistory();
+    void loginPageHidesServerFieldsBehindMoreDots();
+    void settingsDialogDefaultsToPublicServer();
     void offlineModeIsReadOnlyAndLocal();
     void settingsDialogShowsHistoryInfo();
     void settingsDialogExposesHistoryActions();
@@ -1663,7 +1668,7 @@ void TestClientCore::privatePushSkipsMentionNotification() {
              "rooms keep mention notifications");
 }
 
-// 头部只留 头像 + 标题 + ⋮；资料入口是头像，消息搜索在 ⋮ 菜单里。
+// 头部只留 头像 + 标题 + ⋯；资料入口是头像，消息搜索在 ⋯ 菜单里。
 void TestClientCore::headerUsesAvatarAndMoreMenu() {
     const QString source = readClientSource(QStringLiteral("ui/main_window.cpp"));
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
@@ -1675,6 +1680,10 @@ void TestClientCore::headerUsesAvatarAndMoreMenu() {
              "message search moved out of the composer");
     QVERIFY2(source.contains(QStringLiteral("more_button_->setPopupMode(QToolButton::InstantPopup)")),
              "the header owns an instant-popup menu button");
+    QVERIFY2(source.contains(QStringLiteral("more_button_->setText(QStringLiteral(\"⋯\"))")),
+             "the header more control uses three horizontal dots");
+    QVERIFY2(source.contains(QStringLiteral("menu-indicator")),
+             "the header more control must hide the menu indicator arrow");
     QVERIFY2(source.contains(QStringLiteral("消息搜索")) &&
                  source.contains(QStringLiteral("加载更早消息")),
              "the more menu carries search and load-more");
@@ -2138,6 +2147,54 @@ void TestClientCore::loginPageOffersLocalHistory() {
     QCOMPARE(spy.count(), 1);
     page.setLocalHistoryAvailable(false);
     QVERIFY(button->isHidden());
+}
+
+// 服务器/端口/TLS 不是每次登录都要填：默认收在登录卡片的横向三点入口里，
+// 新安装默认走公网，展开后才显示可编辑字段。
+void TestClientCore::loginPageHidesServerFieldsBehindMoreDots() {
+    QSettings settings;
+    settings.remove(QStringLiteral("server"));
+    settings.sync();
+
+    LoginPage page;
+    auto* toggle = page.findChild<QToolButton*>(QStringLiteral("AdvancedOptionsButton"));
+    auto* panel = page.findChild<QWidget*>(QStringLiteral("AdvancedOptionsPanel"));
+    QVERIFY(toggle != nullptr);
+    QVERIFY(panel != nullptr);
+    QCOMPARE(toggle->text(), QStringLiteral("⋯"));
+    QVERIFY(panel->isHidden());
+
+    auto* host = page.findChild<QLineEdit*>(QStringLiteral("ServerHostEdit"));
+    auto* port = page.findChild<QSpinBox*>(QStringLiteral("ServerPortSpin"));
+    auto* tls = page.findChild<QCheckBox*>(QStringLiteral("ServerTlsCheck"));
+    QVERIFY(host != nullptr);
+    QVERIFY(port != nullptr);
+    QVERIFY(tls != nullptr);
+    QCOMPARE(host->text(), QStringLiteral("frp-oil.com"));
+    QCOMPARE(port->value(), 15318);
+    QVERIFY(tls->isChecked());
+
+    toggle->click();
+    QVERIFY(!panel->isHidden());
+    toggle->click();
+    QVERIFY(panel->isHidden());
+}
+
+void TestClientCore::settingsDialogDefaultsToPublicServer() {
+    QSettings settings;
+    settings.remove(QStringLiteral("server"));
+    settings.sync();
+
+    SettingsDialog dialog(QStringLiteral("U00001001"), QString(), 0, false);
+    auto* host = dialog.findChild<QLineEdit*>(QStringLiteral("ServerHostEdit"));
+    auto* port = dialog.findChild<QSpinBox*>(QStringLiteral("ServerPortSpin"));
+    auto* tls = dialog.findChild<QCheckBox*>(QStringLiteral("ServerTlsCheck"));
+    QVERIFY(host != nullptr);
+    QVERIFY(port != nullptr);
+    QVERIFY(tls != nullptr);
+    QCOMPARE(host->text(), QStringLiteral("frp-oil.com"));
+    QCOMPARE(port->value(), 15318);
+    QVERIFY(tls->isChecked());
 }
 
 // 离线模式必须是只读的本地视图：所有写操作都要被挡住，

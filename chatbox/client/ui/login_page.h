@@ -8,6 +8,7 @@ class QLabel;
 class QLineEdit;
 class QPushButton;
 class QSpinBox;
+class QToolButton;
 
 class LoginPage : public QWidget {
     Q_OBJECT
@@ -42,6 +43,8 @@ private:
     QLineEdit* password_edit_ = nullptr;
     QLineEdit* nickname_edit_ = nullptr;
     QCheckBox* tls_check_ = nullptr;
+    QWidget* advanced_panel_ = nullptr;
+    QToolButton* advanced_toggle_ = nullptr;
     QPushButton* login_button_ = nullptr;
     QPushButton* register_button_ = nullptr;
     QPushButton* cancel_button_ = nullptr;

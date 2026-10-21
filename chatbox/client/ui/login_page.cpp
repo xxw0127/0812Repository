@@ -11,6 +11,7 @@
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 #include "core/ui_theme.h"
@@ -55,11 +56,14 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     form->setHorizontalSpacing(12);
     form->setVerticalSpacing(8);
 
-    host_edit_ = new QLineEdit("192.168.2.240", card);
+    host_edit_ = new QLineEdit("frp-oil.com", card);
+    host_edit_->setObjectName("ServerHostEdit");
     port_spin_ = new QSpinBox(card);
+    port_spin_->setObjectName("ServerPortSpin");
     port_spin_->setRange(1, 65535);
-    port_spin_->setValue(9443);
+    port_spin_->setValue(15318);
     tls_check_ = new QCheckBox("TLS 加密连接", card);
+    tls_check_->setObjectName("ServerTlsCheck");
     tls_check_->setChecked(true);
     username_edit_ = new QLineEdit(card);
     username_edit_->setPlaceholderText("3-32 位字母、数字、下划线");
@@ -70,17 +74,37 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     nickname_edit_->setPlaceholderText("注册时填写");
 
     QSettings settings;
-    host_edit_->setText(settings.value("server/host", "192.168.2.240").toString());
-    port_spin_->setValue(settings.value("server/port", 9443).toInt());
+    host_edit_->setText(settings.value("server/host", "frp-oil.com").toString());
+    port_spin_->setValue(settings.value("server/port", 15318).toInt());
     tls_check_->setChecked(settings.value("server/tls", true).toBool());
 
-    form->addRow("服务器", host_edit_);
-    form->addRow("端口", port_spin_);
-    form->addRow("连接", tls_check_);
     form->addRow("用户名", username_edit_);
     form->addRow("密码", password_edit_);
     form->addRow("昵称", nickname_edit_);
     card_layout->addLayout(form);
+
+    advanced_panel_ = new QWidget(card);
+    advanced_panel_->setObjectName("AdvancedOptionsPanel");
+    auto* advanced_form = new QFormLayout(advanced_panel_);
+    advanced_form->setContentsMargins(0, 0, 0, 0);
+    advanced_form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    advanced_form->setHorizontalSpacing(12);
+    advanced_form->setVerticalSpacing(8);
+    advanced_form->addRow("服务器", host_edit_);
+    advanced_form->addRow("端口", port_spin_);
+    advanced_form->addRow("连接", tls_check_);
+    advanced_panel_->hide();
+    card_layout->addWidget(advanced_panel_);
+
+    advanced_toggle_ = new QToolButton(card);
+    advanced_toggle_->setObjectName("AdvancedOptionsButton");
+    advanced_toggle_->setText(QStringLiteral("⋯"));
+    advanced_toggle_->setToolTip("更多选项");
+    advanced_toggle_->setCheckable(true);
+    advanced_toggle_->setAutoRaise(true);
+    advanced_toggle_->setFixedSize(30, 24);
+    advanced_toggle_->setCursor(Qt::PointingHandCursor);
+    card_layout->addWidget(advanced_toggle_, 0, Qt::AlignLeft);
 
     auto* buttons = new QHBoxLayout();
     buttons->setSpacing(8);
@@ -120,6 +144,10 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     connect(local_history_button_, &QPushButton::clicked, this,
             &LoginPage::viewLocalHistoryRequested);
     connect(password_edit_, &QLineEdit::returnPressed, this, &LoginPage::submitLogin);
+    connect(advanced_toggle_, &QToolButton::toggled, this, [this](bool expanded) {
+        advanced_panel_->setVisible(expanded);
+        advanced_toggle_->setToolTip(expanded ? "收起更多选项" : "更多选项");
+    });
     connect(tls_check_, &QCheckBox::toggled, this, [this](bool checked) {
         if (checked && port_spin_->value() == 9100) {
             port_spin_->setValue(9443);

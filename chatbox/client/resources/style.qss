@@ -289,7 +289,7 @@ QToolTip {
     border: none;
     padding: 6px 8px;
 }
-QToolButton#MoreButton {
+QToolButton#MoreButton, QToolButton#AdvancedOptionsButton {
     background: transparent;
     border: none;
     border-radius: 6px;
@@ -298,10 +298,15 @@ QToolButton#MoreButton {
     padding: 2px;
 }
 
-QToolButton#MoreButton:hover {
+QToolButton#MoreButton:hover, QToolButton#AdvancedOptionsButton:hover {
     background: #EEF0F3;
 }
 
-QToolButton#MoreButton:pressed {
+QToolButton#MoreButton:pressed, QToolButton#AdvancedOptionsButton:pressed {
     background: #E6E8EC;
+}
+
+QToolButton#MoreButton::menu-indicator {
+    image: none;
+    width: 0px;
 }

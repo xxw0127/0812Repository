@@ -64,11 +64,14 @@ SettingsDialog::SettingsDialog(const QString& public_id, const QString& history_
 
     QSettings settings;
     host_edit_ = new QLineEdit(
-        settings.value("server/host", "192.168.2.240").toString(), this);
+        settings.value("server/host", "frp-oil.com").toString(), this);
+    host_edit_->setObjectName("ServerHostEdit");
     port_spin_ = new QSpinBox(this);
+    port_spin_->setObjectName("ServerPortSpin");
     port_spin_->setRange(1, 65535);
-    port_spin_->setValue(settings.value("server/port", 9443).toInt());
+    port_spin_->setValue(settings.value("server/port", 15318).toInt());
     tls_check_ = new QCheckBox("TLS 加密连接", this);
+    tls_check_->setObjectName("ServerTlsCheck");
     tls_check_->setChecked(settings.value("server/tls", true).toBool());
     notifications_check_ = new QCheckBox("消息提醒（任务栏闪烁/未读角标）", this);
     notifications_check_->setChecked(
