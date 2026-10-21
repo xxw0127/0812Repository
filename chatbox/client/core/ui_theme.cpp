@@ -15,20 +15,27 @@ namespace theme {
 
 namespace {
 
+// Telegram Desktop light. Selected rows fill with the accent and switch to
+// white text, which is the defining move of that UI; bubbles carry no border,
+// the fill alone separates them from the canvas.
+// The blue is #2C74CC rather than Telegram's #3390EC: the original gives white
+// text only 3.31:1. Same hue, one step darker, 4.69:1.
 const ThemePalette kLight = {
-    "#0052FF", "#0046DD", "#003ECC", "#FFFFFF", "#F7F7F7", "#EEF0F3",
-    "#E6E8EC", "#DEE1E6", "#0A0B0D", "#5B616E", "#616877", "#676D76",
-    "#FFFFFF", "#05B169", "#027A48", "#038A52", "#CF202F", "#B42318",
-    "#6B7280", "#F4F6F8", "#E6F7F0", "#FFFFFF", "#FAE9EA", "#F2BCC0",
-    "#7C848E", "#0052FF", "#0046DD", "#003ECC", "#CCDCFF", "#A9C1F0",
+    "#2C74CC", "#2868B8", "#2461AF", "#FFFFFF", "#F4F4F5", "#F1F1F1",
+    "#E6E6E6", "#E7EBF0", "#000000", "#1A1A1A", "#6A6E74", "#6B7076",
+    "#FFFFFF", "#4DCD5E", "#3BA55D", "#4DCD5E", "#E53935", "#E53935",
+    "#6B7076", "#F1F1F1", "#EEFFDE", "#FFFFFF", "#FFEBEB", "#FFC5C5",
+    "#DADCE0", "#2C74CC", "#2868B8", "#2461AF", "#2C74CC", "#2C74CC",
+    "#5F6F7A",
 };
 
 const ThemePalette kDark = {
-    "#4D8DFF", "#3B7BEB", "#2F6FDC", "#0F1419", "#1A2027", "#232B33",
-    "#2B343D", "#323B44", "#F2F4F7", "#AEB6C0", "#8A929C", "#9AA2AC",
-    "#FFFFFF", "#34D399", "#6EE7B7", "#34D399", "#FF7A7A", "#FF8A80",
-    "#8A929C", "#202830", "#14332A", "#1A2027", "#3A2024", "#6B3035",
-    "#667380", "#2F6FDC", "#2660C7", "#1F54B0", "#2A3E5C", "#3D6299",
+    "#5EB5F7", "#4EA4F6", "#3390EC", "#17212B", "#0E1621", "#232E3C",
+    "#2B3B4E", "#101921", "#FFFFFF", "#E4EBF5", "#708499", "#8A9AAB",
+    "#FFFFFF", "#4DCD5E", "#6EE7B7", "#4DCD5E", "#FF6B6B", "#FF6B6B",
+    "#6C7883", "#1B2A3A", "#2B5278", "#182533", "#3A1F22", "#5C2A2E",
+    "#2B5278", "#2C74CC", "#2868B8", "#2461AF", "#2C74CC", "#2C74CC",
+    "#BBD3E8",
 };
 
 }  // namespace
@@ -63,6 +70,7 @@ const char* kPrimaryHover = kLight.primaryHover;
 const char* kPrimaryActive = kLight.primaryActive;
 const char* kSelectionBg = kLight.selectionBg;
 const char* kSelectionBorder = kLight.selectionBorder;
+const char* kBubbleMeta = kLight.bubbleMeta;
 
 namespace {
 
@@ -97,6 +105,7 @@ void assignPalette(const ThemePalette& palette) {
     kPrimaryActive = palette.primaryActive;
     kSelectionBg = palette.selectionBg;
     kSelectionBorder = palette.selectionBorder;
+    kBubbleMeta = palette.bubbleMeta;
 }
 
 const ThemePalette& paletteFor(ThemeMode mode) {

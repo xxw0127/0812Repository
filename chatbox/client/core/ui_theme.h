@@ -50,6 +50,10 @@ struct ThemePalette {
     // background and the hover background, which a single grey cannot do.
     const char* selectionBg;
     const char* selectionBorder;
+    // Timestamps and recalled text inside a bubble. Separate from kMutedSoft
+    // because a colour tuned for the canvas is unreadable on the own-bubble
+    // fill (1.8:1 in dark), and one value cannot serve both.
+    const char* bubbleMeta;
 };
 
 const ThemePalette& lightPalette();
@@ -92,6 +96,7 @@ extern const char* kPrimaryHover;
 extern const char* kPrimaryActive;
 extern const char* kSelectionBg;
 extern const char* kSelectionBorder;
+extern const char* kBubbleMeta;
 
 }  // namespace theme
 }  // namespace client

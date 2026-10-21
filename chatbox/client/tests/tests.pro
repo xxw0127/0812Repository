@@ -12,6 +12,7 @@ SOURCES += \
     ../core/autostart.cpp \
     ../core/client_policy.cpp \
     ../core/credential_store.cpp \
+    ../core/account_store.cpp \
     ../core/focus_ring.cpp \
     ../core/ui_theme.cpp \
     ../core/client_log.cpp \
@@ -30,7 +31,8 @@ SOURCES += \
     ../ui/profile_dialog.cpp \
     ../ui/login_page.cpp \
     ../ui/more_dots.cpp \
-    ../ui/settings_dialog.cpp
+    ../ui/settings_dialog.cpp \
+    ../ui/account_switcher_dialog.cpp
 HEADERS += \
     ../core/app_settings.h \
     ../core/autostart.h \
@@ -56,6 +58,7 @@ HEADERS += \
     ../ui/profile_dialog.h \
     ../ui/login_page.h \
     ../ui/more_dots.h \
-    ../ui/settings_dialog.h
+    ../ui/settings_dialog.h \
+    ../ui/account_switcher_dialog.h
 
 win32: LIBS += -lcrypt32

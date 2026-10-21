@@ -10,6 +10,8 @@ chatbox/client/tests/object_script.*
 chatbox/client/tests/client_tests.exe
 chatbox/client/tests/results*.txt
 chatbox/client/tests/test_out.txt
+chatbox/client/tests/final.txt
+chatbox/client/tests/s1.txt
 chatbox/client/tests/.qmake.stash
 *.o
 *.obj

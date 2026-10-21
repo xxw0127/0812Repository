@@ -50,10 +50,11 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
     QRect row = option.rect.adjusted(4, 2, -4, -2);
     if (selected) {
         // Mirrors QListWidget::item:selected in style.qss; the delegate paints
-        // its own row, so the stylesheet never reaches this list.
-        painter->setPen(QPen(QColor(theme::kSelectionBorder), 1));
+        // its own row, so the stylesheet never reaches this list. Telegram
+        // fills the whole row with the accent and drops the outline.
+        painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(theme::kSelectionBg));
-        painter->drawRoundedRect(QRectF(row).adjusted(0.5, 0.5, -0.5, -0.5), 8, 8);
+        painter->drawRoundedRect(row, 8, 8);
     } else if (hovered) {
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(theme::kSurfaceSoft));
@@ -102,15 +103,22 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
 
     const int text_left = avatar_rect.right() + 10;
     const int text_right = row.right() - 8;
-    const QColor primary(theme::kInk);
-    const QColor secondary(theme::kMuted);
+    // The selected row is accent-filled, so every foreground flips to white;
+    // the preview and timestamp keep hierarchy through alpha, not grey.
+    const QColor primary =
+        selected ? QColor(theme::kOnPrimary) : QColor(theme::kInk);
+    QColor secondary(theme::kMuted);
+    if (selected) {
+        secondary = QColor(theme::kOnPrimary);
+        secondary.setAlpha(190);
+    }
 
     QFont name_font = painter->font();
     name_font.setPixelSize(13);
     name_font.setBold(true);
     painter->setFont(name_font);
     painter->setPen(primary);
-    const QRect name_rect(text_left, row.top() + 7, text_right - text_left - 48, 18);
+    const QRect name_rect(text_left, row.top() + 11, text_right - text_left - 48, 18);
     painter->drawText(name_rect, Qt::AlignLeft | Qt::AlignVCenter,
                       QFontMetrics(name_font).elidedText(name, Qt::ElideRight,
                                                          name_rect.width()));
@@ -121,7 +129,7 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
     painter->setFont(preview_font);
     painter->setPen(secondary);
     const QString preview = content.isEmpty() ? QString("暂无消息") : content;
-    const QRect preview_rect(text_left, row.top() + 27, text_right - text_left - 38, 16);
+    const QRect preview_rect(text_left, row.top() + 33, text_right - text_left - 38, 16);
     painter->drawText(preview_rect, Qt::AlignLeft | Qt::AlignVCenter,
                       QFontMetrics(preview_font).elidedText(preview, Qt::ElideRight,
                                                             preview_rect.width()));
@@ -134,7 +142,7 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
         time_font.setPixelSize(11);
         painter->setFont(time_font);
         painter->setPen(secondary);
-        painter->drawText(QRect(row.right() - 54, row.top() + 7, 46, 16),
+        painter->drawText(QRect(row.right() - 54, row.top() + 11, 46, 16),
                           Qt::AlignRight | Qt::AlignVCenter, local);
     }
 
@@ -145,11 +153,13 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
         badge_font.setBold(true);
         painter->setFont(badge_font);
         const int width = qMax(18, QFontMetrics(badge_font).horizontalAdvance(label) + 10);
-        const QRect badge(row.right() - width - 6, row.bottom() - 20, width, 17);
+        const QRect badge(row.right() - width - 6, row.bottom() - 22, width, 18);
         painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(theme::kAccent));
+        painter->setBrush(selected ? QColor(theme::kOnPrimary)
+                                   : QColor(theme::kAccent));
         painter->drawRoundedRect(badge, 8, 8);
-        painter->setPen(QColor(theme::kOnPrimary));
+        painter->setPen(selected ? QColor(theme::kAccent)
+                                 : QColor(theme::kOnPrimary));
         painter->drawText(badge, Qt::AlignCenter, label);
     }
 
@@ -157,5 +167,5 @@ void FriendItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
 }
 
 QSize FriendItemDelegate::sizeHint(const QStyleOptionViewItem&, const QModelIndex& index) const {
-    return index.data(kIdRole).toULongLong() == 0 ? QSize(0, 26) : QSize(0, 56);
+    return index.data(kIdRole).toULongLong() == 0 ? QSize(0, 28) : QSize(0, 64);
 }

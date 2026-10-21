@@ -165,7 +165,7 @@ QString renderMessageFragment(const ChatMessage& message, quint64 self_user_id,
     }
     if (message.recalled) {
         html += "<div style=\"font-size: 14px; color: " +
-                QString::fromLatin1(theme::kMutedSoft) + ";\"><i>" + content +
+                QString::fromLatin1(theme::kBubbleMeta) + ";\"><i>" + content +
                 "</i></div>";
     } else {
         html += "<div style=\"font-size: 14px; line-height: 150%;\">" + content +
@@ -173,7 +173,7 @@ QString renderMessageFragment(const ChatMessage& message, quint64 self_user_id,
     }
     html += "</td></tr></table>";
     html += "</td></tr></table>";
-    html += "<div style=\"color: " + QString::fromLatin1(theme::kMutedSoft) +
+    html += "<div style=\"color: " + QString::fromLatin1(theme::kBubbleMeta) +
             "; font-size: 11px; margin: 4px 4px 8px 4px; text-align: " +
             (outgoing ? "right" : "left") + ";\">" + messageMeta(message) + "</div>";
     html += "</div>";

@@ -1,5 +1,145 @@
 #include "ui/main_window_support.h"
 
+#include <QAction>
+#include <QFile>
+#include <QMenu>
+
+#include "core/account_store.h"
+#include "core/credential_store.h"
+#include "ui/account_switcher_dialog.h"
+
+void MainWindow::updateRightPanelVisibility() {
+    if (right_panel_ == nullptr) {
+        return;
+    }
+    // Member list is a room concept and it is off by default; private chats and
+    // the empty state never show it regardless of the switch.
+    const bool is_room = context_type_ == ContextType::Room;
+    right_panel_->setVisible(is_room && member_panel_visible_);
+    if (show_members_action_ != nullptr) {
+        show_members_action_->setEnabled(is_room);
+    }
+}
+
+void MainWindow::rememberCurrentAccount() {
+    if (username_.trimmed().isEmpty() || user_id_ == 0) {
+        return;
+    }
+    chatbox::client::AccountRecord record;
+    record.username = username_.trimmed();
+    record.nickname = nickname_.trimmed();
+    record.user_id = user_id_;
+    chatbox::client::upsertAccount(record);
+
+    // Cache the real avatar so the switcher can show a face before the user is
+    // authenticated again. Fallback initials cover the case where no avatar
+    // has arrived yet.
+    const QString path = chatbox::client::accountAvatarPath(record.username);
+    if (path.isEmpty()) {
+        return;
+    }
+    QImage image;
+    if (avatar_cache_.lookup(user_id_, image) && !image.isNull()) {
+        image.save(path, "PNG");
+    }
+}
+
+void MainWindow::openAccountMenu() {
+    if (my_profile_button_ == nullptr) {
+        return;
+    }
+    QMenu menu(this);
+    menu.addAction(QStringLiteral("查看我的资料"), this,
+                   &MainWindow::openOwnProfile);
+
+    QMenu* switch_menu = menu.addMenu(QStringLiteral("切换账号"));
+    const QVector<chatbox::client::AccountRecord> records =
+        chatbox::client::loadAccounts();
+    if (records.isEmpty()) {
+        QAction* empty = switch_menu->addAction(
+            QStringLiteral("登录一次后这里会显示账号"));
+        empty->setEnabled(false);
+    } else {
+        for (const chatbox::client::AccountRecord& record : records) {
+            const bool is_current = record.username == username_;
+            QString label = record.nickname.isEmpty() ? record.username
+                                                      : record.nickname;
+            if (is_current) {
+                label += QStringLiteral("（当前）");
+            }
+            QAction* action = switch_menu->addAction(label);
+            action->setCheckable(true);
+            action->setChecked(is_current);
+            action->setEnabled(!is_current);
+            action->setToolTip(record.username);
+            const QString target = record.username;
+            connect(action, &QAction::triggered, this,
+                    [this, target] { switchToAccount(target); });
+        }
+        switch_menu->addSeparator();
+        switch_menu->addAction(QStringLiteral("管理账号…"), this, [this] {
+            AccountSwitcherDialog dialog(username_, this);
+            if (dialog.exec() == QDialog::Accepted &&
+                !dialog.selectedUsername().isEmpty()) {
+                switchToAccount(dialog.selectedUsername());
+            }
+        });
+    }
+
+    menu.addSeparator();
+    menu.addAction(QStringLiteral("设置…"), this, &MainWindow::openSettings);
+    menu.addAction(QStringLiteral("退出登录"), this, [this] {
+        if (chatbox::client::confirmDanger(this, "退出登录",
+                                           "确定要退出登录吗？", "退出登录")) {
+            logout();
+        }
+    });
+    menu.exec(my_profile_button_->mapToGlobal(
+        QPoint(0, my_profile_button_->height())));
+}
+
+void MainWindow::switchToAccount(const QString& username) {
+    const QString target = username.trimmed();
+    if (target.isEmpty() || target == username_) {
+        return;
+    }
+    // host/port/tls survive clearSession(), but read them first: the login
+    // request below is what re-establishes the connection.
+    const QString host = host_;
+    const quint16 port = port_;
+    const bool tls = use_tls_;
+
+    QString password;
+    const bool has_password =
+        chatbox::client::loadAccountCredentials(target, &password);
+
+    logging_out_ = true;
+    logged_in_ = false;
+    logout_finishing_ = false;
+    if (network_ != nullptr) {
+        network_->requestStop();
+    }
+    clearSession();
+    login_page_->resetToLogin();
+    login_page_->setServerSettings(host, port, tls);
+    login_page_->setUsername(target);
+    if (stack_ != nullptr) {
+        stack_->setCurrentWidget(login_page_);
+    }
+
+    if (!has_password) {
+        // Nothing to log in with: park on the login page with the username
+        // filled in so the user only has to type the password.
+        login_page_->setStatus(
+            QStringLiteral("请为 %1 输入密码后登录").arg(target), true);
+        setStatus(QStringLiteral("切换到 %1：需要重新输入密码").arg(target), true);
+        return;
+    }
+
+    login_page_->setStatus(QStringLiteral("正在切换到 %1...").arg(target));
+    onLoginRequested(host, port, target, password, tls);
+}
+
 void MainWindow::updateOwnProfileStrip() {
     if (my_profile_button_ == nullptr || my_profile_avatar_ == nullptr ||
         my_profile_name_ == nullptr || my_profile_uid_ == nullptr) {
@@ -28,6 +168,9 @@ void MainWindow::updateOwnProfileStrip() {
         user_id_ == 0
             ? QString("未登录")
             : QString("%1\n%2").arg(name, chatbox::client::publicUserId(user_id_)));
+    // Keep the switcher entry (nickname + cached avatar) in step with whatever
+    // the strip is currently showing.
+    rememberCurrentAccount();
 }
 
 bool MainWindow::isCurrentProfileRequest(quint64 user_id, quint32 seq) const {

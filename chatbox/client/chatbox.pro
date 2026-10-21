@@ -25,6 +25,7 @@ SOURCES += \
     core/autostart.cpp \
     core/client_policy.cpp \
     core/credential_store.cpp \
+    core/account_store.cpp \
     core/focus_ring.cpp \
     core/ui_theme.cpp \
     core/socket_compat.cpp \
@@ -40,6 +41,7 @@ SOURCES += \
     core/avatar_cache.cpp \
     core/history_store.cpp \
     ui/chat_view.cpp \
+    ui/account_switcher_dialog.cpp \
     ui/empty_state.cpp \
     ui/message_input.cpp \
     ui/message_action_bar.cpp \
@@ -64,6 +66,7 @@ HEADERS += \
     core/autostart.h \
     core/client_policy.h \
     core/credential_store.h \
+    core/account_store.h \
     core/focus_ring.h \
     core/socket_compat.h \
     core/protocol_qt.h \
@@ -82,6 +85,7 @@ HEADERS += \
     core/friend_view.h \
     core/user_profile.h \
     ui/chat_view.h \
+    ui/account_switcher_dialog.h \
     ui/dialog_buttons.h \
     ui/empty_state.h \
     ui/message_input.h \

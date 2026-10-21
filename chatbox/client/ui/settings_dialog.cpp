@@ -25,6 +25,7 @@
 #include "core/autostart.h"
 #include "core/client_log.h"
 #include "core/ui_theme.h"
+#include "ui/dialog_buttons.h"
 
 namespace theme = chatbox::client::theme;  // Coinbase palette tokens
 
@@ -160,6 +161,21 @@ SettingsDialog::SettingsDialog(const QString& public_id, const QString& history_
         QString("ChatBox %1").arg(QCoreApplication::applicationVersion()), this);
     version->setObjectName("SettingsVersion");
     layout->addWidget(version);
+
+    // 账号级操作放在设置里，右侧成员栏不再承载导航职责。
+    auto* signout_row = new QHBoxLayout();
+    auto* signout_button = new QPushButton("退出当前账号", this);
+    signout_button->setObjectName("DangerOutlineButton");
+    signout_row->addWidget(signout_button);
+    signout_row->addStretch(1);
+    layout->addLayout(signout_row);
+    connect(signout_button, &QPushButton::clicked, this, [this] {
+        if (chatbox::client::confirmDanger(this, "退出登录",
+                                           "确定要退出当前账号吗？", "退出登录")) {
+            emit logoutRequested();
+            accept();
+        }
+    });
 
     auto* buttons = new QDialogButtonBox(
         QDialogButtonBox::Save | QDialogButtonBox::Cancel, this);

@@ -21,6 +21,8 @@ public:
     void clearPassword();
     void resetToLogin();
     void setServerSettings(const QString& host, quint16 port, bool tls);
+    // 切换账号时预填用户名，用户只需要补密码。
+    void setUsername(const QString& username);
     // Rebuilds icons that rasterise a theme colour (more-dots). Reloading the
     // stylesheet repaints QSS widgets but cannot reach a baked QPixmap.
     void refreshThemeIcons();

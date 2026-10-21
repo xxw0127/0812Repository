@@ -154,6 +154,9 @@ private:
     void requestHistory(int kind, quint64 target, quint64 before_id);
     void selectRoom(int room_id, const QString& name);
     void selectPrivate(quint64 peer_id, const QString& nickname);
+    // 房间列表与会话列表是两个独立控件，各自记着自己的选中项。切场景时
+    // 必须清掉另一个，否则两行会同时是蓝色选中态。
+    void clearStaleListSelection(ContextType keep);
     // 打开本地历史库（按账号隔离）；失败只记日志，聊天照常。
     bool openHistoryStore(quint64 user_id);
     // 关闭本地历史库：先解绑 MessageStore，再关连接。
@@ -189,6 +192,15 @@ private:
     void logout();
     void finishLogout();
     void openSettings();
+    // 左下角账号入口：资料 / 切换账号 / 设置 / 退出登录
+    void openAccountMenu();
+    void switchToAccount(const QString& username);
+    // 把当前账号的昵称、ID 与头像写进本地记录，供切换列表展示。
+    void rememberCurrentAccount();
+    // 成员面板只在房间里出现，私聊与未选会话时整列收起。
+    void updateRightPanelVisibility();
+    // 成员面板默认关闭，开关状态记在 QSettings 里。
+    bool member_panel_visible_ = false;
     void sendMarkRead(quint64 peer_id, quint64 message_id);
     QListWidgetItem* findConversationItem(quint64 peer_id) const;
     void updateFriendView(quint64 peer_id, int unread, const QString& nickname,
@@ -217,6 +229,7 @@ private:
     QToolButton* more_button_ = nullptr;
     QMenu* more_menu_ = nullptr;
     QAction* load_more_action_ = nullptr;
+    QAction* show_members_action_ = nullptr;
     QLabel* connection_banner_ = nullptr;
     QWidget* banner_row_ = nullptr;
     QPushButton* reconnect_button_ = nullptr;
@@ -232,7 +245,7 @@ private:
     QLabel* message_byte_counter_ = nullptr;
     QPushButton* mention_button_ = nullptr;
     QPushButton* send_button_ = nullptr;
-    QPushButton* logout_button_ = nullptr;
+    QWidget* right_panel_ = nullptr;
     QLabel* member_count_label_ = nullptr;
     QLabel* friend_requests_badge_ = nullptr;
     QLabel* status_label_ = nullptr;
@@ -243,7 +256,7 @@ private:
     quint64 profile_dialog_user_id_ = 0;
     QString profile_dialog_fallback_name_;
     chatbox::client::UserProfile profile_dialog_profile_;
-    QPushButton* friend_requests_button_ = nullptr;
+    QToolButton* friend_requests_button_ = nullptr;
     QPushButton* my_profile_button_ = nullptr;
     QLabel* my_profile_avatar_ = nullptr;
     QLabel* my_profile_name_ = nullptr;

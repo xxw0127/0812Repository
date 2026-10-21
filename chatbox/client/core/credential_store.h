@@ -2,6 +2,7 @@
 #define CHATBOX_CLIENT_CORE_CREDENTIAL_STORE_H
 
 #include <QString>
+#include <QStringList>
 
 namespace chatbox::client {
 
@@ -10,7 +11,17 @@ namespace chatbox::client {
 bool passwordStorageSupported();
 bool saveSavedCredentials(const QString& username, const QString& password);
 bool loadSavedCredentials(QString* username, QString* password);
+// Only clears the single "remembered" pair shown on the login page. Saved
+// accounts used by the account switcher are kept on purpose.
 void clearSavedCredentials();
+
+// Per-account credentials, keyed by username. Every successful "remember
+// password" login also lands here, so the switcher starts populated without
+// the user having to do anything extra.
+bool saveAccountCredentials(const QString& username, const QString& password);
+bool loadAccountCredentials(const QString& username, QString* password);
+QStringList savedAccounts();
+void forgetAccount(const QString& username);
 
 }  // namespace chatbox::client
 

@@ -4,6 +4,11 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setWindowTitle("ChatBox");
     resize(1120, 720);
     setMinimumSize(880, 560);
+    {
+        QSettings settings;
+        member_panel_visible_ =
+            settings.value(QStringLiteral("settings/member_panel"), false).toBool();
+    }
     buildUi();
 
     auto* message_search_shortcut =
@@ -231,12 +236,13 @@ QWidget* MainWindow::buildChatPage() {
 
     search_users_button_ = new QPushButton("搜索用户", left_panel);
     search_users_button_->setObjectName("SidebarAction");
-    search_users_button_->setIcon(QIcon(":/icons/search.png"));
+    search_users_button_->setIcon(
+        tintedIcon(":/icons/search.png", QColor(theme::kMuted)));
     search_users_button_->setIconSize(QSize(17, 17));
     search_users_button_->setFixedHeight(32);
     left->addWidget(search_users_button_);
 
-    auto* rooms_label = new QLabel("大厅", left_panel);
+    auto* rooms_label = new QLabel("群聊", left_panel);
     rooms_label->setObjectName("SectionLabel");
     left->addWidget(rooms_label);
     room_list_ = new QListWidget(left_panel);
@@ -247,30 +253,44 @@ QWidget* MainWindow::buildChatPage() {
     room_list_->setMinimumHeight(56);
     room_list_->setMaximumHeight(160);
     room_list_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+    // QListWidget 的 sizeHint 是个固定值（约 192px），不会跟着房间数量收缩，
+    // 只有一个房间时会在它下面留出一大片空白。让高度跟随内容。
+    room_list_->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
     left->addWidget(room_list_);
 
-    auto* friend_row = new QWidget(left_panel);
-    auto* friend_row_layout = new QHBoxLayout(friend_row);
-    friend_row_layout->setContentsMargins(0, 0, 0, 0);
-    friend_row_layout->setSpacing(6);
-    friend_requests_button_ = new QPushButton("好友申请", friend_row);
-    friend_requests_button_->setObjectName("SidebarAction");
-    friend_requests_button_->setIcon(QIcon(":/icons/users.png"));
-    friend_requests_button_->setIconSize(QSize(17, 17));
-    friend_requests_button_->setFixedHeight(32);
-    friend_requests_button_->setAccessibleName("好友申请");
-    friend_row_layout->addWidget(friend_requests_button_, 1);
-    friend_requests_badge_ = new QLabel(friend_row);
+    // 好友申请属于好友体系，跟着「好友」标题走，而不是悬在群聊列表和好友
+    // 列表之间独占一行。标题行右侧放图标按钮，未读数用角标提示。
+    // 用 addLayout 而不是包一层 QWidget：后者在竖直布局里量不出正确宽度，
+    // 会把右侧按钮顶出侧栏。
+    auto* friends_header_layout = new QHBoxLayout();
+    friends_header_layout->setContentsMargins(0, 0, 0, 0);
+    friends_header_layout->setSpacing(4);
+
+    auto* conversations_label = new QLabel("好友", left_panel);
+    conversations_label->setObjectName("SectionLabel");
+    conversations_label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    friends_header_layout->addWidget(conversations_label, 1);
+
+    friend_requests_badge_ = new QLabel(left_panel);
     friend_requests_badge_->setObjectName("FriendRequestBadge");
     friend_requests_badge_->setAlignment(Qt::AlignCenter);
     friend_requests_badge_->setFixedSize(16, 16);
     friend_requests_badge_->hide();
-    friend_row_layout->addWidget(friend_requests_badge_, 0, Qt::AlignVCenter);
-    left->addWidget(friend_row);
+    friends_header_layout->addWidget(friend_requests_badge_, 0, Qt::AlignVCenter);
 
-    auto* conversations_label = new QLabel("好友", left_panel);
-    conversations_label->setObjectName("SectionLabel");
-    left->addWidget(conversations_label);
+    // 纯图标在这个尺寸下糊成一团（users.png 线条太细），文字是唯一可靠的
+    // 视觉锚点，所以这里只放文字，图标不再参与。
+    friend_requests_button_ = new QToolButton(left_panel);
+    friend_requests_button_->setObjectName("HeaderAction");
+    friend_requests_button_->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    friend_requests_button_->setText("好友申请");
+    friend_requests_button_->setFixedHeight(24);
+    friend_requests_button_->setAutoRaise(true);
+    friend_requests_button_->setCursor(Qt::PointingHandCursor);
+    friend_requests_button_->setToolTip("好友申请");
+    friend_requests_button_->setAccessibleName("好友申请");
+    friends_header_layout->addWidget(friend_requests_button_, 0, Qt::AlignVCenter);
+    left->addLayout(friends_header_layout);
     conversation_stack_ = new QStackedWidget(left_panel);
     conversation_stack_->setObjectName("ConversationStack");
     conversation_list_ = new FriendListWidget(conversation_stack_);
@@ -315,6 +335,12 @@ QWidget* MainWindow::buildChatPage() {
     profile_text_layout->addWidget(my_profile_name_);
     profile_text_layout->addWidget(my_profile_uid_);
     profile_layout->addLayout(profile_text_layout, 1);
+    // Without this the strip reads as a status line, not as the account menu
+    // entry that now holds 切换账号 / 设置 / 退出登录.
+    auto* account_menu_hint = new QLabel(QStringLiteral("⋯"), my_profile_button_);
+    account_menu_hint->setObjectName("AccountMenuHint");
+    account_menu_hint->setAttribute(Qt::WA_TransparentForMouseEvents);
+    profile_layout->addWidget(account_menu_hint, 0, Qt::AlignVCenter);
     left->addWidget(my_profile_button_);
     updateOwnProfileStrip();
     splitter->addWidget(left_panel);
@@ -357,7 +383,7 @@ QWidget* MainWindow::buildChatPage() {
     context_avatar_->setToolTip("查看资料");
     context_avatar_->installEventFilter(this);
     header_row->addWidget(context_avatar_);
-    context_label_ = new QLabel("请选择房间或私聊", header);
+    context_label_ = new QLabel("请选择一个会话", header);
     context_label_->setObjectName("ContextTitle");
     header_row->addWidget(context_label_, 1);
     more_button_ = new QToolButton(header);
@@ -376,6 +402,19 @@ QWidget* MainWindow::buildChatPage() {
     load_more_action_ = more_menu_->addAction("加载更早消息", this,
                                               &MainWindow::onLoadMoreClicked);
     load_more_action_->setEnabled(false);
+    more_menu_->addSeparator();
+    // Member list is off by default: for most sessions the column is dead
+    // space. The switch lives here instead of a permanent header button.
+    show_members_action_ = more_menu_->addAction("显示成员列表");
+    show_members_action_->setCheckable(true);
+    show_members_action_->setChecked(member_panel_visible_);
+    connect(show_members_action_, &QAction::toggled, this, [this](bool shown) {
+        member_panel_visible_ = shown;
+        QSettings settings;
+        settings.setValue(QStringLiteral("settings/member_panel"), shown);
+        settings.sync();
+        updateRightPanelVisibility();
+    });
     more_button_->setMenu(more_menu_);
     header_row->addWidget(more_button_);
     header_layout->addLayout(header_row);
@@ -391,7 +430,7 @@ QWidget* MainWindow::buildChatPage() {
     chat_empty_state_->setIcon(QIcon(":/icons/message.png"));
     chat_empty_state_->setTitle("选择一个会话开始聊天");
     chat_empty_state_->setDescription(
-        "从左侧选择大厅或好友；按 Ctrl+Shift+F 搜索用户");
+        "从左侧选择群聊或好友；按 Ctrl+Shift+F 搜索用户");
     chat_stack_->addWidget(chat_view_);
     chat_stack_->addWidget(chat_empty_state_);
     chat_stack_->setCurrentWidget(chat_empty_state_);
@@ -450,42 +489,26 @@ QWidget* MainWindow::buildChatPage() {
     composer_layout->addWidget(message_byte_counter_);
     center->addWidget(composer);
 
-    auto* right_panel = new QWidget(page);
-    right_panel->setObjectName("RightSidebar");
-    right_panel->setMinimumWidth(180);
-    right_panel->setMaximumWidth(280);
-    auto* right = new QVBoxLayout(right_panel);
+    right_panel_ = new QWidget(page);
+    right_panel_->setObjectName("RightSidebar");
+    right_panel_->setMinimumWidth(180);
+    right_panel_->setMaximumWidth(280);
+    auto* right = new QVBoxLayout(right_panel_);
     right->setContentsMargins(12, 12, 12, 12);
     right->setSpacing(6);
-    member_count_label_ = new QLabel("在线成员 (0)", right_panel);
+    member_count_label_ = new QLabel("在线成员 (0)", right_panel_);
     member_count_label_->setObjectName("SectionLabel");
     right->addWidget(member_count_label_);
-    member_list_ = new QListWidget(right_panel);
+    member_list_ = new QListWidget(right_panel_);
     member_list_->setAccessibleName("在线成员");
     member_list_->setIconSize(QSize(28, 28));
     member_list_->setContextMenuPolicy(Qt::CustomContextMenu);
     right->addWidget(member_list_, 1);
-
-    auto* footer = new QWidget(right_panel);
-    auto* footer_layout = new QHBoxLayout(footer);
-    footer_layout->setContentsMargins(0, 0, 0, 0);
-    footer_layout->setSpacing(6);
-    auto* settings_button = new QPushButton("设置", footer);
-    settings_button->setObjectName("FooterAction");
-    settings_button->setIcon(QIcon(":/icons/settings.png"));
-    settings_button->setIconSize(QSize(16, 16));
-    settings_button->setFixedHeight(32);
-    logout_button_ = new QPushButton("退出登录", footer);
-    logout_button_->setObjectName("DangerFooterAction");
-    logout_button_->setIcon(QIcon(":/icons/logout.png"));
-    logout_button_->setIconSize(QSize(16, 16));
-    logout_button_->setFixedHeight(32);
-    footer_layout->addWidget(settings_button);
-    footer_layout->addWidget(logout_button_);
-    footer_layout->addStretch(1);
-    right->addWidget(footer);
+    // The member panel only has meaning in a room; a private chat hides it
+    // entirely instead of leaving an empty column.
+    right_panel_->hide();
     splitter->addWidget(center_panel);
-    splitter->addWidget(right_panel);
+    splitter->addWidget(right_panel_);
     splitter->setStretchFactor(0, 0);
     splitter->setStretchFactor(1, 1);
     splitter->setStretchFactor(2, 0);
@@ -501,8 +524,8 @@ QWidget* MainWindow::buildChatPage() {
     connect(conversation_list_, &QListWidget::customContextMenuRequested, this,
             &MainWindow::onFriendContextMenu);
     connect(my_profile_button_, &QPushButton::clicked, this,
-            &MainWindow::openOwnProfile);
-    connect(friend_requests_button_, &QPushButton::clicked, this,
+            &MainWindow::openAccountMenu);
+    connect(friend_requests_button_, &QToolButton::clicked, this,
             &MainWindow::openFriendRequests);
     connect(member_list_, &QListWidget::itemDoubleClicked, this,
             &MainWindow::onMemberDoubleClicked);
@@ -515,13 +538,6 @@ QWidget* MainWindow::buildChatPage() {
             &MainWindow::updateMessageByteCounter);
     connect(mention_button_, &QPushButton::clicked, this, &MainWindow::insertMention);
     connect(reply_cancel_button_, &QPushButton::clicked, this, &MainWindow::clearReply);
-    connect(logout_button_, &QPushButton::clicked, this, [this] {
-        if (chatbox::client::confirmDanger(this, "退出登录",
-                                           "确定要退出登录吗？", "退出登录")) {
-            logout();
-        }
-    });
-    connect(settings_button, &QPushButton::clicked, this, &MainWindow::openSettings);
 
     QWidget::setTabOrder(room_list_, conversation_list_);
     QWidget::setTabOrder(conversation_list_, chat_view_);
@@ -583,6 +599,11 @@ void MainWindow::refreshThemeDependentIcons() {
     if (more_button_ != nullptr) {
         more_button_->setIcon(chatbox::client::moreDotsIcon(QColor(theme::kInk)));
     }
+    // Sidebar glyphs are tinted pixmaps, so they need the same treatment.
+    if (search_users_button_ != nullptr) {
+        search_users_button_->setIcon(
+            tintedIcon(":/icons/search.png", QColor(theme::kMuted)));
+    }
     if (login_page_ != nullptr) {
         login_page_->refreshThemeIcons();
     }
@@ -599,6 +620,8 @@ void MainWindow::openSettings() {
             renderCurrentConversation(ScrollMode::kPreserve);
         }
     });
+    connect(&dialog, &SettingsDialog::logoutRequested, this, &MainWindow::logout,
+            Qt::QueuedConnection);
     connect(&dialog, &SettingsDialog::settingsSaved, this,
             [this](const QString& host, quint16 port, bool tls,
                    bool notifications, bool system_popup, bool autostart) {

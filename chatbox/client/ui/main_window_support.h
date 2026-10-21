@@ -156,6 +156,24 @@ inline QString conversationAccessibleText(const QString& name, bool online,
     return text;
 }
 
+// Sidebar glyphs ship as very light artwork; drawing them as-is leaves them
+// around 2:1 on a white sidebar. Tinting with the theme's muted colour keeps
+// them legible in both appearances and keeps them in step with the palette.
+inline QIcon tintedIcon(const QString& path, const QColor& color) {
+    QPixmap source(path);
+    if (source.isNull()) {
+        return QIcon();
+    }
+    QPixmap tinted(source.size());
+    tinted.fill(Qt::transparent);
+    QPainter painter(&tinted);
+    painter.drawPixmap(0, 0, source);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    painter.fillRect(tinted.rect(), color);
+    painter.end();
+    return QIcon(tinted);
+}
+
 }  // namespace main_window_internal
 }  // namespace client
 }  // namespace chatbox

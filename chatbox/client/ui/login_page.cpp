@@ -247,6 +247,12 @@ void LoginPage::setServerSettings(const QString& host, quint16 port, bool tls) {
     tls_check_->setChecked(tls);
 }
 
+void LoginPage::setUsername(const QString& username) {
+    username_edit_->setText(username);
+    password_edit_->clear();
+    username_edit_->setFocus();
+}
+
 void LoginPage::setRegisterMode(bool enabled) {
     register_mode_ = enabled;
     nickname_label_->setVisible(enabled);

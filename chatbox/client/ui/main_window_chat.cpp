@@ -6,7 +6,7 @@ void MainWindow::insertMention() {
         return;
     }
     if (context_type_ == ContextType::None) {
-        setStatus("请先选择房间或私聊", true);
+        setStatus("请先选择一个会话", true);
         return;
     }
     QString nickname;
@@ -266,7 +266,7 @@ void MainWindow::copyMessageText(const chatbox::client::ChatMessage& message) {
 
 void MainWindow::openMessageSearch() {
     if (context_type_ == ContextType::None) {
-        setStatus("请先选择房间或私聊", true);
+        setStatus("请先选择一个会话", true);
         return;
     }
     if (message_search_dialog_ == nullptr) {
@@ -386,7 +386,7 @@ void MainWindow::requestHistory(int kind, quint64 target, quint64 before_id) {
 
 void MainWindow::onSendClicked() {
     if (context_type_ == ContextType::None) {
-        setStatus("请先选择房间或私聊", true);
+        setStatus("请先选择一个会话", true);
         return;
     }
     if (!online_) {
@@ -560,12 +560,27 @@ void MainWindow::restorePendingForCurrentContext() {
     }
 }
 
+void MainWindow::clearStaleListSelection(ContextType keep) {
+    // clearSelection() alone leaves the current index, and the delegate paints
+    // State_Selected from the view's selection model, so both have to go.
+    if (keep != ContextType::Room && room_list_ != nullptr) {
+        room_list_->clearSelection();
+        room_list_->setCurrentRow(-1);
+    }
+    if (keep != ContextType::Private && conversation_list_ != nullptr) {
+        conversation_list_->clearSelection();
+        conversation_list_->setCurrentRow(-1);
+    }
+}
+
 void MainWindow::selectRoom(int room_id, const QString& name) {
     context_type_ = ContextType::Room;
+    clearStaleListSelection(ContextType::Room);
+    updateRightPanelVisibility();
     current_room_id_ = room_id;
     current_peer_id_ = 0;
     current_peer_name_ = name;
-    context_label_->setText("房间: " + name);
+    context_label_->setText(name);
     if (offline_mode_) {
         mention_button_->hide();
     } else {
@@ -633,11 +648,13 @@ void MainWindow::selectRoom(int room_id, const QString& name) {
 
 void MainWindow::selectPrivate(quint64 peer_id, const QString& nickname) {
     context_type_ = ContextType::Private;
+    clearStaleListSelection(ContextType::Private);
+    updateRightPanelVisibility();
     current_room_id_ = 0;
     current_peer_id_ = peer_id;
     current_peer_name_ = nickname;
     peer_names_.insert(peer_id, nickname);
-    context_label_->setText("私聊: " + nickname);
+    context_label_->setText(nickname);
     mention_button_->hide();
     updatePrivateHeaderAvatar(peer_id, nickname);
     context_avatar_->setCursor(Qt::PointingHandCursor);
@@ -759,7 +776,7 @@ void MainWindow::updateChatEmptyState() {
     if (context_type_ == ContextType::None) {
         chat_empty_state_->setTitle("选择一个会话开始聊天");
         chat_empty_state_->setDescription(
-            "从左侧选择大厅或好友；按 Ctrl+Shift+F 搜索用户");
+            "从左侧选择群聊或好友；按 Ctrl+Shift+F 搜索用户");
         chat_stack_->setCurrentWidget(chat_empty_state_);
         return;
     }
@@ -774,6 +791,8 @@ void MainWindow::updateChatEmptyState() {
 
 void MainWindow::resetContext() {
     context_type_ = ContextType::None;
+    clearStaleListSelection(ContextType::None);
+    updateRightPanelVisibility();
     current_room_id_ = 0;
     current_peer_id_ = 0;
     current_peer_name_.clear();
@@ -790,7 +809,7 @@ void MainWindow::resetContext() {
     }
     clearReply();
     if (context_label_ != nullptr) {
-        context_label_->setText("请选择房间或私聊");
+        context_label_->setText("请选择一个会话");
     }
     if (context_avatar_ != nullptr) {
         context_avatar_->setPixmap(avatarIcon("C", 0).pixmap(32, 32));

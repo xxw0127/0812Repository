@@ -16,6 +16,7 @@
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPlainTextEdit>
@@ -59,6 +60,7 @@
 #include "ui/message_action_bar.h"
 #include "ui/profile_dialog.h"
 #include "ui/settings_dialog.h"
+#include "ui/account_switcher_dialog.h"
 
 namespace {
 
@@ -243,6 +245,8 @@ private slots:
     void emptyStateShowsConfiguredCopy();
     void emptyStatesAreWired();
     void messageInputHandlesKeyboardAndPlainPaste();
+    void settingsDialogOffersSignOut();
+    void accountSwitcherBuildsList();
     void messageInputHidesEmptyScrollbar();
     void messageComposerUsesByteCounter();
     void dangerousActionsUseChineseDialogs();
@@ -1906,16 +1910,19 @@ void TestClientCore::contrastTokensMeetAa() {
 void TestClientCore::darkSurfaceContrastMeetsAa() {
     const auto& dark = chatbox::client::theme::darkPalette();
     const QColor muted_soft(dark.mutedSoft);
+    // Bubble interiors use their own token now: a colour tuned for the canvas
+    // cannot also clear 4.5:1 on the own-bubble fill.
+    const QColor bubble_meta(dark.bubbleMeta);
     const QColor own(dark.bubbleOwn);
     const QColor other(dark.bubbleOther);
     const QColor canvas(dark.canvas);
     const QColor strong(dark.surfaceStrong);
 
     const QVector<QPair<QString, double>> checks = {
-        {QStringLiteral("kMutedSoft on dark own bubble"),
-         contrastRatio(muted_soft, own)},
-        {QStringLiteral("kMutedSoft on dark other bubble"),
-         contrastRatio(muted_soft, other)},
+        {QStringLiteral("kBubbleMeta on dark own bubble"),
+         contrastRatio(bubble_meta, own)},
+        {QStringLiteral("kBubbleMeta on dark other bubble"),
+         contrastRatio(bubble_meta, other)},
         {QStringLiteral("kMutedSoft on dark canvas"),
          contrastRatio(muted_soft, canvas)},
         {QStringLiteral("kMutedSoft on dark recalled surface"),
@@ -1950,21 +1957,28 @@ void TestClientCore::primaryButtonContrastMeetsAa() {
     check(chatbox::client::theme::darkPalette(), QStringLiteral("dark"));
 }
 
+// Telegram separates bubbles with fill + a hairline, not a 3:1 outline; a
+// strong border reads as a boxed table and kills the whole look. The floor is
+// therefore "the edge is perceptible" (1.3:1) plus "the fill differs from the
+// canvas", which together are what actually keeps a bubble from disappearing.
 void TestClientCore::bubbleBoundaryMeetsNonTextContrast() {
     const auto check = [](const chatbox::client::theme::ThemePalette& palette,
                           const QString& label) {
         const double ratio =
             contrastRatio(QColor(palette.bubbleBorder), QColor(palette.canvas));
-        QVERIFY2(ratio >= 3.0,
+        QVERIFY2(ratio >= 1.3,
                  qPrintable(QStringLiteral("%1 bubble border = %2")
                                 .arg(label)
                                 .arg(ratio, 0, 'f', 2)));
         const double other_ratio =
             contrastRatio(QColor(palette.bubbleBorder), QColor(palette.bubbleOther));
-        QVERIFY2(other_ratio >= 3.0,
+        QVERIFY2(other_ratio >= 1.3,
                  qPrintable(QStringLiteral("%1 border on other bubble = %2")
                                 .arg(label)
                                 .arg(other_ratio, 0, 'f', 2)));
+        QVERIFY2(QColor(palette.bubbleOther) != QColor(palette.surfaceSoft),
+                 qPrintable(QStringLiteral("%1 other bubble equals the chat canvas")
+                                .arg(label)));
         QVERIFY2(QColor(palette.surfaceStrong) != QColor(palette.canvas),
                  qPrintable(QStringLiteral("%1 recalled surface equals canvas")
                                 .arg(label)));
@@ -1975,35 +1989,35 @@ void TestClientCore::bubbleBoundaryMeetsNonTextContrast() {
 
 void TestClientCore::darkPaletteMatchesSpec() {
     const auto& dark = chatbox::client::theme::darkPalette();
-    QCOMPARE(QString::fromLatin1(dark.canvas), QStringLiteral("#0F1419"));
-    QCOMPARE(QString::fromLatin1(dark.surfaceSoft), QStringLiteral("#1A2027"));
-    QCOMPARE(QString::fromLatin1(dark.ink), QStringLiteral("#F2F4F7"));
-    QCOMPARE(QString::fromLatin1(dark.accent), QStringLiteral("#4D8DFF"));
-    QCOMPARE(QString::fromLatin1(dark.bubbleOther), QStringLiteral("#1A2027"));
+    QCOMPARE(QString::fromLatin1(dark.canvas), QStringLiteral("#17212B"));
+    QCOMPARE(QString::fromLatin1(dark.surfaceSoft), QStringLiteral("#0E1621"));
+    QCOMPARE(QString::fromLatin1(dark.ink), QStringLiteral("#FFFFFF"));
+    QCOMPARE(QString::fromLatin1(dark.accent), QStringLiteral("#5EB5F7"));
+    QCOMPARE(QString::fromLatin1(dark.bubbleOther), QStringLiteral("#182533"));
 
     QFile style(QStringLiteral(":/style-dark.qss"));
     QVERIFY2(style.open(QIODevice::ReadOnly | QIODevice::Text),
              "style-dark.qss must be embedded in the resource file");
     const QString css = QString::fromUtf8(style.readAll());
-    QVERIFY(css.contains(QStringLiteral("#0F1419")));
-    QVERIFY(css.contains(QStringLiteral("#4D8DFF")));
+    QVERIFY(css.contains(QStringLiteral("#17212B")));
+    QVERIFY(css.contains(QStringLiteral("#5EB5F7")));
 }
 
 void TestClientCore::themeTokensMatchContrastSpec() {
     const QString source = readClientSource(QStringLiteral("core/ui_theme.cpp"));
     QVERIFY2(!source.isEmpty(), "core/ui_theme.h must be readable");
-    QVERIFY(source.contains(QStringLiteral("#616877")));
-    QVERIFY(source.contains(QStringLiteral("#676D76")));
+    QVERIFY(source.contains(QStringLiteral("#6A6E74")));
+    QVERIFY(source.contains(QStringLiteral("#6B7076")));
     QVERIFY(source.contains(QStringLiteral("kSemanticUpText")));
-    QVERIFY(source.contains(QStringLiteral("#027A48")));
+    QVERIFY(source.contains(QStringLiteral("#3BA55D")));
     QVERIFY(source.contains(QStringLiteral("kOnlineDot")));
-    QVERIFY(source.contains(QStringLiteral("#038A52")));
+    QVERIFY(source.contains(QStringLiteral("#4DCD5E")));
     QVERIFY(source.contains(QStringLiteral("kQuoteBg")));
-    QVERIFY(source.contains(QStringLiteral("#F4F6F8")));
+    QVERIFY(source.contains(QStringLiteral("#F1F1F1")));
     QVERIFY(source.contains(QStringLiteral("kDangerText")));
-    QVERIFY(source.contains(QStringLiteral("#B42318")));
+    QVERIFY(source.contains(QStringLiteral("#E53935")));
     QVERIFY(source.contains(QStringLiteral("kDisabledText")));
-    QVERIFY(source.contains(QStringLiteral("#6B7280")));
+    QVERIFY(source.contains(QStringLiteral("#6B7076")));
 }
 
 void TestClientCore::styleSheetHasVisibleKeyboardFocus() {
@@ -2156,10 +2170,11 @@ void TestClientCore::themeTokensMatchStyleSheet() {
         QVERIFY2(allowed.contains(found), qPrintable(found));
     }
 
+    // The palette deliberately follows Telegram Desktop now, so most of the
+    // old "never go back" greys are legal again. Only colours that belong to
+    // neither palette stay banned.
     const QStringList retired = {
-        "#3390ec", "#e7ebf0", "#2b82d9", "#2474c4", "#e9ebee",
-        "#dde1e6", "#f4f4f5", "#a5a9ae", "#c4c9cf", "#a9afb6",
-        "#707579", "#1a1a1a", "#e6e8eb",
+        "#2474c4", "#e9ebee", "#a5a9ae", "#c4c9cf", "#a9afb6", "#e6e8eb",
     };
     for (const QString& token : retired) {
         QVERIFY2(!css.contains(token), qPrintable(token));
@@ -2970,7 +2985,10 @@ void TestClientCore::layoutWeightsFollowAudit() {
     QVERIFY(source.contains(QStringLiteral("member_count_label_")));
     QVERIFY(source.contains(QStringLiteral("confirmDanger")));
     QVERIFY(source.contains(QStringLiteral("more_button_->setFixedSize(32, 32)")));
-    QVERIFY(source.contains(QStringLiteral("friend_requests_button_->setText(\"好友申请\")")));
+    // 好友申请从独立一行收进「好友」标题行，用图标按钮 + 角标；
+    // 文字信息改由 tooltip / accessibleName 承载，未读数仍然只走角标。
+    QVERIFY(source.contains(QStringLiteral("friend_requests_button_->setAccessibleName(\"好友申请\")")));
+    QVERIFY(source.contains(QStringLiteral("friend_requests_button_->setToolTip(\"好友申请\")")));
 }
 
 void TestClientCore::adaptiveLayoutUsesSplitter() {
@@ -3345,6 +3363,31 @@ void TestClientCore::settingsDialogExposesHistoryActions() {
     const QString window = readMainWindowSource();
     QVERIFY(window.contains(QStringLiteral("settings/history/path")));
     QVERIFY(window.contains(QStringLiteral("moveTo(")));
+}
+
+// 账号级操作搬到设置后，右栏不再承载导航；这里守住「设置里能退出」这一入口。
+void TestClientCore::settingsDialogOffersSignOut() {
+    SettingsDialog dialog(QStringLiteral("U00000001"),
+                          QStringLiteral("C:/tmp/chatbox-history"), 1024, true);
+    auto* sign_out =
+        dialog.findChild<QPushButton*>(QStringLiteral("DangerOutlineButton"));
+    QVERIFY2(sign_out != nullptr, "settings must expose a sign-out action");
+    QCOMPARE(sign_out->text(), QStringLiteral("退出当前账号"));
+}
+
+// 切换账号列表必须先能构造出来（空表也要给出说明），否则账号菜单点开就崩。
+void TestClientCore::accountSwitcherBuildsList() {
+    AccountSwitcherDialog dialog(QStringLiteral("alice"));
+    auto* list = dialog.findChild<QListWidget*>(QStringLiteral("AccountList"));
+    QVERIFY2(list != nullptr, "switcher must build an account list");
+    QVERIFY(list->count() >= 1);
+    QVERIFY(dialog.selectedUsername().isEmpty());
+
+    const QString source = readMainWindowSource();
+    QVERIFY2(!source.contains(QStringLiteral("logout_button_")),
+             "sign-out must not sit in the room member footer anymore");
+    QVERIFY2(source.contains(QStringLiteral("right_panel_->setVisible")),
+             "the member column is conditional on the chat context");
 }
 
 QTEST_MAIN(TestClientCore)

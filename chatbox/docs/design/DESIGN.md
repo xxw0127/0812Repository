@@ -2,42 +2,48 @@
 
 > 从 `client/core/ui_theme.cpp`、`client/resources/style.qss` 和现有组件反推，作为后续 UI 改动的单一规范来源。未实现的内容标记为「待办」，不当作现有规范。
 
+> **2026-10-21 方向变更**：视觉语言改为 Telegram Desktop——列表选中行整行蓝底白字、气泡用填充与极淡描边区分、输入框胶囊形、列表行高 64px。
+>
+> 主蓝取 `#2C74CC` 而不是 Telegram 原版 `#3390EC`：后者白字只有 3.31:1，同色相压深一档换来 4.69:1。深色下链接/焦点用亮蓝 `#5EB5F7`，实底按钮仍用 `#2C74CC`。
+>
+> 因此 `test_client_core.cpp` 里原本禁止 `#3390EC`、`#F4F4F5`、`#707579` 等旧值的 `retired` 列表已相应收窄——它们是 Telegram 语言的一部分，不再是"历史遗留"。
+
 ## 1. 色彩
 
 颜色只允许来自 `client/core/ui_theme.h` 的 token，以及 `style.qss` / `style-dark.qss` 中登记过的同一组值。C++ 直接绘制和消息 HTML 也必须使用 `theme::k*`，禁止裸十六进制色值。
 
 | Token | 浅色 | 深色 | 用途 |
 |---|---|---|---|
-| `kAccent` | `#0052FF` | `#4D8DFF` | 链接、焦点环、选中态 |
-| `kAccentHover` | `#0046DD` | `#3B7BEB` | 链接悬停 |
-| `kAccentActive` | `#003ECC` | `#2F6FDC` | 链接按下 |
-| `kPrimary` | `#0052FF` | `#2F6FDC` | 主按钮、发送按钮、好友角标 |
-| `kPrimaryHover` | `#0046DD` | `#2660C7` | 主按钮悬停 |
-| `kPrimaryActive` | `#003ECC` | `#1F54B0` | 主按钮按下 |
-| `kCanvas` | `#FFFFFF` | `#0F1419` | 卡片、侧栏、输入框焦点底 |
-| `kSurfaceSoft` | `#F7F7F7` | `#1A2027` | 画布、次级表面、悬停 |
-| `kSurfaceStrong` | `#EEF0F3` | `#232B33` | 输入框、按钮、选中行、撤回气泡 |
-| `kSurfaceStrongHover` | `#E6E8EC` | `#2B343D` | 表面悬停、禁用主按钮底 |
-| `kHairline` | `#DEE1E6` | `#323B44` | 1px 分隔线 |
-| `kBubbleBorder` | `#7C848E` | `#667380` | 气泡 1px 描边（对画布和对方气泡 ≥ 3:1） |
-| `kInk` | `#0A0B0D` | `#F2F4F7` | 标题、主要正文 |
-| `kBody` | `#5B616E` | `#AEB6C0` | 正文、发送者名 |
-| `kMuted` | `#616877` | `#8A929C` | 元信息、次级文字 |
-| `kMutedSoft` | `#676D76` | `#9AA2AC` | 时间戳、弱提示 |
+| `kAccent` | `#2C74CC` | `#5EB5F7` | 链接、焦点环、选中态 |
+| `kAccentHover` | `#2868B8` | `#4EA4F6` | 链接悬停 |
+| `kAccentActive` | `#2461AF` | `#2C74CC` | 链接按下 |
+| `kPrimary` | `#2C74CC` | `#2C74CC` | 主按钮、发送按钮、好友角标 |
+| `kPrimaryHover` | `#2868B8` | `#2660C7` | 主按钮悬停 |
+| `kPrimaryActive` | `#2461AF` | `#1F54B0` | 主按钮按下 |
+| `kCanvas` | `#FFFFFF` | `#17212B` | 卡片、侧栏、输入框焦点底 |
+| `kSurfaceSoft` | `#F4F4F5` | `#0E1621` | 画布、次级表面、悬停 |
+| `kSurfaceStrong` | `#F1F1F1` | `#232E3C` | 输入框、按钮、选中行、撤回气泡 |
+| `kSurfaceStrongHover` | `#E6E6E6` | `#2B3B4E` | 表面悬停、禁用主按钮底 |
+| `kHairline` | `#E7EBF0` | `#101921` | 1px 分隔线 |
+| `kBubbleBorder` | `#DADCE0` | `#2B5278` | 气泡 1px 描边（对画布和对方气泡 ≥ 3:1） |
+| `kInk` | `#000000` | `#FFFFFF` | 标题、主要正文 |
+| `kBody` | `#1A1A1A` | `#E4EBF5` | 正文、发送者名 |
+| `kMuted` | `#6A6E74` | `#708499` | 元信息、次级文字 |
+| `kMutedSoft` | `#6B7076` | `#8A9AAB` | 时间戳、弱提示 |
 | `kOnPrimary` | `#FFFFFF` | `#FFFFFF` | 主按钮文字 |
-| `kSemanticUp` | `#05B169` | `#34D399` | 成功/在线填充 |
-| `kSemanticUpText` | `#027A48` | `#6EE7B7` | 在线文字 |
-| `kOnlineDot` | `#038A52` | `#34D399` | 在线圆点 |
-| `kSemanticDown` | `#CF202F` | `#FF7A7A` | 错误、超限 |
-| `kDangerText` | `#B42318` | `#FF8A80` | 删除/撤回等危险文字 |
-| `kDisabledText` | `#6B7280` | `#8A929C` | 禁用主按钮文字 |
-| `kQuoteBg` | `#F4F6F8` | `#202830` | 引用块背景 |
-| `kBubbleOwn` | `#E6F7F0` | `#14332A` | 己方气泡 |
-| `kBubbleOther` | `#FFFFFF` | `#1A2027` | 对方气泡 |
-| `kSelectionBg` | `#CCDCFF` | `#2A3E5C` | 列表选中行底色 |
-| `kSelectionBorder` | `#A9C1F0` | `#3D6299` | 列表选中行 1px 描边 |
-| `kBannerErrorBg` | `#FAE9EA` | `#3A2024` | 断开横幅底 |
-| `kBannerErrorLine` | `#F2BCC0` | `#6B3035` | 断开横幅描边 |
+| `kSemanticUp` | `#4DCD5E` | `#4DCD5E` | 成功/在线填充 |
+| `kSemanticUpText` | `#3BA55D` | `#6EE7B7` | 在线文字 |
+| `kOnlineDot` | `#4DCD5E` | `#4DCD5E` | 在线圆点 |
+| `kSemanticDown` | `#E53935` | `#FF6B6B` | 错误、超限 |
+| `kDangerText` | `#E53935` | `#FF6B6B` | 删除/撤回等危险文字 |
+| `kDisabledText` | `#6B7076` | `#708499` | 禁用主按钮文字 |
+| `kQuoteBg` | `#F1F1F1` | `#1B2A3A` | 引用块背景 |
+| `kBubbleOwn` | `#EEFFDE` | `#2B5278` | 己方气泡 |
+| `kBubbleOther` | `#FFFFFF` | `#0E1621` | 对方气泡 |
+| `kSelectionBg` | `#2C74CC` | `#2C74CC` | 列表选中行底色 |
+| `kSelectionBorder` | `#2C74CC` | `#2C74CC` | 列表选中行 1px 描边 |
+| `kBannerErrorBg` | `#FFEBEB` | `#3A1F22` | 断开横幅底 |
+| `kBannerErrorLine` | `#FFC5C5` | `#5C2A2E` | 断开横幅描边 |
 
 约束：
 
@@ -76,7 +82,7 @@
 
 ### 按钮
 
-- 主按钮：`kPrimary` 底、`kOnPrimary` 字、8px 圆角、38px 高（登录/注册/保存实测值；图标按钮 32×32，次级按钮 32px）。深色主按钮使用 `kPrimary`（`#2F6FDC`）而不是亮 accent，保证白字 ≥ 4.5:1；链接仍用 `kAccent`。
+- 主按钮：`kPrimary` 底、`kOnPrimary` 字、8px 圆角、38px 高（登录/注册/保存实测值；图标按钮 32×32，次级按钮 32px）。深色主按钮使用 `kPrimary`（`#2C74CC`）而不是亮 accent，保证白字 ≥ 4.5:1；链接仍用 `kAccent`。
 - 次按钮：`kSurfaceStrong` 底、`kInk` 字，悬停 `kSurfaceStrongHover`。
 - 危险文字按钮：透明底，`kDangerText`。
 - 图标按钮：至少 32×32px；`更多` 为 32×32、20px 图标，图标本身是三个 3px 圆角方点。
@@ -97,18 +103,22 @@
 - 时间戳在气泡外下方；己方右对齐，对方左对齐。
 - 同一发送者 3 分钟内不重复昵称；发送者名 12px `kBody`，不加粗。
 - 引用块：`kQuoteBg` 背景、6px 内边距、12px `kMuted`，禁止左侧竖线（side-stripe）；引用块本身不设 `width="100%"`，宽度由气泡内容决定。
-- 撤回：`kSurfaceStrong` 底（浅色 `#EEF0F3` 与画布区分）、14px 斜体 `kMutedSoft`、不显示发送者名。
+- 撤回：`kSurfaceStrong` 底（浅色 `#F1F1F1` 与画布区分）、14px 斜体 `kMutedSoft`、不显示发送者名。
 - 日期分隔：11px `kMuted`，上下 16px。
 
 ### 列表与侧栏
 
 - 大厅列表 56–160px，超过约 3 个房间内部滚动。
-- 好友/会话列表行高 56px；空列表显示空状态，不显示空白区域。
-- 列表选中行用 `kSelectionBg` 底 + `kSelectionBorder` 1px 描边 + 8px 圆角，悬停用 `kSurfaceSoft`。两者必须能区分（对比 ≥ 1.25:1）——纯灰选中对悬停只有 1.09:1，用户看不出当前在哪一行。
-- 自绘 delegate（好友/会话列表）必须复刻同一组选中/悬停样式，因为 QSS 不会到达 delegate 的 `paint()`。
+- 好友/会话列表行高 64px；空列表显示空状态，不显示空白区域。
+- 列表选中行整行填充 `kSelectionBg`、文字转白、无描边；悬停用 `kSurfaceSoft`。这是 Telegram 的核心识别点，也顺带解决了旧版"灰底选中对悬停只有 1.09:1"的问题。
+- 自绘 delegate（好友/会话列表）必须复刻同一组选中/悬停样式，且选中时名字、预览、时间戳、未读角标全部反色（角标变白底蓝字）。
 - “好友”已作为列表的区块标题；只有在线、离线两组都非空时才额外显示“在线/离线”分组标题，禁止连续堆叠两个 11px 标签。
-- 右侧“在线成员 (N)”置顶，成员列表拉伸，设置/退出登录固定在底部 32px 次级按钮。
-- 好友申请未读使用右侧 16px `kAccent` 圆角角标，按钮文字恒为“好友申请”。
+- 右侧「在线成员 (N)」**默认关闭**。只有当前在房间内、且用户在 ⋯ 菜单勾选「显示成员列表」时才出现；私聊与未选会话时无论开关状态都整列收起。开关状态存 `settings/member_panel`。
+- 设置与退出登录不再挂在右栏底部，统一收进**左下角账号条**：条右侧的「⋯」是点击提示，点开后是我的资料 / 切换账号 / 设置 / 退出登录。
+- 切换账号列出本机保存过的账号（头像 + 昵称），当前账号标「（当前）」且不可重复切换；没有可用密码的账号在提示里注明需要重新输入密码。
+- 设置对话框底部提供「退出当前账号」，与账号菜单里的退出是同一动作。
+- 好友申请收在「好友」分组标题行右侧：12px 文字按钮（高 24，hover 变 `kAccent` 文字 + `kSurfaceStrong` 底），左侧 16px `kAccent` 未读角标。
+  不要用纯图标承载这个入口——`users.png` 线条过细，16px 下糊成一团，文字才是可靠的视觉锚点。
 
 ### 空状态
 
