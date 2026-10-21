@@ -600,7 +600,11 @@ void MainWindow::saveSession() {
     settings.setValue("session/host", host_);
     settings.setValue("session/port", port_);
     settings.setValue("session/tls", use_tls_);
-    settings.setValue("session/token", token_);
+    if (settings.value("login/auto_login", true).toBool()) {
+        settings.setValue("session/token", token_);
+    } else {
+        settings.remove("session/token");
+    }
     settings.setValue("session/user_id", QVariant::fromValue<qulonglong>(user_id_));
     settings.setValue("session/nickname", nickname_);
     // 本地记录入口：记住本机存过记录的是哪个账号，退出登录后还能找回。
@@ -615,6 +619,10 @@ void MainWindow::saveSession() {
 
 void MainWindow::loadSession() {
     QSettings settings;
+    if (!settings.value("login/auto_login", true).toBool()) {
+        settings.remove("session/token");
+        return;
+    }
     const QString token = settings.value("session/token").toString();
     if (token.isEmpty()) {
         return;

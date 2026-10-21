@@ -11,6 +11,7 @@ SOURCES += \
     ../core/app_settings.cpp \
     ../core/autostart.cpp \
     ../core/client_policy.cpp \
+    ../core/credential_store.cpp \
     ../core/client_log.cpp \
     ../core/message_time.cpp \
     ../core/message_store.cpp \
@@ -29,6 +30,7 @@ HEADERS += \
     ../core/app_settings.h \
     ../core/autostart.h \
     ../core/client_policy.h \
+    ../core/credential_store.h \
     ../core/client_log.h \
     ../core/chat_message.h \
     ../core/message_time.h \
@@ -46,3 +48,5 @@ HEADERS += \
     ../ui/profile_dialog.h \
     ../ui/login_page.h \
     ../ui/settings_dialog.h
+
+win32: LIBS += -lcrypt32

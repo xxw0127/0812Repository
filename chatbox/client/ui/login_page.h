@@ -48,6 +48,8 @@ private:
     QLineEdit* password_edit_ = nullptr;
     QLabel* nickname_label_ = nullptr;
     QLineEdit* nickname_edit_ = nullptr;
+    QCheckBox* auto_login_check_ = nullptr;
+    QCheckBox* remember_password_check_ = nullptr;
     bool register_mode_ = false;
     QCheckBox* tls_check_ = nullptr;
     QWidget* advanced_panel_ = nullptr;

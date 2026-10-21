@@ -32,6 +32,7 @@
 #include "core/app_settings.h"
 #include "core/autostart.h"
 #include "core/client_policy.h"
+#include "core/credential_store.h"
 #include "core/avatar_cache.h"
 #include "core/avatar_utils.h"
 #include "core/contact_store.h"
@@ -180,6 +181,8 @@ private slots:
     void loginPageOffersLocalHistory();
     void loginPageHidesServerFieldsBehindMoreDots();
     void loginPageShowsNicknameOnlyInRegisterMode();
+    void loginPageHasAutoLoginAndRememberPasswordOptions();
+    void credentialStoreEncryptsSavedPassword();
     void settingsDialogDefaultsToPublicServer();
     void offlineModeIsReadOnlyAndLocal();
     void settingsDialogShowsHistoryInfo();
@@ -2204,6 +2207,45 @@ void TestClientCore::loginPageShowsNicknameOnlyInRegisterMode() {
     QVERIFY(nickname->isHidden());
     QCOMPARE(login->text(), QStringLiteral("登录"));
     QCOMPARE(register_button->text(), QStringLiteral("注册"));
+}
+
+void TestClientCore::loginPageHasAutoLoginAndRememberPasswordOptions() {
+    QSettings settings;
+    settings.remove(QStringLiteral("login"));
+    settings.sync();
+
+    LoginPage page;
+    auto* auto_login = page.findChild<QCheckBox*>(QStringLiteral("AutoLoginCheck"));
+    auto* remember = page.findChild<QCheckBox*>(QStringLiteral("RememberPasswordCheck"));
+    QVERIFY(auto_login != nullptr);
+    QVERIFY(remember != nullptr);
+    QVERIFY(auto_login->isChecked());
+    QVERIFY(!remember->isChecked());
+}
+
+void TestClientCore::credentialStoreEncryptsSavedPassword() {
+    QSettings settings;
+    settings.remove(QStringLiteral("login"));
+    settings.sync();
+    if (!chatbox::client::passwordStorageSupported()) {
+        QSKIP("secure password storage is only available on Windows");
+    }
+
+    QVERIFY(chatbox::client::saveSavedCredentials(QStringLiteral("alice"),
+                                                   QStringLiteral("Secret123")));
+    QSettings stored;
+    const QString encoded = stored.value(QStringLiteral("login/password")).toString();
+    QVERIFY(!encoded.isEmpty());
+    QVERIFY(!encoded.contains(QStringLiteral("Secret123")));
+
+    QString username;
+    QString password;
+    QVERIFY(chatbox::client::loadSavedCredentials(&username, &password));
+    QCOMPARE(username, QStringLiteral("alice"));
+    QCOMPARE(password, QStringLiteral("Secret123"));
+
+    chatbox::client::clearSavedCredentials();
+    QVERIFY(!chatbox::client::loadSavedCredentials(&username, &password));
 }
 
 void TestClientCore::settingsDialogDefaultsToPublicServer() {

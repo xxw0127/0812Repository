@@ -14,6 +14,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "core/credential_store.h"
 #include "core/ui_theme.h"
 
 namespace theme = chatbox::client::theme;  // Coinbase palette tokens
@@ -87,6 +88,35 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
     nickname_edit_->hide();
     card_layout->addLayout(form);
 
+    auto* login_options = new QHBoxLayout();
+    login_options->setSpacing(14);
+    auto_login_check_ = new QCheckBox("自动登录", card);
+    auto_login_check_->setObjectName("AutoLoginCheck");
+    auto_login_check_->setChecked(settings.value("login/auto_login", true).toBool());
+    remember_password_check_ = new QCheckBox("记住密码", card);
+    remember_password_check_->setObjectName("RememberPasswordCheck");
+    remember_password_check_->setChecked(
+        settings.value("login/remember_password", false).toBool());
+    if (!chatbox::client::passwordStorageSupported()) {
+        remember_password_check_->setEnabled(false);
+        remember_password_check_->setToolTip("当前平台不支持安全保存密码");
+    }
+    login_options->addWidget(auto_login_check_);
+    login_options->addWidget(remember_password_check_);
+    login_options->addStretch(1);
+    card_layout->addLayout(login_options);
+
+    if (remember_password_check_->isChecked()) {
+        QString saved_username;
+        QString saved_password;
+        if (chatbox::client::loadSavedCredentials(&saved_username, &saved_password)) {
+            if (username_edit_->text().isEmpty()) {
+                username_edit_->setText(saved_username);
+            }
+            password_edit_->setText(saved_password);
+        }
+    }
+
     advanced_panel_ = new QWidget(card);
     advanced_panel_->setObjectName("AdvancedOptionsPanel");
     auto* advanced_form = new QFormLayout(advanced_panel_);
@@ -150,6 +180,24 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
             &LoginPage::viewLocalHistoryRequested);
     connect(password_edit_, &QLineEdit::returnPressed, this, &LoginPage::submitPrimary);
     connect(nickname_edit_, &QLineEdit::returnPressed, this, &LoginPage::submitPrimary);
+    connect(auto_login_check_, &QCheckBox::toggled, this, [](bool checked) {
+        QSettings settings;
+        settings.setValue("login/auto_login", checked);
+        if (!checked) {
+            settings.remove("session/token");
+        }
+    });
+    connect(remember_password_check_, &QCheckBox::toggled, this, [this](bool checked) {
+        QSettings settings;
+        settings.setValue("login/remember_password", checked);
+        if (!checked) {
+            chatbox::client::clearSavedCredentials();
+        } else if (!username_edit_->text().trimmed().isEmpty() &&
+                   !password_edit_->text().isEmpty()) {
+            chatbox::client::saveSavedCredentials(
+                username_edit_->text().trimmed(), password_edit_->text());
+        }
+    });
     connect(advanced_toggle_, &QToolButton::toggled, this, [this](bool expanded) {
         advanced_panel_->setVisible(expanded);
         advanced_toggle_->setToolTip(expanded ? "收起更多选项" : "更多选项");
@@ -242,6 +290,11 @@ void LoginPage::submitLogin() {
         setStatus("密码至少 8 位", true);
         return;
     }
+    if (remember_password_check_->isChecked()) {
+        chatbox::client::saveSavedCredentials(username, password);
+    } else {
+        chatbox::client::clearSavedCredentials();
+    }
     setStatus("正在连接并登录...");
     emit loginRequested(host, static_cast<quint16>(port_spin_->value()), username, password,
                         tls_check_->isChecked());
@@ -263,6 +316,11 @@ void LoginPage::submitRegister() {
     if (nickname.toUcs4().size() > 32) {
         setStatus("昵称不能超过 32 个字符", true);
         return;
+    }
+    if (remember_password_check_->isChecked()) {
+        chatbox::client::saveSavedCredentials(username, password);
+    } else {
+        chatbox::client::clearSavedCredentials();
     }
     setStatus("正在注册...");
     emit registerRequested(host, static_cast<quint16>(port_spin_->value()), username, password,
