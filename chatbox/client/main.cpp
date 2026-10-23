@@ -9,6 +9,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFont>
+#include <QGuiApplication>
 #include <QIcon>
 #include <QLockFile>
 #include <QMessageBox>
@@ -20,12 +21,17 @@
 #include "ui/main_window.h"
 
 int main(int argc, char** argv) {
+    // Windows commonly uses 125% or 150%. Qt's default integer rounding can
+    // turn 150% into 200%, making the fixed three-pane layout larger than the
+    // usable screen; preserve the fractional factor instead.
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
+        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
     QApplication application(argc, argv);
     QCoreApplication::setOrganizationName("ChatBox");
     QCoreApplication::setApplicationName("ChatBox");
-    QCoreApplication::setApplicationVersion("0.2.0");
+    QCoreApplication::setApplicationVersion("0.2.1");
     new chatbox::client::FocusRingFilter(&application);
 
     // One instance only: two clients would race on the same settings store and

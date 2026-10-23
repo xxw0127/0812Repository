@@ -2559,6 +2559,14 @@ void TestClientCore::startupHonoursMinimizedAndSingleInstance() {
              "a second instance must not run concurrently");
     QVERIFY2(source.contains(QStringLiteral("setStaleLockTime")),
              "a crashed instance must not block startup forever");
+    QVERIFY2(source.contains(QStringLiteral("setHighDpiScaleFactorRoundingPolicy")),
+             "fractional Windows scaling (125%/150%) must not round up to 200%");
+    QVERIFY2(source.contains(QStringLiteral("PassThrough")),
+             "the high-DPI policy must preserve the fractional scale factor");
+    const QString window = readClientSource(QStringLiteral("ui/main_window.cpp"));
+    QVERIFY2(!window.isEmpty(), "ui/main_window.cpp must be readable");
+    QVERIFY2(window.contains(QStringLiteral("availableGeometry")),
+             "the initial window size must be capped to the usable screen");
 }
 
 // Acceptance testing needs two clients for two accounts. A separate profile
@@ -2996,7 +3004,7 @@ void TestClientCore::layoutWeightsFollowAudit() {
 void TestClientCore::adaptiveLayoutUsesSplitter() {
     const QString source = readMainWindowSource();
     QVERIFY2(!source.isEmpty(), "ui/main_window.cpp must be readable");
-    QVERIFY(source.contains(QStringLiteral("setMinimumSize(880, 560)")));
+    QVERIFY(source.contains(QStringLiteral("setMinimumSize(qMin(760, available.width())")));
     QVERIFY(source.contains(QStringLiteral("QSplitter(Qt::Horizontal")));
     QVERIFY(source.contains(QStringLiteral("setChildrenCollapsible(false)")));
     QVERIFY(source.contains(QStringLiteral("setHandleWidth(0)")));

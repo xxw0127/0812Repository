@@ -19,6 +19,7 @@
 #include <QCursor>
 #include <QDebug>
 #include <QFont>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QImage>
@@ -38,6 +39,7 @@
 #include <QSplitter>
 #include <QPainter>
 #include <QPixmap>
+#include <QScreen>
 #include <QStackedWidget>
 #include <QStatusBar>
 #include <QStyle>

@@ -2,8 +2,18 @@
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setWindowTitle("ChatBox");
-    resize(1120, 720);
-    setMinimumSize(880, 560);
+    // Keep the initial window inside the usable logical screen, leaving room
+    // for the native frame. At 150% DPI a 1366x768 display only exposes about
+    // 910x512 logical pixels; a 560px minimum height would put the composer
+    // below the screen. 90% also gives 1920x1080 @ 150% some breathing room.
+    const QRect available =
+        QGuiApplication::primaryScreen() != nullptr
+            ? QGuiApplication::primaryScreen()->availableGeometry()
+            : QRect(0, 0, 1120, 720);
+    resize(qMin(1120, (available.width() * 9) / 10),
+           qMin(720, (available.height() * 9) / 10));
+    setMinimumSize(qMin(760, available.width()),
+                   qMin(460, available.height()));
     {
         QSettings settings;
         member_panel_visible_ =
