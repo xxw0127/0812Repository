@@ -1,10 +1,10 @@
-; Inno Setup 6 template. Install Inno Setup, then run:
+﻿; Inno Setup 6 template. Install Inno Setup, then run:
 ;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\chatbox.iss
 ; This machine does not currently have ISCC installed, so package_client.ps1
 ; produces a portable ZIP instead.
 
 #define MyAppName "ChatBox"
-#define MyAppVersion "0.2.1"
+#define MyAppVersion "0.2.2"
 #define MyAppExeName "chatbox.exe"
 
 [Setup]
@@ -28,7 +28,7 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Tasks]
-Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加图标："
+Name: "desktopicon"; Description: "鍒涘缓妗岄潰蹇嵎鏂瑰紡"; GroupDescription: "闄勫姞鍥炬爣锛?
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "启动 {#MyAppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "鍚姩 {#MyAppName}"; Flags: nowait postinstall skipifsilent

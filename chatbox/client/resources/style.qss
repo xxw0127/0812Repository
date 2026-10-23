@@ -106,7 +106,8 @@ QLineEdit, QSpinBox {
     background: #F1F1F1;
     border: 1px solid transparent;
     border-radius: 18px;
-    padding: 8px 14px;
+    min-height: 36px;
+    padding: 0 14px;
     selection-background-color: #2C74CC;
     selection-color: #FFFFFF;
 }

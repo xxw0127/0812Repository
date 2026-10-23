@@ -197,6 +197,7 @@ private slots:
     void mainWindowOmitsJoinRoomStatusNoise();
     void friendListAvoidsDuplicateGroupLabels();
     void themeTokensMatchStyleSheet();
+    void lineEditsAvoidVerticalClipping();
     void messageActionBarHasSingleSoftShadow();
     void messageActionBarIsKeyboardReachable();
     void brandAppIconExposesSizes();
@@ -2199,6 +2200,16 @@ void TestClientCore::messageActionBarIsKeyboardReachable() {
     const QString qss = readClientSource(QStringLiteral("resources/style.qss"));
     QVERIFY(qss.contains(QStringLiteral(
         "QFrame#MessageActionBar QPushButton[keyboardFocus=\"true\"]:focus")));
+}
+
+void TestClientCore::lineEditsAvoidVerticalClipping() {
+    for (const QString& file : {QStringLiteral("resources/style.qss"),
+                                QStringLiteral("resources/style-dark.qss")}) {
+        const QString qss = readClientSource(file);
+        QVERIFY2(!qss.isEmpty(), qPrintable(file));
+        QVERIFY2(qss.contains(QStringLiteral("min-height: 36px")), qPrintable(file));
+        QVERIFY2(qss.contains(QStringLiteral("padding: 0 14px")), qPrintable(file));
+    }
 }
 
 void TestClientCore::messageActionBarHasSingleSoftShadow() {
