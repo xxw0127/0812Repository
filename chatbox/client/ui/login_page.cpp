@@ -192,6 +192,8 @@ LoginPage::LoginPage(QWidget* parent) : QWidget(parent) {
         settings.setValue("login/remember_password", checked);
         if (!checked) {
             chatbox::client::clearSavedCredentials();
+            chatbox::client::forgetAccountCredentials(
+                username_edit_->text().trimmed());
         } else if (!username_edit_->text().trimmed().isEmpty() &&
                    !password_edit_->text().isEmpty()) {
             chatbox::client::saveSavedCredentials(
@@ -318,6 +320,7 @@ void LoginPage::submitLogin() {
         chatbox::client::saveSavedCredentials(username, password);
     } else {
         chatbox::client::clearSavedCredentials();
+        chatbox::client::forgetAccountCredentials(username);
     }
     setStatus("正在连接并登录...");
     emit loginRequested(host, static_cast<quint16>(port_spin_->value()), username, password,
@@ -345,6 +348,7 @@ void LoginPage::submitRegister() {
         chatbox::client::saveSavedCredentials(username, password);
     } else {
         chatbox::client::clearSavedCredentials();
+        chatbox::client::forgetAccountCredentials(username);
     }
     setStatus("正在注册...");
     emit registerRequested(host, static_cast<quint16>(port_spin_->value()), username, password,

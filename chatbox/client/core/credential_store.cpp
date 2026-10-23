@@ -181,6 +181,16 @@ QStringList savedAccounts() {
     return names;
 }
 
+void forgetAccountCredentials(const QString& username) {
+    const QString trimmed = username.trimmed();
+    if (trimmed.isEmpty()) {
+        return;
+    }
+    QSettings settings;
+    settings.remove(QStringLiteral("accounts/%1/secret").arg(trimmed));
+    settings.sync();
+}
+
 void forgetAccount(const QString& username) {
     QSettings settings;
     settings.remove(QStringLiteral("accounts/%1").arg(username.trimmed()));

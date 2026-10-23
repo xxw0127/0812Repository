@@ -40,6 +40,7 @@
 #include "core/app_settings.h"
 #include "core/autostart.h"
 #include "core/client_policy.h"
+#include "core/account_store.h"
 #include "core/credential_store.h"
 #include "core/focus_ring.h"
 #include "core/avatar_cache.h"
@@ -256,6 +257,7 @@ private slots:
     void loginPageClearsFieldFocusOnBlankClick();
     void loginPageReloadsRememberedPasswordAfterLogout();
     void credentialStoreEncryptsSavedPassword();
+    void credentialStoreForgetsAccountSecret();
     void mainWindowUsesIncrementalAppendForIncomingMessages();
     void settingsDialogDefaultsToPublicServer();
     void offlineModeIsReadOnlyAndLocal();
@@ -3264,6 +3266,37 @@ void TestClientCore::credentialStoreEncryptsSavedPassword() {
 
     chatbox::client::clearSavedCredentials();
     QVERIFY(!chatbox::client::loadSavedCredentials(&username, &password));
+}
+
+void TestClientCore::credentialStoreForgetsAccountSecret() {
+    if (!chatbox::client::passwordStorageSupported()) {
+        QSKIP("secure password storage is only available on Windows");
+    }
+    const QString username =
+        QStringLiteral("qa_forget_%1").arg(QCoreApplication::applicationPid());
+    chatbox::client::AccountRecord record;
+    record.username = username;
+    record.nickname = QStringLiteral("QA Forget");
+    record.user_id = 999999;
+    chatbox::client::upsertAccount(record);
+    QVERIFY(chatbox::client::saveAccountCredentials(username,
+                                                     QStringLiteral("Secret123")));
+
+    QString password;
+    QVERIFY(chatbox::client::loadAccountCredentials(username, &password));
+    chatbox::client::forgetAccountCredentials(username);
+    QVERIFY(!chatbox::client::loadAccountCredentials(username, &password));
+
+    // Forgetting the password must not erase the switcher's display record.
+    bool record_remains = false;
+    for (const chatbox::client::AccountRecord& candidate :
+         chatbox::client::loadAccounts()) {
+        if (candidate.username == username) {
+            record_remains = true;
+        }
+    }
+    QVERIFY(record_remains);
+    chatbox::client::forgetAccountRecord(username);
 }
 
 void TestClientCore::mainWindowUsesIncrementalAppendForIncomingMessages() {
